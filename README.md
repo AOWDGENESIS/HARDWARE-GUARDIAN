@@ -21,27 +21,40 @@ keine Ergebnisse behauptet, die nicht tatsächlich ausgeführt wurden.
 
 ## Reihenfolge
 
+**Die Dateien liegen im Repository, nicht auf dem PC** — zuerst holen (das Repo ist
+privat, ein Raw-Link funktioniert daher nicht ohne Token):
+
 ```powershell
-# 1. Ist-Zustand belegen (findet die Blocker, ohne etwas zu veraendern)
-.\tests\Invoke-ContractTests.ps1 -ScriptPath "C:\Users\aowdg\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1"
-
-# 2. Aenderung vorher ansehen
-.\tools\Update-PsFunctionBlock.ps1 `
-    -TargetFile  "C:\Users\aowdg\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1" `
-    -NewBlockFile ".\patches\Get-DiscoveryResult.v1.2.ps1" `
-    -WhatIf
-
-# 3. Aenderung anwenden (legt automatisch ein Backup an)
-.\tools\Update-PsFunctionBlock.ps1 `
-    -TargetFile  "C:\Users\aowdg\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1" `
-    -NewBlockFile ".\patches\Get-DiscoveryResult.v1.2.ps1"
-
-# 4. Gegenprüfen
-.\tests\Invoke-ContractTests.ps1 -ScriptPath "C:\Users\aowdg\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1"
+# Option A: im Browser  Code -> Download ZIP  (Branch: arena/01a09c80-entwicklungen)
+#           entpacken nach  C:\Users\aowdg\Desktop\KI\Entwicklungen
+# Option B: mit git
+git clone -b arena/01a09c80-entwicklungen `
+  https://github.com/AOWDGENESIS/Entwicklungen.git `
+  "$env:USERPROFILE\Desktop\KI\Entwicklungen"
 ```
 
-Voraussetzung: **PowerShell 7.2 oder neuer.** Windows PowerShell 5.1 wird
-bewusst nicht unterstützt (Befund F-16 im Prüfbericht).
+Dann in PowerShell 7 (7.2 oder neuer):
+
+```powershell
+$D = "$env:USERPROFILE\Desktop\KI\Entwicklungen"
+Get-ChildItem $D -Recurse -File | Unblock-File          # heruntergeladene Skripte freigeben
+Set-ExecutionPolicy -Scope Process Bypass -Force        # nur fuer diese Sitzung
+
+# 1. Ist-Zustand belegen (findet die Blocker, ohne etwas zu veraendern)
+& "$D\tests\Invoke-ContractTests.ps1" -ScriptPath "$env:USERPROFILE\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1"
+
+# 2. Fakten sammeln, wenn kein Dateitransfer moeglich ist (kurze Ausgabe zum Kopieren)
+& "$D\tools\Get-LccQuickFacts.ps1"
+
+# 3. Vollstaendiger Snapshot (JSON + Markdown + ZIP)
+& "$D\tools\Collect-LocalCloudCodeSnapshot.ps1" -WhatIf
+& "$D\tools\Collect-LocalCloudCodeSnapshot.ps1"
+
+# 4. Aenderung vorher ansehen, dann anwenden (Backup + Auto-Rollback)
+& "$D\tools\Update-PsFunctionBlock.ps1" `
+    -TargetFile  "$env:USERPROFILE\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1" `
+    -NewBlockFile "$D\patches\Get-DiscoveryResult.v1.2.ps1" -WhatIf
+```
 
 ## Warum kein Copy-Paste mehr
 

@@ -59,7 +59,56 @@ Das Token steht jetzt im Chatverlauf und im Sitzungskopf. Behandle es nach diese
 
 ---
 
-## 3. Datenübergabe — der funktionierende Weg
+## 3. Schritt 0: Dateien auf den PC holen (das hatte gefehlt)
+
+Die Werkzeuge liegen im Repository, **nicht** auf deinem PC. `.\tools\...` kann deshalb
+nicht funktionieren, solange das Repo nicht lokal liegt. Das Repository ist **privat**,
+deshalb funktioniert ein direkter `raw.githubusercontent.com`-Link **nicht** ohne Token.
+
+**Weg A — ZIP herunterladen (kein git, kein Token nötig; im Browser angemeldet sein):**
+
+1. Im Browser öffnen:
+   `https://github.com/AOWDGENESIS/Entwicklungen/tree/arena/01a09c80-entwicklungen`
+2. Rechts oben **Code ▾ → Download ZIP**
+3. ZIP entpacken nach: `C:\Users\aowdg\Desktop\KI\`
+   (der entpackte Ordner heißt `Entwicklungen-arena-01a09c80-entwicklungen` — umbenennen in `Entwicklungen`)
+4. In PowerShell 7:
+
+```powershell
+$D = "$env:USERPROFILE\Desktop\KI\Entwicklungen"
+# Windows blockiert heruntergeladene Skripte - einmalig freigeben
+Get-ChildItem $D -Recurse -File | Unblock-File
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+# Syntaxpruefung VOR dem ersten Lauf
+Get-ChildItem "$D\tools","$D\tests" -Recurse -File | ForEach-Object {
+    $e = $null; $t = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$t, [ref]$e) | Out-Null
+    "{0,-34} {1}" -f $_.Name, $(if ($e.Count) { "SYNTAX FAIL: $($e.Count)" } else { "SYNTAX OK" })
+}
+```
+
+**Weg B — git clone (falls git installiert und angemeldet ist):**
+
+```powershell
+git clone -b arena/01a09c80-entwicklungen `
+  https://github.com/AOWDGENESIS/Entwicklungen.git `
+  "$env:USERPROFILE\Desktop\KI\Entwicklungen"
+```
+
+**Danach starten (aus dem entpackten Ordner heraus):**
+
+```powershell
+cd "$env:USERPROFILE\Desktop\KI\Entwicklungen"
+.\tools\Collect-LocalCloudCodeSnapshot.ps1 -WhatIf      # Vorschau
+.\tools\Collect-LocalCloudCodeSnapshot.ps1              # echter Lauf (nur lesend)
+```
+
+Wichtig: `-Root` zeigt standardmäßig auf `C:\Users\aowdg\Desktop\KI\LocalCloudCode`.
+Wenn deine Installation woanders liegt, mit `-Root "…"` übergeben.
+
+---
+
+## 4. Datenübergabe — die vollständige Variante
 
 **Empfohlen:** `tools/Collect-LocalCloudCodeSnapshot.ps1` lokal ausführen (reines Lesen, READONLY-kompatibel) und die erzeugte ZIP anhängen.
 
@@ -89,7 +138,31 @@ Das Skript sammelt in einem Durchlauf genau das, was hier fehlt:
 
 **Warum das besser ist als die 18 Einzeldateien:** Die alte Sammlung enthielt *alle* Umgebungsvariablen im Klartext, die komplette Alias- und Befehlsliste und die Registry-Exporte. Das ist mehr Angriffsfläche als Nutzen. Der Snapshot liefert Werte nur auf ausdrücklichen Wunsch (`-IncludeEnvironmentValues`) und maskiert alles, was wie ein Schlüssel aussieht.
 
-**Fallback ohne Dateitransfer** (falls Anhängen wieder nicht klappt): die Ausgabe dieser vier Befehle direkt in den Chat kopieren — sie ist klein:
+### Fallback ohne jeden Dateitransfer: die Kurzdiagnose
+
+Wenn Download oder Anhängen nicht klappt, gibt es zwei Wege, die **sofort** funktionieren:
+
+**(a) Als Datei im Repo** (nach Weg A oben, dann einfach):
+```powershell
+& "$env:USERPROFILE\Desktop\KI\Entwicklungen\tools\Get-LccQuickFacts.ps1"
+```
+
+**(b) Ohne jede Datei — Block direkt einfügen**, aber vorher die Zwischenablage prüfen.
+Genau dieser Kopiervorgang hat schon zweimal deinen Code beschädigt (typografische
+Anführungszeichen). Der Check kostet eine Sekunde und rettet den Lauf:
+
+```powershell
+# 1. Block in den Chat kopieren (Strg+C), dann DAS ausfuehren:
+$t = Get-Clipboard -Raw; $e = $null
+[System.Management.Automation.Language.Parser]::ParseInput($t, [ref]$null, [ref]$e) | Out-Null
+if ($e.Count) { "CLIPBOARD SYNTAX FAIL"; $e | Select-Object -First 3 | ForEach-Object { "Zeile $($_.Extent.StartLineNumber): $($_.Message)" } }
+else { "CLIPBOARD SYNTAX OK - Block kann eingefuegt werden" }
+```
+Erst bei `CLIPBOARD SYNTAX OK` den Block in die Konsole einfügen (nicht noch einmal kopieren)
+und Enter drücken.
+
+**Die älteren Einzelbefehle** (falls du lieber stückweise arbeitest): die Ausgabe
+dieser vier Blöcke direkt in den Chat kopieren — sie ist klein:
 
 ```powershell
 $R = "C:\Users\aowdg\Desktop\KI\LocalCloudCode"
@@ -115,7 +188,7 @@ Get-ChildItem "$R\prompts","$R\runtime_policy" -File -ErrorAction SilentlyContin
 
 ---
 
-## 4. Was danach passiert
+## 5. Was danach passiert
 
 Sobald der Snapshot hier ist, ist die Reihenfolge:
 1. Befunde gegen den echten Stand abgleichen (nicht mehr gegen den Chat-Auszug) und den Prüfbericht auf „bestätigt / nicht bestätigt / nicht vorhanden" umstellen.
