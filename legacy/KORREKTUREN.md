@@ -126,7 +126,8 @@ siehe Abschnitte 4 und 5.
 | tree-sitter-Vorfilter (`tools/psparse/pscheck.py`) | 17 von 17 Dateien ohne Problemknoten, Rückgabecode 0 |
 | SHA256-Pins (`reference/manifest.json`) | aktualisiert nach der Änderung an `LOAD_INSTRUCTION.txt` |
 | Parameter-Gate (`tools/psparse/paramgate.py`) | unverändert; der einzige Fund ist der bereits dokumentierte F-03 im Prüf-Auszug |
-| **Echter PowerShell-Parser** | **PASS** — CI-Lauf 34879488698 (Commit 107e317): der Schritt „PowerShell - Syntax mit dem echten Parser" ist grün, alle 19 Dateien ohne Fehler |
+| **Echter PowerShell-Parser** | **PASS** — Lauf 34879488698 (Commit 107e317): grün, alle 19 Dateien ohne Fehler. Nach den Entscheidungen zu W-02/W-05/W-06 erneut bestätigt: Lauf 34880574206 (Commit a2737f2), grün, alle 17 Dateien, **keine** Fehlerannotation |
+| Dateizahl unter `legacy/KI_Engineering_Memory/tools/` | 5 statt 7 nach der W-02-Löschung |
 | Zeichenkodierung | alle vier Dateien ASCII-only, UTF-8 ohne BOM, Zeilenenden LF |
 
 **Rückrollen** einer einzelnen Korrektur:
