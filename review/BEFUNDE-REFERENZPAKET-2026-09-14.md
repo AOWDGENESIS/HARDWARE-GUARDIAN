@@ -401,3 +401,35 @@ Update-KI-Dauerreferenz.ps1:29 und :31            Variable reference is not vali
 
 `review/` wird nicht mehr gemeldet (W-13 wirksam). Die Hash-Pins und die Kodierungsprüfung
 sind grün — die Integritätskette funktioniert also nachweislich, nicht nur theoretisch.
+
+---
+
+## 8. Bestätigung: Korrekturen vom echten Parser abgenommen
+
+Nach den Korrekturen (Commit , CI-Lauf ):
+
+| Schritt | Ergebnis |
+|---|---|
+| Struktur - Pflichtdateien | **success** |
+| Dokumentintegritaet - SHA256-Pins | **success** |
+| Dokumente - Kodierung und Copy-Paste-Schaeden | **success** |
+| PowerShell - Syntax mit dem echten Parser | **success** |
+| Zusammenfassung | **success** |
+
+**Grün — und zwar nicht theoretisch.** Der echtе PowerShell-Parser hat alle 19 PowerShell-Dateien
+im Repository geprüft, einschließlich der vier korrigierten. Damit ist bestätigt:
+
+- W-01 ist behoben (beide )
+- W-12 ist behoben (beide , Zeilen 29 und 31)
+- die Korrekturen haben **keine** neuen Fehler erzeugt
+
+Vorher/Nachher-Hashes, Begründung und Rückrollweg: .
+
+### Offen
+
+| Befund | Entscheidung nötig |
+|---|---|
+| W-05 — Kanonik / |  legt nicht fest, welche Fassung gilt |
+| W-02 — zwei falsch benannte Legacy-Kopien | löschen oder als Doppelname kennzeichnen |
+| W-06 —  fest verdrahtet | Robustheit; Datei ist jetzt lauffähig, also kein Blocker mehr |
+| W-07 bis W-11 | kleinere Punkte aus Abschnitt 3 |

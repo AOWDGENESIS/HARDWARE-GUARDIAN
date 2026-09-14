@@ -123,7 +123,7 @@ Ausgabe enthält weiterhin eine Zeile je Eintrag, nur mit korrekter Interpolatio
 |---|---|
 | tree-sitter-Vorfilter (`tools/psparse/pscheck.py`) | 19 von 19 Dateien ohne Problemknoten, Rückgabecode 0 |
 | Parameter-Gate (`tools/psparse/paramgate.py`) | unverändert; der einzige Fund ist der bereits dokumentierte F-03 im Prüf-Auszug |
-| **Echter PowerShell-Parser** | **maßgeblich** — Ergebnis siehe CI-Lauf im Pull Request |
+| **Echter PowerShell-Parser** | **PASS** — CI-Lauf 34879488698 (Commit 107e317): der Schritt „PowerShell - Syntax mit dem echten Parser" ist grün, alle 19 Dateien ohne Fehler |
 | Zeichenkodierung | alle vier Dateien ASCII-only, UTF-8 ohne BOM, Zeilenenden LF |
 
 **Rückrollen** einer einzelnen Korrektur:
