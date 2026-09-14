@@ -1,6 +1,6 @@
 {
   "schema": "1.0",
-  "updated_utc": "2026-09-14T18:03:24.0000000+00:00",
+  "updated_utc": "2026-09-14T18:23:35.0000000+00:00",
   "documents": [
     {
       "FileName": "KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md",
@@ -10,8 +10,8 @@
       "Chars": 43289,
       "Lines": 1183,
       "HasBom": false,
-      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
-      "Note": "Kanonische Fassung: enthaelt Codeblock-Marker und den Abschnitt AUTO-MACHINE-INVENTORY."
+      "RegisteredUtc": "2026-09-14T18:23:35.0000000+00:00",
+      "Note": "KANONISCHE Fassung (festgelegt 14.09.2026): enthaelt Codeblock-Marker und den Abschnitt AUTO-MACHINE-INVENTORY."
     },
     {
       "FileName": "KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt",
@@ -21,19 +21,19 @@
       "Chars": 42178,
       "Lines": 1174,
       "HasBom": false,
-      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
-      "Note": "Reduzierte Variante derselben Referenz (keine Codeblock-Marker, kein AUTO-MACHINE-INVENTORY)."
+      "RegisteredUtc": "2026-09-14T18:23:35.0000000+00:00",
+      "Note": "Reduzierte Variante, NICHT kanonisch. Keine Codeblock-Marker, kein AUTO-MACHINE-INVENTORY-Abschnitt."
     },
     {
       "FileName": "LOAD_INSTRUCTION.txt",
       "RelativePath": "reference/LOAD_INSTRUCTION.txt",
-      "SHA256": "EA6B25AB2B265EC5D80094A15DB1B303C6E5E7376B5CFD11A1FF035EF6769FD2",
-      "Bytes": 1704,
-      "Chars": 1704,
-      "Lines": 32,
+      "SHA256": "7F013059E6D7C44D9006AA5802E7EBB2FE38C19A77B698C38DADE0B71777288B",
+      "Bytes": 2118,
+      "Chars": 2118,
+      "Lines": 40,
       "HasBom": false,
-      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
-      "Note": "Ladeanweisung. Legt noch NICHT fest, welche Dokumentfassung kanonisch ist."
+      "RegisteredUtc": "2026-09-14T18:23:35.0000000+00:00",
+      "Note": "Ladeanweisung. Legt seit 14.09.2026 ausdruecklich fest, dass die .md-Fassung kanonisch ist."
     },
     {
       "FileName": "README.md",
@@ -43,7 +43,7 @@
       "Chars": 2831,
       "Lines": 67,
       "HasBom": false,
-      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
+      "RegisteredUtc": "2026-09-14T18:23:35.0000000+00:00",
       "Note": "Aufnahmeregeln fuer Dauerreferenzen (Prozess, nicht Inhalt)."
     }
   ]

@@ -3,6 +3,14 @@ DOCUMENT_TYPE: Engineering Reference
 
 KI ENGINEERING MEMORY - LOAD INSTRUCTION
 
+Canonical reference document:
+reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md
+This is the authoritative version. Load it whenever a programming reference is required.
+
+Reduced variant - NOT canonical, do not load it instead of the canonical file:
+reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt
+It contains no code-block markers and no AUTO-MACHINE-INVENTORY section.
+
 Purpose:
 This file defines persistent engineering behavior for any AI, agent, coding assistant, or software project.
 It is project-independent and must never be interpreted as instructions belonging to one application.

@@ -87,7 +87,9 @@ Im Ordner `legacy/KI_Engineering_Memory/tools/` liegen **zwei Dateipaare mit ide
 
 **Konsequenz:** Wer im Ordner `KI_Engineering_Memory` das Skript mit dem Namen „Dauerreferenz" aufruft, bekommt Maschinenprofil-Verhalten. Zwei von vier Dateien sind irreführend benannt.
 
-**Lösung:** Im Legacy-Ordner je Datei genau eine Fassung behalten — die echte Dauerreferenz-Logik liegt korrekt in `legacy/KI_Programmierreferenz_GitHub/tools/Update-KI-Dauerreferenz.ps1` (10.489 B). Die beiden falsch benannten Kopien entweder löschen oder in der README des Legacy-Ordners ausdrücklich als „historischer Doppelname" kennzeichnen.
+**Lösung:** Im Legacy-Ordner je Datei genau eine Fassung behalten — die echte Dauerreferenz-Logik liegt korrekt in `legacy/KI_Programmierreferenz_GitHub/tools/Update-KI-Dauerreferenz.ps1` (10.489 B).
+
+**Entschieden und umgesetzt (14.09.2026): löschen.** Die beiden falsch benannten Kopien sind entfernt, die korrekt benannten Fassungen bleiben. Reihenfolge und Rückholmöglichkeit: `legacy/KORREKTUREN.md`, Abschnitt 5.
 
 ---
 
@@ -171,7 +173,7 @@ Canonical document: reference/KI_Dauerreferenz_Programmierung_und_Softwarequalit
 Reduced variant:   reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt
                    (keine Codeblock-Marker, kein AUTO-MACHINE-INVENTORY-Abschnitt)
 ```
-Und alle Hashes in `reference/hashes.json` eintragen (Vorlage: `review/reference-hashes-2026-09-14.json`).
+**Entschieden und umgesetzt (14.09.2026): die `.md`-Fassung ist kanonisch.** Die Festlegung steht jetzt ausdrücklich in `LOAD_INSTRUCTION.txt`; der Pin in `reference/manifest.json` wurde im selben Schritt aktualisiert. Belege: `legacy/KORREKTUREN.md`, Abschnitt 6.
 
 ---
 
@@ -179,7 +181,7 @@ Und alle Hashes in `reference/hashes.json` eintragen (Vorlage: `review/reference
 
 | ID | Befund | Lösung |
 |---|---|---|
-| **W-06** | `Install-KI-Engineering-Memory-AutoUpdate.ps1`, Zeile 8: `-Execute 'pwsh.exe'` hart verdrahtet. Die geplante Aufgabe schlägt fehl, wenn `pwsh.exe` im Task-Kontext nicht im `PATH` liegt. | Auflösen wie in der neueren Fassung: `$pwsh=(Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source` mit Fallback auf `powershell.exe` |
+| **W-06** | `Install-KI-Engineering-Memory-AutoUpdate.ps1`, Zeile 8: `-Execute 'pwsh.exe'` hart verdrahtet. Die geplante Aufgabe schlägt fehl, wenn `pwsh.exe` im Task-Kontext nicht im `PATH` liegt. | **Entschieden und umgesetzt (14.09.2026):** Auflösung über `Get-Command` mit Rückfall auf `powershell.exe`, Muster aus der Nachbardatei. Belegt in `legacy/KORREKTUREN.md`, Abschnitt 4 |
 | **W-07** | `Publish-ToGitHub.ps1`, Zeile 32: `git config user.email ((gh api user --jq .email) \| Out-String).Trim()`. Bei privater GitHub-E-Mail liefert das leer; mit `$ErrorActionPreference = 'Stop'` bricht das Skript ab, bevor committet wird. | Auf leeren Wert prüfen und einen Ersatz setzen: `if (-not $email) { $email = "$owner@users.noreply.github.com" }` |
 | **W-08** | `Publish-ToGitHub.ps1` macht `git add .` **vor** jeder Prüfung auf sensible Inhalte. | Vor dem `git add` prüfen: `git status --short` anzeigen und auf `runtime/`, `*.log`, `.env`, `*Maschinenprofil*` in der Ausgabe bestehen bleiben lassen |
 | **W-09** | Die AutoUpdate-Skripte registrieren eine **geplante Aufgabe** (bei Anmeldung + täglich 03:15, `-ExecutionPolicy Bypass`). Das ist ein dauerhafter Mechanismus im Benutzerkontext. | Bewusste Entscheidung dokumentieren; Entfernen ist vorgesehen (`-Remove`), das ist gut gelöst |
@@ -433,16 +435,32 @@ belegt:
 Die Hashes sind gegengeprüft: Repository-Blob, Arbeitskopie und die in
 `legacy/KORREKTUREN.md` dokumentierten Werte stimmen für alle vier Dateien überein.
 
+### Entschieden und umgesetzt (14.09.2026)
+
+| Befund | Entscheidung | Umsetzung |
+|---|---|---|
+| W-02 | **löschen** | beide falsch benannten Kopien entfernt; die korrekt benannten Fassungen bleiben, im Ordner gibt es kein Duplikat mehr |
+| W-05 | **`.md` ist kanonisch** | Festlegung ausdrücklich in `LOAD_INSTRUCTION.txt`; Hash-Pin im selben Schritt aktualisiert |
+| W-06 | **auflösen** | `pwsh.exe` wird über `Get-Command` ermittelt, mit Rückfall auf `powershell.exe` |
+
+Alle drei sind in `legacy/KORREKTUREN.md` mit Vorher-/Nachher-Hash und Rückrollweg belegt.
+
 ### Offen
 
 | Befund | Entscheidung nötig |
 |---|---|
-| W-05 — Kanonik `.md`/`.txt` | `LOAD_INSTRUCTION.txt` legt nicht fest, welche Fassung gilt |
-| W-02 — zwei falsch benannte Legacy-Kopien | löschen oder als Doppelname kennzeichnen |
-| W-06 — `-Execute 'pwsh.exe'` fest verdrahtet | Robustheit; die Datei ist jetzt lauffähig, also kein Blocker mehr |
-| W-07 bis W-11 | kleinere Punkte aus Abschnitt 3 |
+| W-07 bis W-11 | kleinere Punkte aus Abschnitt 3 (`Publish-ToGitHub.ps1`, Sprachzuordnung) |
 
 ### Was ich dabei selbst falsch gemacht habe
+
+- **Ein erfundener Hash.** Beim Schreiben von `legacy/KORREKTUREN.md` hatte ich für
+  `LOAD_INSTRUCTION.txt` nur die ersten 16 Zeichen des neuen Hashes vorliegen — und den
+  Rest trotzdem ausgeschrieben. Das ist genau die Sorte Angabe, die in dieser Sitzung
+  schon einmal Schaden angerichtet hat. Aufgefallen ist es beim Gegenlesen; der Wert ist
+  gegen `reference/manifest.json` und den Dateiinhalt ersetzt und stimmt jetzt:
+  `7F013059E6D7C44D9006AA5802E7EBB2FE38C19A77B698C38DADE0B71777288B`. Merksatz für
+  beide Seiten: **einen Hash trägt man nie aus dem Gedächtnis ein, sondern kopiert ihn
+  aus dem Werkzeug, das ihn berechnet hat.**
 
 Der vorige Versuch, diesen Abschnitt zu schreiben, wurde per unquotiertem Shell-Heredoc
 erzeugt. In Markdown-Texten stehen Befehle in Backticks — die Shell hat sie als
