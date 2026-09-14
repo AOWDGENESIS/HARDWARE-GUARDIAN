@@ -26,7 +26,7 @@ $data=[ordered]@{
 $json=$data|ConvertTo-Json -Depth 8
 [IO.File]::WriteAllText((Join-Path $runtime 'KI_Maschinenprofil.json'),$json,(New-Object Text.UTF8Encoding($false)))
 $md=@("# KI Machine Profile","","Generated UTC: $($data.generated_utc)","Computer: $($data.computer_name)","User: $($data.user_name)","","## OS","$($os.Caption) $($os.Version) build $($os.BuildNumber)","","## PowerShell","$($PSVersionTable.PSEdition) $($PSVersionTable.PSVersion)","","## Hardware","CPU: $($cpu.Name)","Cores: $($cpu.NumberOfCores)","Logical processors: $($cpu.NumberOfLogicalProcessors)","RAM bytes: $([int64]$cs.TotalPhysicalMemory)","","## Tool Versions")
-foreach($k in $apps.Keys){$md += "- $k: $($apps[$k])"}
+foreach($k in $apps.Keys){$md += "- ${k}: $($apps[$k])"}
 $md += "","## Local AI APIs"
-foreach($k in $apis.Keys){$md += "- $k: online=$($apis[$k].online), endpoint=$($apis[$k].endpoint), models=$([string]::Join(', ',@($apis[$k].models)))"}
+foreach($k in $apis.Keys){$md += "- ${k}: online=$($apis[$k].online), endpoint=$($apis[$k].endpoint), models=$([string]::Join(', ',@($apis[$k].models)))"}
 [IO.File]::WriteAllLines((Join-Path $runtime 'KI_Maschinenprofil.md'),$md,(New-Object Text.UTF8Encoding($false)))

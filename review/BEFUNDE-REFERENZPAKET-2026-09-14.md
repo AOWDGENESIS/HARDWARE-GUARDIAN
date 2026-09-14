@@ -223,7 +223,8 @@ Branch `arena/01a09c80-entwicklungen`, Pull Request nach `main` offen.
 | W-04 sechs Dateien fehlen | **behoben** | alle sechs byte-identisch aus der SAFE-ZIP zurückgelegt (`cmp` gegen die ZIP-Dateien: identisch) |
 | W-05 Hash-Pins fehlen | **behoben** | `reference/manifest.json` mit vier Einträgen: SHA256, Bytes, Zeichen, Zeilen, BOM |
 | W-05 Kanonik `.md`/`.txt` | **offen** | braucht deine Entscheidung — der CI prüft derzeit beide Fassungen |
-| W-01 Syntaxfehler | **offen, bewusst** | der erste CI-Lauf zeigt genau diesen Fehler rot an, mit Datei und Zeile |
+| W-01 Syntaxfehler | **behoben** (14.09.2026, Variante A) | Trigger einzeln gebaut; Vorher/Nachher-Hash in `legacy/KORREKTUREN.md` |
+| W-12 ungültige Variablenreferenz | **behoben** (14.09.2026, Variante A) | `"${k}: "` statt `"$k: "`, Zeile 29 und 31; siehe `legacy/KORREKTUREN.md` |
 | W-02 falsch benannte Kopien | **offen** | braucht deine Entscheidung; der Bericht nennt die korrekte Fassung |
 
 ### Erwartetes Ergebnis des ersten CI-Laufs
@@ -243,7 +244,10 @@ parsen kann. Zwei Wege, damit umzugehen — **deine Entscheidung**:
 - **B:** in `.github/workflows/validate.yml` `STRICT_LEGACY: 'true'` auf `'false'` setzen.
   Dann bleiben die Legacy-Fehler als Warnung sichtbar, der Lauf wird grün.
 
-Solange keine der beiden Varianten gewählt ist, ist ein roter Lauf die **ehrliche** Anzeige.
+**Entschieden und umgesetzt:** Variante A. Die vier defekten Dateien sind korrigiert
+(Details, Vorher-/Nachher-Hashes und Rückrollweg in `legacy/KORREKTUREN.md`). Variante B
+wurde nicht gewählt — `STRICT_LEGACY` bleibt auf `'true'`, damit neue Fehler weiterhin
+hart auffallen.
 
 ### Vier Dinge, die beim Umsetzen aufgefallen sind
 

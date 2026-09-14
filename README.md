@@ -73,6 +73,7 @@ und das lokale Tooling geprueft werden.
 | `tools/psparse/` | PowerShell-Parser und Parameter-Gate als Python-Werkzeug (tree-sitter) — prüft Syntax und interne Aufrufe, wenn kein PowerShell verfügbar ist. Findet F-02/F-03 vor der Ausführung. |
 | `tests/Invoke-ContractTests.ps1` | Vertragstests, die **ohne** Start der Runtime laufen: Syntax, Smart-Quotes, Parameter-Gate (findet F-02/F-03 vor der Ausführung), Workspace-Containment, Content-/Discovery-Vertrag, Hash-Determinismus. |
 | `tools/Collect-LocalCloudCodeSnapshot.ps1` | **READ-ONLY** Snapshot des echten Systems: Hashes, Parsergebnisse, Content-Schema, Backend-Status, Marker zu allen Befunden — ein ZIP für die Datenübergabe. |
+| `legacy/KORREKTUREN.md` | **Protokoll der Korrekturen** an den Legacy-Paketen: welche Datei, welche Zeile, Vorher-/Nachher-SHA256, Rückrollweg. |
 | `review/BEFUNDE-REFERENZPAKET-2026-09-14.md` | **Prüfung des hochgeladenen Referenzpakets** (Commit 2501970): 11 Befunde inkl. 2 harter Werkzeugfehler und einer CI, die nicht läuft. |
 | `.github/workflows/reference-package.yml` | **Lauffähiger** GitHub-Actions-Workflow an der Stelle, die GitHub tatsächlich ausführt: Pflichtdateien, SHA256-Pins, Kodierung/Copy-Paste-Schäden, PowerShell-Syntax mit dem **echten** Parser. Schlägt bei Fehlern fehl. |
 | `.gitattributes` | Hält Zeilenenden auf LF, damit die SHA256-Pins auf Windows wie auf Linux identisch sind. |
