@@ -111,12 +111,12 @@ GitHub führt **ausschließlich** Workflows unter `.github/workflows/` im **Repo
 
 `ParseFile` schreibt Parserfehler in den `$Errors`-Parameter. Hier wird er verworfen (`[ref]$null`, Ergebnis in `Out-Null`) und der Exit-Code nicht geprüft. **Dieser Schritt kann nie fehlschlagen** — die Prüfung ist reine Dekoration. Ein grüner Haken, der nichts bedeutet: dieselbe Fehlerklasse wie „PATCH: PASS" aus deinem letzten Patchlauf.
 
-**Lösung — fertig geliefert:** `.github/workflows/validate.yml` in diesem Repository.
-- Gehört nach `<repo-root>/.github/workflows/validate.yml`
+**Lösung — fertig geliefert:** `.github/workflows/reference-package.yml` in diesem Repository.
+- Liegt unter `<repo-root>/.github/workflows/reference-package.yml`
 - Prüft: Pflichtdateien, Hash-Manifest, Dokumentintegrität (BOM, Smart-Quotes in Codebereichen, unbalancierte Codeblöcke), **PowerShell-Syntax mit dem echten Parser** — und **schlägt fehl**, wenn etwas nicht stimmt.
 - `STRICT_LEGACY: 'true'` (Default): Verstöße in `legacy/**` brechen den Lauf ab. Auf `'false'` setzen, wenn die Legacy-Dateien während der Übergangszeit nur gewarnt werden sollen.
 
-**Erwartung:** Der Workflow wird **rot**, solange W-01 nicht behoben ist — genau das ist sein Zweck. Das ist kein Nebeneffekt, den man wegkonfigurieren sollte, sondern der erste ehrliche Prüflauf in diesem Projekt.
+**Erwartung:** Der Workflow wurde **rot**, solange W-01 und W-12 nicht behoben waren — genau das war sein Zweck. Er ist der erste ehrliche Prüflauf in diesem Projekt und steht seit den Korrekturen auf **grün** (Abschnitt 8).
 
 ---
 
@@ -195,16 +195,22 @@ Ehrlichkeit in beide Richtungen — das habe ich geprüft und **verworfen**:
 - **„UTF-8" als doppelte Regel-ID** (Zeilen 225/319): Falschmeldung meiner ID-Regex. „UTF-8" sieht wie `ABC-123` aus, ist aber eine Zeichenkodierung, keine Regel-ID.
 - **`1GB`-Literale, `Select-Object Name,DriverVersion,AdapterRAM`**: Mein tree-sitter-Parser meldet diese als Fehler — **beides ist gültiges PowerShell**. Nachgewiesen mit Minimaltests; der Parser ist entsprechend dokumentiert und vorgefiltert (`tools/psparse/pscheck.py`).
 - **Kommentar `# ASCII-only. Windows PowerShell 5.1 / PowerShell 7.`**: vom Parser als Fehler gemeldet, ebenfalls ein Artefakt. Ein deutschsprachiger Kommentar an derselben Stelle parst fehlerfrei — der Fehler liegt im Parser, nicht im Code.
-- **Zeilenenden**: `.gitattributes` erzwingt `eol=lf` für Textdateien; alle hier berechneten Hashes gelten für diese Normalisierung. Auf deinem Windows-Rechner müssen die Dateien nach einem frischen `git clone`/Checkout dieselben Bytes haben — bitte mit `Get-FileHash` gegen `review/reference-hashes-2026-09-14.json` gegenprüfen.
+- **Zeilenenden**: `.gitattributes` erzwingt `eol=lf` für Textdateien; alle hier berechneten Hashes gelten für diese Normalisierung. Auf deinem Windows-Rechner müssen die Dateien nach einem frischen `git clone`/Checkout dieselben Bytes haben — bitte mit `Get-FileHash` gegen `reference/manifest.json` gegenprüfen.
 
 ---
 
 ## 5. Nächste Schritte, in dieser Reihenfolge
 
+> **Stand 14.09.2026:** Die Punkte 1 bis 3 sind umgesetzt und durch den CI-Lauf
+> bestätigt (Abschnitte 6 bis 8). Punkt 4 ist teilweise umgesetzt: die Hashes sind
+> gepinnt, die Kanonik-Entscheidung steht noch aus. Die Vorlage
+> `review/reference-hashes-2026-09-14.json` ist entfallen — `reference/manifest.json`
+> ist jetzt die einzige Quelle.
+
 1. **W-04 zuerst:** `.gitignore`, `.gitattributes` und die Workflows ins Repository bringen. Ohne `.gitignore` droht beim nächsten `Publish-ToGitHub.ps1`-Lauf das Veröffentlichen lokaler Maschinendaten.
 2. **`.github/workflows/validate.yml`** nach `.github/workflows/validate.yml` kopieren → erster echter CI-Lauf.
 3. **W-01 beheben** (Zeile 9) → der CI-Lauf wird grün.
-4. **W-05:** kanonische Fassung in `LOAD_INSTRUCTION.txt` festlegen + `reference/hashes.json` anlegen. Vorlage: `review/reference-hashes-2026-09-14.json`.
+4. **W-05:** kanonische Fassung in `LOAD_INSTRUCTION.txt` festlegen. Die Hash-Pins liegen in `reference/manifest.json` (erledigt), prüfbar mit `tools/Register-ReferenceDocument.ps1 -Verify`.
 5. **W-02:** die zwei falsch benannten Kopien im Legacy-Ordner bereinigen.
 6. Danach: W-06 bis W-11.
 
@@ -218,7 +224,7 @@ Branch `arena/01a09c80-entwicklungen`, Pull Request nach `main` offen.
 
 | Befund | Status | Beleg |
 |---|---|---|
-| W-03 CI läuft nicht (falscher Ort) | **behoben** | `.github/workflows/validate.yml` liegt jetzt dort, wo GitHub ausführt |
+| W-03 CI läuft nicht (falscher Ort) | **behoben** | `.github/workflows/reference-package.yml` liegt jetzt dort, wo GitHub ausführt |
 | W-03 Parserprüfung wirkungslos | **behoben** | Der Schritt wertet `$Errors` aus, gibt `::error` aus und endet mit Exit 1 |
 | W-04 sechs Dateien fehlen | **behoben** | alle sechs byte-identisch aus der SAFE-ZIP zurückgelegt (`cmp` gegen die ZIP-Dateien: identisch) |
 | W-05 Hash-Pins fehlen | **behoben** | `reference/manifest.json` mit vier Einträgen: SHA256, Bytes, Zeichen, Zeilen, BOM |
@@ -406,7 +412,7 @@ sind grün — die Integritätskette funktioniert also nachweislich, nicht nur t
 
 ## 8. Bestätigung: Korrekturen vom echten Parser abgenommen
 
-Nach den Korrekturen (Commit , CI-Lauf ):
+Der CI-Lauf nach den Korrekturen (Commit `107e317`, Lauf `34879488698`):
 
 | Schritt | Ergebnis |
 |---|---|
@@ -416,20 +422,31 @@ Nach den Korrekturen (Commit , CI-Lauf ):
 | PowerShell - Syntax mit dem echten Parser | **success** |
 | Zusammenfassung | **success** |
 
-**Grün — und zwar nicht theoretisch.** Der echtе PowerShell-Parser hat alle 19 PowerShell-Dateien
-im Repository geprüft, einschließlich der vier korrigierten. Damit ist bestätigt:
+**Grün — und zwar nicht theoretisch.** Der echte PowerShell-Parser hat alle 19
+PowerShell-Dateien im Repository geprüft, einschließlich der vier korrigierten. Damit ist
+belegt:
 
-- W-01 ist behoben (beide )
-- W-12 ist behoben (beide , Zeilen 29 und 31)
+- W-01 ist behoben (beide `Install-*AutoUpdate.ps1`)
+- W-12 ist behoben (beide `Update-KI-*.ps1`, Zeile 29 und 31)
 - die Korrekturen haben **keine** neuen Fehler erzeugt
 
-Vorher/Nachher-Hashes, Begründung und Rückrollweg: .
+Die Hashes sind gegengeprüft: Repository-Blob, Arbeitskopie und die in
+`legacy/KORREKTUREN.md` dokumentierten Werte stimmen für alle vier Dateien überein.
 
 ### Offen
 
 | Befund | Entscheidung nötig |
 |---|---|
-| W-05 — Kanonik / |  legt nicht fest, welche Fassung gilt |
+| W-05 — Kanonik `.md`/`.txt` | `LOAD_INSTRUCTION.txt` legt nicht fest, welche Fassung gilt |
 | W-02 — zwei falsch benannte Legacy-Kopien | löschen oder als Doppelname kennzeichnen |
-| W-06 —  fest verdrahtet | Robustheit; Datei ist jetzt lauffähig, also kein Blocker mehr |
+| W-06 — `-Execute 'pwsh.exe'` fest verdrahtet | Robustheit; die Datei ist jetzt lauffähig, also kein Blocker mehr |
 | W-07 bis W-11 | kleinere Punkte aus Abschnitt 3 |
+
+### Was ich dabei selbst falsch gemacht habe
+
+Der vorige Versuch, diesen Abschnitt zu schreiben, wurde per unquotiertem Shell-Heredoc
+erzeugt. In Markdown-Texten stehen Befehle in Backticks — die Shell hat sie als
+Befehlssubstitution ausgeführt und den Inhalt gelöscht. Der Abschnitt war danach
+stellenweise leer („behoben (beide )"). Aufgefallen ist das nur, weil ich das Ergebnis
+danach gelesen habe. Für Text mit Code-Markierungen gehört kein Shell-Heredoc, sondern
+ein Werkzeug, das Bytes schreibt.
