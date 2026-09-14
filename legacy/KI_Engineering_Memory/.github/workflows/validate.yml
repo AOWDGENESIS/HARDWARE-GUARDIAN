@@ -1,0 +1,17 @@
+name: Validate repository
+on:
+  push:
+  pull_request:
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required files
+        shell: bash
+        run: |
+          test -f README.md
+          test -f reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md
+          test -f reference/LOAD_INSTRUCTION.txt
+          test -f tools/Update-KI-MachineProfile.ps1
+          test -f connectors/Build-KI-Context.ps1

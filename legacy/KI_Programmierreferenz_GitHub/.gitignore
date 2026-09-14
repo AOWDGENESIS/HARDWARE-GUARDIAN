@@ -1,0 +1,29 @@
+# Local machine data. Never publish this.
+runtime/KI_Maschinenprofil.json
+runtime/KI_Maschinenprofil.md
+runtime/logs/
+*.log
+
+# Local editor / OS files
+.vscode/
+.idea/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.python-version
+
+# Build / temporary output
+build/
+dist/
+tmp/
+temp/
+*.tmp
+*.bak
