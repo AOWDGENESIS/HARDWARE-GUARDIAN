@@ -373,3 +373,27 @@ kein Beweis für gültige Syntax. Verbindlich ist ausschließlich der echte Pars
 Rot, **vier** Dateien: 2 × W-01 (Zeile 9) und 2 × W-12 (Zeilen 29 und 31). Sonst nichts.
 Die Prüfungen für Pflichtdateien, SHA256-Pins und Kodierung sind im ersten Lauf **grün**
 gewesen — die Hash-Pins funktionieren also nachweislich.
+
+### Bestätigung — nachgemessen, nicht behauptet
+
+Der Lauf nach diesen Änderungen (Commit `8ed4fec`):
+
+| Schritt | Ergebnis |
+|---|---|
+| Struktur - Pflichtdateien | **success** |
+| Dokumentintegritaet - SHA256-Pins | **success** |
+| Dokumente - Kodierung und Copy-Paste-Schaeden | **success** |
+| PowerShell - Syntax mit dem echten Parser | **failure** (beabsichtigt) |
+| Zusammenfassung | **success** |
+
+Fehlerannotationen — genau die vorhergesagte Menge, nichts darüber hinaus:
+
+```
+Install-KI-Engineering-Memory-AutoUpdate.ps1:9    Missing argument in parameter list   (W-01)
+Install-KI-Dauerreferenz-AutoUpdate.ps1:9         Missing argument in parameter list   (W-01)
+Update-KI-MachineProfile.ps1:29 und :31           Variable reference is not valid      (W-12)
+Update-KI-Dauerreferenz.ps1:29 und :31            Variable reference is not valid      (W-12)
+```
+
+`review/` wird nicht mehr gemeldet (W-13 wirksam). Die Hash-Pins und die Kodierungsprüfung
+sind grün — die Integritätskette funktioniert also nachweislich, nicht nur theoretisch.
