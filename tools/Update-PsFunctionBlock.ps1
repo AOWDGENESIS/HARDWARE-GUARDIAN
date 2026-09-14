@@ -47,6 +47,28 @@
     Erlaubt Ersetzen, wenn der Name oefter als einmal vorkommt (ersetzt dann
     ALLE Vorkommen; die Anzahl wird protokolliert).
 
+.PARAMETER ExpectedSha256
+    Optionaler Baseline-Pin. Stimmt der SHA256 der Zieldatei nicht mit diesem
+    Wert ueberein, wird der Patch verweigert. Verhindert das Patchen eines
+    unbekannten Zwischenstands. Nach jedem erfolgreichen Patch dient der neu
+    ausgegebene Hash als naechster Pin.
+
+.SICHERUNGEN
+    Dieses Werkzeug gibt "PATCH: PASS" nur aus, wenn ALLE Bedingungen erfuellt
+    sind:
+      1. Ziel- und Blockdatei parsen fehlerfrei.
+      2. Die Zwischendatei existiert unmittelbar vor dem Tausch noch.
+      3. Das Backup existiert unmittelbar vor dem Tausch noch.
+      4. Der Text ausserhalb der ersetzten Funktion ist Zeichen fuer Zeichen
+         unveraendert.
+      5. Die Funktion kommt danach genau einmal vor.
+      6. Der SHA256 der Datei hat sich tatsaechlich GEAENDERT.
+    Punkt 6 fehlte einer frueheren Fassung von Patchskripten: dort wurde der
+    Tausch abgebrochen (Zwischendatei vorher geloescht), danach liefen die
+    Pruefungen gegen die unveraenderte Originaldatei und am Ende stand
+    "PATCH: PASS", obwohl nichts geschrieben wurde. Ein PASS, das nicht an die
+    Aenderung des Artefakts gebunden ist, ist wertlos.
+
 .EXAMPLE
     .\tools\Update-PsFunctionBlock.ps1 `
         -TargetFile "C:\Users\aowdg\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1" `
@@ -79,7 +101,10 @@ param(
     [switch]$AppendIfMissing,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Force
+    [switch]$Force,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ExpectedSha256 = ""
 )
 
 Set-StrictMode -Version 3.0
@@ -224,6 +249,21 @@ $TargetHashBefore = (Get-FileHash -LiteralPath $TargetPath -Algorithm SHA256).Ha
 Write-Host "Ziel    : $TargetPath"
 Write-Host "Groesse : $($TargetBytes.Length) Bytes"
 Write-Host "SHA256  : $TargetHashBefore"
+
+if (-not [string]::IsNullOrWhiteSpace($ExpectedSha256)) {
+    $ExpectedNorm = $ExpectedSha256.Trim().ToUpperInvariant()
+
+    if ($TargetHashBefore -ne $ExpectedNorm) {
+        Write-Host ''
+        Write-Host 'BASELINE: FAIL' -ForegroundColor Red
+        Write-Host "  erwartet: $ExpectedNorm"
+        Write-Host "  gefunden: $TargetHashBefore"
+        throw 'BASELINE_MISMATCH: Die Zieldatei entspricht nicht dem gepinnten Stand. Es wird nichts geaendert.'
+    }
+
+    Write-Host 'BASELINE: OK (Datei entspricht dem gepinnten Stand)' -ForegroundColor Green
+}
+
 Write-Host ''
 
 # ---- 2. Syntaxgate Zieldatei ----------------------------------------------
@@ -425,6 +465,15 @@ try {
         throw "BACKUP_HASH_MISMATCH: $BackupHash (Backup ist nicht identisch mit dem Original)."
     }
 
+    # Unmittelbar vor dem Tausch: beide Dateien muessen noch existieren.
+    if (-not (Test-Path -LiteralPath $TempPath -PathType Leaf)) {
+        throw 'TEMP_LOST_BEFORE_SWAP: Die Zwischendatei ist vor dem Tausch verschwunden. Es wird nichts geschrieben.'
+    }
+
+    if (-not (Test-Path -LiteralPath $BackupPath -PathType Leaf)) {
+        throw 'BACKUP_LOST_BEFORE_SWAP: Das Backup ist vor dem Tausch verschwunden. Es wird nichts geschrieben.'
+    }
+
     # ---- 7. Tausch --------------------------------------------------------
     Move-Item -LiteralPath $TempPath -Destination $TargetPath -Force
 
@@ -460,6 +509,12 @@ try {
     $FinalBytes = [System.IO.File]::ReadAllBytes($TargetPath)
     $FinalHash = (Get-FileHash -LiteralPath $TargetPath -Algorithm SHA256).Hash.ToUpperInvariant()
 
+    # Beweis der Wirksamkeit: ohne geaenderten Hash darf kein PASS erscheinen.
+    if ($FinalHash -eq $TargetHashBefore) {
+        Copy-Item -LiteralPath $BackupPath -Destination $TargetPath -Force
+        throw 'FINAL_HASH_UNCHANGED: Der Dateiinhalt ist unveraendert - der Patch haette nichts bewirkt. Rollback ausgefuehrt.'
+    }
+
     Write-Host ''
     Write-Host '============================================'
     Write-Host ' PATCH: PASS' -ForegroundColor Green
@@ -473,6 +528,9 @@ try {
     Write-Host ''
     Write-Host 'Naechster Schritt (immer nach einem Patch):'
     Write-Host '  .\tests\Invoke-ContractTests.ps1 -ScriptPath <Pfad zur Zieldatei>'
+    Write-Host ''
+    Write-Host 'Neuer Baseline-Pin fuer den naechsten Patch (-ExpectedSha256):'
+    Write-Host "  $FinalHash"
 
     Write-Journal -Path $Journal -Entry @{
         timestamp    = (Get-Date).ToString('o')

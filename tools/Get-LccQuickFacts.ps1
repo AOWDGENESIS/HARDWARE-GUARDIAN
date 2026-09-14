@@ -56,7 +56,10 @@ foreach ($f in 'Get-WorkspaceContent', 'Get-DiscoveryResult', 'Get-WorkspacePath
   if ($c) { "$f : " + (($c.Parameters.Keys | Where-Object { $_ -notmatch '^(Verbose|Debug|Error|Warning|Information|Out|Pipeline|Progress)' }) -join ',') }
   else { "$f : NICHT VORHANDEN" }
 }
-"AUFRUFE Get-DiscoveryResult im Skript: " + ([regex]::Matches($Main, 'Get-DiscoveryResult')).Count
+$Defs = ([regex]::Matches($Main, '(?m)^\s*function\s+Get-DiscoveryResult\b')).Count
+$Refs = ([regex]::Matches($Main, 'Get-DiscoveryResult')).Count - $Defs
+"Get-DiscoveryResult: $Defs Definition(en), $Refs weitere Verweise"
+"AKTUELLER SHA256 (Baseline-Pin): " + (Get-FileHash "$R\LocalCloudCode.ps1" -Algorithm SHA256).Hash
 "--- CONTENT-PROBE ---"
 $W = "$R\workspace\READONLY_TEST"
 if (Test-Path $W) {

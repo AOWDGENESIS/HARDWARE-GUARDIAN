@@ -60,7 +60,9 @@ Zeile 550 = **F-03**, Zeile 571 = **F-02**. Gegenprobe: Dieselbe Prüfung über 
 
 **Was gut ist und bleibt:** Masterprompt-Validierung, Compiler-Report-Gate, Backend-Auswahl, Run-Report, Workspace-Containment-Logik, Reparse-Point-Blockade, Evidence-Hash-Idee. Die Grundarchitektur ist tragfähig — die Beweisschicht hat Löcher.
 
-**Bilanz: 35 Befunde** — 5 Blocker (P0, F-01…F-05), 16 gravierende Befunde (P1, F-06…F-21), 14 Härtungen/Design/Kleinigkeiten (P2/P3, F-22…F-35).
+**Bilanz: 36 Befunde** — 5 Blocker (P0, F-01…F-05), 17 gravierende Befunde (P1, F-06…F-21 und F-36), 14 Härtungen/Design/Kleinigkeiten (P2/P3, F-22…F-35).
+
+**Stand-Korrekturen nach deiner Konsolenausgabe vom 14.09.2026:** F-04 ist im ersten Teil widerlegt (die Funktion existiert), F-36 ist neu. **Aktueller Dateistand:** `9C033D9CA7BDE039D68942FB0A363BD52C7E0B2F56D6AD102BC32D90BB591406` — die früher gepinnten `C88DDBE…` sind veraltet. Die Datei ist syntaktisch fehlerfrei (0 Parserfehler) und ohne BOM.
 
 ---
 
@@ -162,6 +164,24 @@ function Get-WorkspacePath { param([string]$RequestedWorkspace = "") ... }
 ---
 
 ### F-04 — `Get-DiscoveryResult` ist nirgends eingebunden und hat keine definierte Semantik
+
+> **KORREKTUR vom 14.09.2026 (aufgrund deiner neuen Konsolenausgabe).**
+> Der erste Teil dieses Befunds ist **widerlegt**: `Get-DiscoveryResult` **existiert** in
+> `LocalCloudCode.ps1`. Belege aus deinem Lauf:
+> - `if ($Source.Contains('function Get-DiscoveryResult')) { throw 'DISCOVERY_ALREADY_EXISTS' }` → **hat geworfen**, die Definition ist also vorhanden.
+> - Unabhängige Zählung an der unveränderten Datei: `DISCOVERY FUNCTION COUNT: 1`.
+>
+> **Offen bleibt**: ob die Funktion im Runtime-Block auch **aufgerufen** wird. Das kann ich
+> ohne Dateizugriff nicht entscheiden — die Zeilen 970–1020 aus dem Chat zeigen keinen Aufruf,
+> aber dieser Ausschnitt ist älter als der Patch, der die Definition eingefügt hat.
+> **Neuer Status: Definition vorhanden (belegt), Einbindung unbelegt.** Prüfbar mit
+> `tools/Get-LccQuickFacts.ps1` (gibt Definitionen und weitere Verweise getrennt aus).
+>
+> **Was von F-04 unverändert gilt:** Es ist nirgends festgelegt, was `$Workspace` bedeuten soll
+> (relativer Ordnername oder absoluter Pfad) — und die beiden Laufzeitfehler F-02/F-03 in dieser
+> Funktion sind unabhängig von ihrer Einbindung vorhanden. Sollte der Runtime-Block sie doch
+> aufrufen, schlägt der Lauf **garantiert** fehl: erst an `-Workspace` (Parameter existiert nicht),
+> danach an `-Path` (nie übergeben).
 **Ort:** Runtime-Block (im Chat bei Zeile ~970–1020 deiner Datei).
 
 Der Runtime-Block ruft `Get-WorkspaceSummary` und `Get-WorkspaceContent`, aber **nicht** `Get-DiscoveryResult`. Die Funktion existiert damit als toter bzw. nur im Test erreichbarer Code. Zwei Folgen:
@@ -618,6 +638,7 @@ Da `-replace`-Patches nicht typgeprüft sind und es keine Aufruf-Verifikation gi
 | **F-32** | Tote/verwaiste Variablen `$Files = @()`, `$ReadRows`, `$BlockedRows` — Reste des `-replace`-Unfalls; Einrückung ab `function Get-WorkspaceContent` auf Spalte 0 | per AST-Block ersetzen (Patch-Werkzeug) und mit `Invoke-Formatter` (PSScriptAnalyzer) normalisieren |
 | **F-33** | `UTF8Encoding($false,$true)` bei **BOM**-Dateien: `\uFEFF` bleibt im Text → Marker `^# ULTIMATIVER MASTERPROMPT` scheitert; BOM landet im Content-Hash | defensiv strippen: `if ($Text.Length -gt 0 -and [int]$Text[0] -eq 0xFEFF) { $Text = $Text.Substring(1) }` |
 | **F-34** | `ConvertTo-Json -Depth 20` für Evidence ist knapp (Struktur ist derzeit flach, wächst aber mit Verträgen) | auf `-Depth 32` setzen und im Vertrag dokumentieren |
+| **F-36** | **NEU (14.09.2026): Falschgrüne Verifikation bei Zeilen-für-Zeilen-Paste.** Dein letzter Patchlauf meldete `PATCH: PASS`, `FINAL PARSE: PASS`, `DISCOVERY FUNCTION COUNT: 1` — **ohne dass eine einzige Datei geändert wurde.** Beweis aus deinem eigenen Log: `SOURCE SHA256` und `FINAL SHA256` sind beide `9C033D9C…591406`. Ablauf: (1) `TEMP_FUNCTION_COUNT_FAILED: 2` löste `Remove-Item $TempPath` aus, (2) `Move-Item` scheiterte folgerichtig mit „Element … nicht vorhanden“, (3) alle Endprüfungen liefen gegen die **unveränderte Originaldatei**, (4) `Write-Host 'PATCH: PASS'` steht bedingungslos am Ende. Zweitens wirkten die `throw`-Gates nicht: In der Konsole beendet ein `throw` nur die *eine* Anweisung, die nächste eingefügte Zeile läuft trotzdem weiter — `$ErrorActionPreference='Stop'` schützt eine **Datei**, nicht eine **Eingabesequenz**. | (1) Niemals eine Patch-/Gate-Sequenz zeilenweise in die Konsole einfügen — immer als Skriptdatei ausführen (`& .\tools\Update-PsFunctionBlock.ps1 …`), damit `throw` die Sequenz wirklich beendet. (2) Ein PASS darf **nur** erscheinen, wenn sich der Hash des Artefakts nachweislich geändert hat: `Update-PsFunctionBlock.ps1` prüft jetzt `FINAL_HASH_UNCHANGED` und rollt zurück. (3) Existenz von Zwischendatei und Backup **unmittelbar vor** dem Tausch prüfen (`TEMP_LOST_BEFORE_SWAP` / `BACKUP_LOST_BEFORE_SWAP`). (4) Zustands-Pin verwenden: `-ExpectedSha256 <hash>` verweigert den Patch, wenn die Datei nicht dem bekannten Stand entspricht — als Parameter, nicht als Zeile in einer Paste. (5) Ein Gate darf nie die Datei löschen, die es danach zum Weitermachen braucht. |
 | **F-35** | Auto-Fallback kann das Modell wechseln: LM Studio `qwen/qwen2.5-coder-14b` ↔ Ollama `qwen2.5:14b` (kein Coder) — stiller Qualitätsabfall | gleiches Modell in beiden Backends bereitstellen; wenn ein Ersatzmodell greift: `WARN` + Reportfeld `provider.fallback_from` |
 
 ---
