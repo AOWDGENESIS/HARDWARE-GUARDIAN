@@ -20,6 +20,9 @@ keine Ergebnisse behauptet, die nicht tatsächlich ausgeführt wurden.
 | `tools/psparse/` | PowerShell-Parser und Parameter-Gate als Python-Werkzeug (tree-sitter) — prüft Syntax und interne Aufrufe, wenn kein PowerShell verfügbar ist. Findet F-02/F-03 vor der Ausführung. |
 | `tests/Invoke-ContractTests.ps1` | Vertragstests, die **ohne** Start der Runtime laufen: Syntax, Smart-Quotes, Parameter-Gate (findet F-02/F-03 vor der Ausführung), Workspace-Containment, Content-/Discovery-Vertrag, Hash-Determinismus. |
 | `tools/Collect-LocalCloudCodeSnapshot.ps1` | **READ-ONLY** Snapshot des echten Systems: Hashes, Parsergebnisse, Content-Schema, Backend-Status, Marker zu allen Befunden — ein ZIP für die Datenübergabe. |
+| `review/BEFUNDE-REFERENZPAKET-2026-09-14.md` | **Prüfung des hochgeladenen Referenzpakets** (Commit 2501970): 11 Befunde inkl. 2 harter Werkzeugfehler und einer CI, die nicht läuft. |
+| `review/reference-hashes-2026-09-14.json` | Echte SHA256 aller Referenzdokumente als Vorlage für `reference/hashes.json`. |
+| `deliverables/validate.yml` | **Lauffähiger** GitHub-Actions-Workflow für das Referenzpaket (gehört nach `.github/workflows/` im Repo-Root — dort, wo GitHub ihn tatsächlich ausführt). |
 | `review/GATEWAY-UND-DATENUEBERGABE.md` | Warum das lokale Gateway hier nicht erreichbar ist (und nicht erreichbar sein soll), Sicherheitscheck in 5 Prüfungen, Übergabewege. |
 
 ## Reihenfolge

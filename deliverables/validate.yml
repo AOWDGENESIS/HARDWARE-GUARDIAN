@@ -1,0 +1,222 @@
+name: Validate reference package
+
+# WICHTIG - bitte lesen:
+# GitHub fuehrt NUR Workflows unter ".github/workflows/" im REPO-ROOT aus.
+# Workflows in Unterordnern (z. B. legacy/KI_Programmierreferenz_GitHub/.github/workflows/)
+# werden von GitHub vollstaendig IGNORIERT - sie laufen nie.
+# Diese Datei gehoert deshalb nach:  <repo-root>/.github/workflows/validate.yml
+#
+# Gegenuber der bisherigen Fassung behebt sie drei Dinge:
+#   1. Sie liegt im Root und wird damit tatsaechlich ausgefuehrt.
+#   2. Die Parserpruefung verwertet ihr Ergebnis und kann FEHLSCHLAGEN.
+#      Alte Fassung: [Parser]::ParseFile(...,[ref]$null,[ref]$null) | Out-Null
+#      -> die Fehlerliste wurde verworfen, der Schritt konnte nie rot werden.
+#   3. Sie prueft zusaetzlich die Dokumentintegritaet gegen ein Hash-Manifest.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # 'true'  = Verstoesse in legacy/** brechen den Lauf ab (empfohlen, ehrlich)
+  # 'false' = legacy/** wird nur als Warnung ausgegeben (Uebergangszeit)
+  STRICT_LEGACY: 'true'
+
+jobs:
+  validate:
+    name: Struktur, Syntax, Integritaet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Struktur - Pflichtdateien
+        id: structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          require() {
+            if [ ! -f "$1" ]; then echo "::error file=$1::Pflichtdatei fehlt: $1"; fail=1; fi
+          }
+          require "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md"
+          require "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt"
+          require "reference/LOAD_INSTRUCTION.txt"
+          require "manifest.json"
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "Pflichtdateien: OK"
+
+      - name: Dokumentintegritaet - Hash-Manifest
+        id: hashes
+        shell: bash
+        run: |
+          set -uo pipefail
+          if [ ! -f reference/hashes.json ]; then
+            echo "::notice::reference/hashes.json fehlt - Integritaetspruefung uebersprungen."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import hashlib, json, os, sys
+          manifest = json.load(open("reference/hashes.json", encoding="utf-8"))
+          docs = manifest.get("documents", [])
+          if not docs:
+              print("::notice::hashes.json ohne Eintraege - uebersprungen.")
+              sys.exit(0)
+          bad = 0
+          for d in docs:
+              path = d.get("path")
+              expect = (d.get("sha256") or "").upper()
+              if not path or not os.path.isfile(path):
+                  print(f"::error file={path}::Datei fehlt (im Hash-Manifest eingetragen)")
+                  bad += 1
+                  continue
+              raw = open(path, "rb").read()
+              # BOM tolerieren: Hash wird ueber den Inhalt ohne BOM gebildet
+              if raw[:3] == b"\xef\xbb\xbf":
+                  raw = raw[3:]
+              actual = hashlib.sha256(raw).hexdigest().upper()
+              if actual != expect:
+                  print(f"::error file={path}::SHA256 weicht ab. erwartet {expect}, gefunden {actual}")
+                  bad += 1
+              else:
+                  print(f"OK  {path}  {actual[:16]}...")
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Dokumente - Kodierung und Copy-Paste-Schaeden
+        id: docs
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 - <<'PY'
+          import re, sys
+
+          TARGETS = [
+              "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md",
+              "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt",
+              "reference/LOAD_INSTRUCTION.txt",
+          ]
+          SMART = "[\u201C\u201D\u201E\u201A\u2018\u2019]"
+          hard = 0
+
+          for path in TARGETS:
+              try:
+                  raw = open(path, "rb").read()
+              except FileNotFoundError:
+                  continue
+              if raw[:3] == b"\xef\xbb\xbf":
+                  print(f"::warning file={path}::UTF-8-BOM vorhanden - kann Markerpruefungen und Hashes verschieben.")
+              try:
+                  text = raw.decode("utf-8")
+              except UnicodeDecodeError as e:
+                  print(f"::error file={path}::Kein gueltiges UTF-8: {e}")
+                  hard += 1
+                  continue
+
+              lines = text.split("\n")
+              in_fence, kind, fences = False, [], 0
+              for line in lines:
+                  m = re.match(r"^\s*(```+|~~~+)", line)
+                  if m:
+                      fences += 1
+                      in_fence = not in_fence
+                  kind.append("fence" if in_fence else "text")
+
+              if fences % 2:
+                  print(f"::error file={path}::Ungerade Anzahl Codeblock-Marker ({fences}) - ein Block ist nicht geschlossen.")
+                  hard += 1
+
+              in_code_smart = 0
+              inline_smart_lines = []
+              for i, line in enumerate(lines):
+                  if kind[i] == "fence":
+                      in_code_smart += len(re.findall(SMART, line))
+                      continue
+                  # Nur INNERHALB von `...` pruefen - typografische Zeichen im
+                  # Fliesstext sind Stil, im Code sind sie ein Defekt.
+                  for seg in re.findall(r"`([^`]+)`", line):
+                      if re.search(SMART, seg):
+                          inline_smart_lines.append(i + 1)
+                          break
+              if in_code_smart:
+                  print(f"::error file={path}::{in_code_smart} typografische Anfuehrungszeichen in Codebloecken - brechen kopierten Code.")
+                  hard += 1
+              if inline_smart_lines:
+                  print(f"::error file={path}::Inline-Code mit typografischen Anfuehrungszeichen in Zeile(n): {', '.join(map(str, inline_smart_lines[:10]))}")
+                  hard += 1
+
+              print(f"OK  {path}  ({len(lines)} Zeilen)")
+
+          sys.exit(1 if hard else 0)
+          PY
+
+      - name: PowerShell - Syntax mit dem echten Parser
+        id: syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $strictLegacy = ($env:STRICT_LEGACY -eq 'true')
+          $files = @(Get-ChildItem -Recurse -File -Filter '*.ps1' | Sort-Object FullName)
+          $bad = 0
+          $checked = 0
+          Write-Host "Geprueft werden $($files.Count) PowerShell-Dateien.`n"
+
+          foreach ($file in $files) {
+              $tokens = $null
+              $errors = $null
+              $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+              $count = @($errors).Count
+              $rel = $file.FullName.Substring((Get-Location).Path.Length + 1).Replace('\', '/')
+              $isLegacy = $rel -like 'legacy/*'
+              $checked++
+
+              if ($count -eq 0) {
+                  Write-Host "OK        $rel"
+                  continue
+              }
+
+              $first = @($errors)[0]
+              $msg = "Zeile $($first.Extent.StartLineNumber), Spalte $($first.Extent.StartColumnNumber): $($first.Message)"
+
+              if ($isLegacy -and -not $strictLegacy) {
+                  Write-Warning "$rel  ->  $msg"
+                  continue
+              }
+
+              Write-Host "::error file=$rel,line=$($first.Extent.StartLineNumber),col=$($first.Extent.StartColumnNumber)::$($first.Message)"
+              Write-Host "FEHLER    $rel  ->  $msg"
+              $bad++
+          }
+
+          Write-Host "`n--------------------------------------------"
+          Write-Host "Geprueft : $checked"
+          Write-Host "Fehler   : $bad"
+          if ($bad -gt 0) {
+              Write-Host "ERGEBNIS : FAIL"
+              exit 1
+          }
+          Write-Host "ERGEBNIS : PASS"
+
+      - name: Zusammenfassung
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Referenzpaket-Pruefung"
+            echo ""
+            echo "| Schritt | Ergebnis |"
+            echo "|---|---|"
+            echo "| Struktur (${{ steps.structure.outcome }}) | Pflichtdateien |"
+            echo "| Integritaet (${{ steps.hashes.outcome }}) | Hash-Manifest |"
+            echo "| Dokumente (${{ steps.docs.outcome }}) | Kodierung, Copy-Paste |"
+            echo "| PowerShell (${{ steps.syntax.outcome }}) | echter Parser |"
+            echo ""
+            echo "Hinweis: Die Parserpruefung verwendet den echten PowerShell-Parser,"
+            echo "nicht den tree-sitter-Vorfilter, der bei 1GB-Literalen und"
+            echo "Komma-Argumentlisten Falschmeldungen erzeugt."
+          } >> "$GITHUB_STEP_SUMMARY"

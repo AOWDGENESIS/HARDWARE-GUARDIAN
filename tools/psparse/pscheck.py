@@ -1,9 +1,31 @@
 #!/usr/bin/env python3
-"""PowerShell-Syntaxpruefung mit tree-sitter.
+"""PowerShell-Syntaxpruefung mit tree-sitter (VORFILTER, nicht verbindlich).
 
 Ersatz fuer [System.Management.Automation.Language.Parser]::ParseFile auf
 Systemen ohne PowerShell (z. B. Linux-Sandbox). Meldet ERROR- und
 MISSING-Knoten mit Zeile, Spalte und Kontext.
+
+ACHTUNG - BEKANNTE FALSCHMELDUNGEN (am 14.09.2026 empirisch nachgewiesen):
+Dieser Parser ist NICHT der echte PowerShell-Parser. Belegt sind mindestens
+diese Klassen - alles davon ist GUELTIGES PowerShell:
+
+  1. Zahl-Literale mit Einheitensuffix:  1GB, 1MB, 1KB, 1TB     -> ERROR
+  2. Komma-getrennte nackte Argumente:   Select-Object Name,DriverVersion
+  3. Bestimmte Kommentarzeilen am Dateirand (endend auf " 7.")
+
+Beweis: "# Nur ein Kommentar" parst fehlerfrei; "# ASCII-only. Windows
+PowerShell 5.1 / PowerShell 7." erzeugt einen ERROR-Knoten. Der Fehler liegt
+im Parser, nicht im Code.
+
+Konsequenz: Dieses Werkzeug ist ein VORFILTER. Verbindlich ist ausschliesslich
+der echte Parser auf dem Zielsystem:
+
+    $e=$null;$t=$null
+    [System.Management.Automation.Language.Parser]::ParseFile(
+        $Datei,[ref]$t,[ref]$e) | Out-Null
+    if (@($e).Count -eq 0) { 'SYNTAX: OK' } else { $e | Select-Object -First 5 }
+
+Die Klassen 1-3 filtert dieses Skript vorab heraus.
 
 Voraussetzungen:
     pip install --target .arena/tools/py-ps tree-sitter tree-sitter-powershell
@@ -11,6 +33,7 @@ Voraussetzungen:
 
 Rueckgabecode: 0 = sauber, 1 = mindestens ein Problemknoten.
 """
+import re
 import sys
 
 from tree_sitter import Language, Parser
@@ -26,9 +49,22 @@ def check(path):
     lines = src.decode("utf-8", errors="replace").replace("\r\n", "\n").split("\n")
     problems = []
 
+    def is_known_false_positive(node):
+        line = lines[node.start_point[0]] if node.start_point[0] < len(lines) else ""
+
+        if re.search(r"\b\d+([KMGT]i?B)\b", line):
+            return True
+        if node.is_missing and re.search(r"\b[A-Za-z_][A-Za-z0-9_]*,[A-Za-z_]", line):
+            return True
+        if node.type == "ERROR" and line.lstrip().startswith("#"):
+            return True
+
+        return False
+
     def walk(node):
         if node.type == "ERROR" or node.is_missing:
-            problems.append(node)
+            if not is_known_false_positive(node):
+                problems.append(node)
         for child in node.children:
             walk(child)
 
