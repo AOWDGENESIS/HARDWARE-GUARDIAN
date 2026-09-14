@@ -111,7 +111,7 @@ GitHub führt **ausschließlich** Workflows unter `.github/workflows/` im **Repo
 
 `ParseFile` schreibt Parserfehler in den `$Errors`-Parameter. Hier wird er verworfen (`[ref]$null`, Ergebnis in `Out-Null`) und der Exit-Code nicht geprüft. **Dieser Schritt kann nie fehlschlagen** — die Prüfung ist reine Dekoration. Ein grüner Haken, der nichts bedeutet: dieselbe Fehlerklasse wie „PATCH: PASS" aus deinem letzten Patchlauf.
 
-**Lösung — fertig geliefert:** `deliverables/validate.yml` in diesem Repository.
+**Lösung — fertig geliefert:** `.github/workflows/validate.yml` in diesem Repository.
 - Gehört nach `<repo-root>/.github/workflows/validate.yml`
 - Prüft: Pflichtdateien, Hash-Manifest, Dokumentintegrität (BOM, Smart-Quotes in Codebereichen, unbalancierte Codeblöcke), **PowerShell-Syntax mit dem echten Parser** — und **schlägt fehl**, wenn etwas nicht stimmt.
 - `STRICT_LEGACY: 'true'` (Default): Verstöße in `legacy/**` brechen den Lauf ab. Auf `'false'` setzen, wenn die Legacy-Dateien während der Übergangszeit nur gewarnt werden sollen.
@@ -202,10 +202,87 @@ Ehrlichkeit in beide Richtungen — das habe ich geprüft und **verworfen**:
 ## 5. Nächste Schritte, in dieser Reihenfolge
 
 1. **W-04 zuerst:** `.gitignore`, `.gitattributes` und die Workflows ins Repository bringen. Ohne `.gitignore` droht beim nächsten `Publish-ToGitHub.ps1`-Lauf das Veröffentlichen lokaler Maschinendaten.
-2. **`deliverables/validate.yml`** nach `.github/workflows/validate.yml` kopieren → erster echter CI-Lauf.
+2. **`.github/workflows/validate.yml`** nach `.github/workflows/validate.yml` kopieren → erster echter CI-Lauf.
 3. **W-01 beheben** (Zeile 9) → der CI-Lauf wird grün.
 4. **W-05:** kanonische Fassung in `LOAD_INSTRUCTION.txt` festlegen + `reference/hashes.json` anlegen. Vorlage: `review/reference-hashes-2026-09-14.json`.
 5. **W-02:** die zwei falsch benannten Kopien im Legacy-Ordner bereinigen.
 6. Danach: W-06 bis W-11.
 
 **Bewusst noch nicht angefasst:** Ich habe in deinen Repositories ausschließlich **gelesen**. Es wurde nichts geändert, nichts gemergt, kein Branch angelegt — nur Klon, Analyse, Bericht. Deine `main` ist unverändert bei `2501970`.
+
+---
+
+## 6. Nachtrag: Umsetzungsstand
+
+Branch `arena/01a09c80-entwicklungen`, Pull Request nach `main` offen.
+
+| Befund | Status | Beleg |
+|---|---|---|
+| W-03 CI läuft nicht (falscher Ort) | **behoben** | `.github/workflows/validate.yml` liegt jetzt dort, wo GitHub ausführt |
+| W-03 Parserprüfung wirkungslos | **behoben** | Der Schritt wertet `$Errors` aus, gibt `::error` aus und endet mit Exit 1 |
+| W-04 sechs Dateien fehlen | **behoben** | alle sechs byte-identisch aus der SAFE-ZIP zurückgelegt (`cmp` gegen die ZIP-Dateien: identisch) |
+| W-05 Hash-Pins fehlen | **behoben** | `reference/manifest.json` mit vier Einträgen: SHA256, Bytes, Zeichen, Zeilen, BOM |
+| W-05 Kanonik `.md`/`.txt` | **offen** | braucht deine Entscheidung — der CI prüft derzeit beide Fassungen |
+| W-01 Syntaxfehler | **offen, bewusst** | der erste CI-Lauf zeigt genau diesen Fehler rot an, mit Datei und Zeile |
+| W-02 falsch benannte Kopien | **offen** | braucht deine Entscheidung; der Bericht nennt die korrekte Fassung |
+
+### Erwartetes Ergebnis des ersten CI-Laufs
+
+Rot. Zwei Dateien, beide mit demselben Fehler in Zeile 9:
+
+```
+FEHLER  legacy/KI_Engineering_Memory/tools/Install-KI-Dauerreferenz-AutoUpdate.ps1
+FEHLER  legacy/KI_Engineering_Memory/tools/Install-KI-Engineering-Memory-AutoUpdate.ps1
+```
+
+Das ist beabsichtigt: der Baum enthält tatsächlich zwei Dateien, die PowerShell nicht
+parsen kann. Zwei Wege, damit umzugehen — **deine Entscheidung**:
+
+- **A (empfohlen):** Zeile 9 korrigieren. Die korrekte Fassung steht in
+  `legacy/KI_Programmierreferenz_GitHub/tools/Install-KI-Dauerreferenz-AutoUpdate.ps1`.
+- **B:** in `.github/workflows/validate.yml` `STRICT_LEGACY: 'true'` auf `'false'` setzen.
+  Dann bleiben die Legacy-Fehler als Warnung sichtbar, der Lauf wird grün.
+
+Solange keine der beiden Varianten gewählt ist, ist ein roter Lauf die **ehrliche** Anzeige.
+
+### Vier Dinge, die beim Umsetzen aufgefallen sind
+
+1. **`main` und dieser Branch hatten keinen gemeinsamen Vorfahren.**
+   `git merge` brach mit `refusing to merge unrelated histories` ab. Ursache: `main`
+   beginnt heute bei `55677ce` („Add GitHub Actions to Dependabot updates") — ein
+   Root-Commit; der frühere Anfang `90a1540` ist nicht mehr Teil der Historie.
+   Der Merge wurde deshalb mit `--allow-unrelated-histories` geführt.
+
+2. **`README.md` wurde beim Upload überschrieben.** Aus dem 16-Byte-`# Entwicklungen`
+   wurde die 1.415-Byte-Paket-README. Beim Merge (add/add-Konflikt) ist der Pakettext
+   **byte-identisch** übernommen und nur angehängt worden — die ersten 1.415 Bytes der
+   neuen Datei sind per `cmp` als identisch nachgewiesen (Ergebnis oben in Abschnitt 1
+   dieses Nachtrags dokumentiert, Prüfung reproduzierbar mit
+   `git show origin/main:README.md | head -c 1415 | cmp - <(head -c 1415 README.md)`).
+
+3. **Zeilenenden entscheiden über die Gültigkeit der Hashes.** Es lag keine
+   Wurzel-`.gitattributes` vor. Ohne eine solche wandelt Git beim Checkout unter
+   Windows LF in CRLF; jede Hashprüfung gegen `reference/manifest.json` hätte dort
+   fehlgeschlagen, obwohl inhaltlich nichts falsch ist. Die neue Datei setzt deshalb
+   `* text=auto eol=lf` und `*.zip binary` — bewusst **ohne** Sonderregel für `.ps1`,
+   damit `Get-FileHash` auf jedem System dieselben Werte liefert.
+   **Folge, die du kennen musst:** Für `legacy/**` gilt weiterhin die dort mitgelieferte
+   Regel `*.ps1 text eol=crlf`. Die `.ps1`-Dateien unter `legacy/**` werden auf deinem
+   PC also mit CRLF ausgecheckt; ihre `Get-FileHash`-Werte weichen dann von den hier
+   dokumentierten ab (diese beziehen sich auf die im Repository gespeicherten Bytes, und
+   die sind LF — nachgemessen, nicht angenommen). Die gepinnten Referenzdokumente sind
+   nicht betroffen: sie liegen unter `reference/` und bleiben LF.
+
+4. **Zwei Fehler in meiner eigenen Arbeit, die die Probe gefunden hat.**
+   - `reference/README.md` enthielt die verbotenen typografischen Anführungszeichen als
+     *Beispiel* im Inline-Code — also genau das, was die Prüfung sucht. Statt die
+     Prüfung aufzuweichen, sind die Zeichen jetzt als Codepoint benannt
+     (U+201E, U+201C, U+201D). Das Dokument hält damit die Regel ein, die es beschreibt.
+   - Die Zusammenfassung des Workflows schrieb nach `$GITHUB_STEP_SUMMARY` ohne
+     Fallback und brach ab, wenn die Variable nicht gesetzt ist. Jetzt:
+     `${GITHUB_STEP_SUMMARY:-/dev/null}`.
+
+   Die Probe selbst: die `bash`-Schritte des Workflows wurden aus der YAML-Datei
+   extrahiert und auf einer Kopie des Baums ausgeführt. Der `pwsh`-Schritt konnte hier
+   nicht laufen (im Sandkasten ist kein PowerShell installiert) — dort ist der echte
+   Parser auf GitHub die Prüfinstanz, und ich behaupte nichts anderes.

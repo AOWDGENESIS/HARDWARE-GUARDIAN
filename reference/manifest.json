@@ -1,5 +1,50 @@
 {
   "schema": "1.0",
-  "updated_utc": "2026-09-14T06:45:08.627391+00:00",
-  "documents": []
+  "updated_utc": "2026-09-14T18:03:24.0000000+00:00",
+  "documents": [
+    {
+      "FileName": "KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md",
+      "RelativePath": "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md",
+      "SHA256": "419D7B7A412F03FF855B6D63E46AD3B7C725758342EBD13F20B21C1A7CD8CEDF",
+      "Bytes": 43293,
+      "Chars": 43289,
+      "Lines": 1183,
+      "HasBom": false,
+      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
+      "Note": "Kanonische Fassung: enthaelt Codeblock-Marker und den Abschnitt AUTO-MACHINE-INVENTORY."
+    },
+    {
+      "FileName": "KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt",
+      "RelativePath": "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt",
+      "SHA256": "23E1994F20801253F232748DD546DCAB94724C087930D058CE16E052D771F5D1",
+      "Bytes": 42182,
+      "Chars": 42178,
+      "Lines": 1174,
+      "HasBom": false,
+      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
+      "Note": "Reduzierte Variante derselben Referenz (keine Codeblock-Marker, kein AUTO-MACHINE-INVENTORY)."
+    },
+    {
+      "FileName": "LOAD_INSTRUCTION.txt",
+      "RelativePath": "reference/LOAD_INSTRUCTION.txt",
+      "SHA256": "EA6B25AB2B265EC5D80094A15DB1B303C6E5E7376B5CFD11A1FF035EF6769FD2",
+      "Bytes": 1704,
+      "Chars": 1704,
+      "Lines": 32,
+      "HasBom": false,
+      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
+      "Note": "Ladeanweisung. Legt noch NICHT fest, welche Dokumentfassung kanonisch ist."
+    },
+    {
+      "FileName": "README.md",
+      "RelativePath": "reference/README.md",
+      "SHA256": "D01DFB3013A521B6B43E76DB44C7F2C0CA982F08B85952058BCF9BA1ED091F80",
+      "Bytes": 2874,
+      "Chars": 2831,
+      "Lines": 67,
+      "HasBom": false,
+      "RegisteredUtc": "2026-09-14T18:03:24.0000000+00:00",
+      "Note": "Aufnahmeregeln fuer Dauerreferenzen (Prozess, nicht Inhalt)."
+    }
+  ]
 }

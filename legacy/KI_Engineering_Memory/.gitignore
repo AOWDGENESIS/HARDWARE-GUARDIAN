@@ -1,0 +1,10 @@
+# Local runtime data
+runtime/KI_Maschinenprofil.json
+runtime/KI_Maschinenprofil.md
+runtime/*.log
+runtime/*.txt
+# Local generated context
+*KI-Engineering-Context.txt
+# User-specific settings
+*.local.*
+.env

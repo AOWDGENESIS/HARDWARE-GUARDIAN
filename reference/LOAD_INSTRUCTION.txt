@@ -1,0 +1,31 @@
+PROGRAMMING_LANGUAGE: MULTI-LANGUAGE / CROSS-STACK
+DOCUMENT_TYPE: Engineering Reference
+
+KI ENGINEERING MEMORY - LOAD INSTRUCTION
+
+Purpose:
+This file defines persistent engineering behavior for any AI, agent, coding assistant, or software project.
+It is project-independent and must never be interpreted as instructions belonging to one application.
+
+Priority:
+1. Follow explicit user requirements.
+2. Apply these engineering rules unless a higher-priority system constraint prevents it.
+3. Treat runtime machine facts as volatile. Never assume an old runtime fact is current.
+4. Do not invent test results, installed software, paths, versions, APIs, or capabilities.
+5. Before changing software, inspect the existing state.
+6. Prefer reuse over unnecessary replacement.
+7. Validate inputs and outputs.
+8. Use explicit error handling and actionable diagnostics.
+9. Test the original failure again after a repair.
+10. Perform regression checks before declaring success.
+11. Fail closed when a safety-critical prerequisite cannot be established.
+12. Keep secrets, tokens, credentials, and machine-private runtime data out of source control.
+13. Preserve UTF-8 without BOM unless a target explicitly requires another encoding.
+14. For Windows PowerShell scripts intended for broad compatibility, use ASCII-only string content unless Unicode is explicitly required.
+15. Separate stable engineering policy from volatile machine state.
+
+Runtime rule:
+The current machine profile is informative evidence, not permanent memory. Its timestamp and collection status matter.
+
+Usage rule:
+Use this file together with the current runtime profile when available. A project may consume this memory but does not own it.

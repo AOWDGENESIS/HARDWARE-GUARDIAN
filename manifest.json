@@ -1,0 +1,30 @@
+{
+  "package": "KI_Programmierreferenz_Gesamt_2026-09-14",
+  "date": "2026-09-14",
+  "languages": [
+    "Python",
+    "JavaScript",
+    "Java",
+    "C++",
+    "C#",
+    "Go",
+    "PHP",
+    "TypeScript",
+    "Rust",
+    "R",
+    "Kotlin",
+    "Android Platform"
+  ],
+  "android": {
+    "primary": "Kotlin",
+    "supported": [
+      "Java"
+    ],
+    "native_option": "C++ via Android NDK"
+  },
+  "preserved_legacy_packages": [
+    "KI_Programmierreferenz_GitHub",
+    "KI_Engineering_Memory"
+  ],
+  "user_supplied_ranking_preserved": true
+}

@@ -1,0 +1,248 @@
+name: Validate reference package
+
+# Laeuft nur hier: GitHub fuehrt ausschliesslich Workflows unter
+# ".github/workflows/" im REPOSITORY-WURZELVERZEICHNIS aus.
+# Die gleichnamigen Dateien unter legacy/*/.github/workflows/ werden von GitHub
+# ignoriert - sie bleiben als Teil des historischen Paketstands erhalten.
+#
+# Gegenuber den Legacy-Fassungen behoben:
+#   1. Ausfuehrungsort (Wurzel statt Unterordner).
+#   2. Die Parserpruefung verwertet ihr Ergebnis und kann FEHLSCHLAGEN.
+#      Legacy-Fassung: [Parser]::ParseFile(...,[ref]$null,[ref]$null) | Out-Null
+#      -> Fehlerliste verworfen, Schritt konnte nie rot werden.
+#   3. Zusaetzlich: Pflichtdateien, Hash-Pins, Kodierung, Copy-Paste-Schaeden.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # 'true'  = Verstoesse unter legacy/** lassen den Lauf fehlschlagen (Default,
+  #           empfohlen: der Baum enthaelt tatsaechlich defekte Dateien).
+  # 'false' = legacy/** wird nur gewarnt (Uebergangszeit).
+  STRICT_LEGACY: 'true'
+
+jobs:
+  validate:
+    name: Struktur, Syntax, Integritaet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Struktur - Pflichtdateien
+        id: structure
+        shell: bash
+        run: |
+          set -uo pipefail
+          fail=0
+          require() {
+            if [ ! -f "$1" ]; then echo "::error file=$1::Pflichtdatei fehlt: $1"; fail=1; fi
+          }
+          require "README.md"
+          require "manifest.json"
+          require "reference/manifest.json"
+          require "reference/LOAD_INSTRUCTION.txt"
+          require "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md"
+          require "reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt"
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "Pflichtdateien vollstaendig."
+
+      - name: Dokumentintegritaet - SHA256-Pins
+        id: hashes
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, sys
+
+          path = "reference/manifest.json"
+          if not os.path.isfile(path):
+              print("::error::reference/manifest.json fehlt - ohne Pins ist keine Integritaet nachweisbar.")
+              sys.exit(1)
+
+          data = json.load(open(path, encoding="utf-8"))
+          docs = data.get("documents") or data.get("Documents") or []
+          if not docs:
+              print("::error::reference/manifest.json enthaelt keine Dokumente. Erst registrieren: "
+                    "tools/Register-ReferenceDocument.ps1 -Path <datei>")
+              sys.exit(1)
+
+          root = os.path.dirname(os.path.abspath(path))
+          bad = 0
+          for d in docs:
+              rel = d.get("RelativePath") or d.get("relativePath") or d.get("path") or ""
+              expect = str(d.get("SHA256") or d.get("sha256") or "").upper()
+              if not rel or not expect:
+                  print(f"::error::Manifesteintrag ohne RelativePath/SHA256: {d}")
+                  bad += 1
+                  continue
+
+              # RelativePath ist relativ zum Repository, nicht zu reference/
+              target = rel if os.path.isfile(rel) else os.path.join(root, os.path.basename(rel))
+              if not os.path.isfile(target):
+                  print(f"::error file={rel}::Im Manifest eingetragen, aber nicht vorhanden.")
+                  bad += 1
+                  continue
+
+              raw = open(target, "rb").read()
+              # Get-FileHash rechnet ueber die rohen Bytes INKLUSIVE BOM
+              actual = hashlib.sha256(raw).hexdigest().upper()
+              if actual != expect:
+                  print(f"::error file={rel}::SHA256 weicht ab. erwartet {expect}, gefunden {actual}")
+                  bad += 1
+                  continue
+
+              declared_bytes = d.get("Bytes") or d.get("bytes")
+              if declared_bytes is not None and int(declared_bytes) != len(raw):
+                  print(f"::error file={rel}::Groesse weicht ab. erwartet {declared_bytes}, gefunden {len(raw)}")
+                  bad += 1
+                  continue
+
+              print(f"OK  {rel}  {actual[:16]}...  {len(raw)} Bytes")
+
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Dokumente - Kodierung und Copy-Paste-Schaeden
+        id: docs
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 - <<'PY'
+          import glob, os, re, sys
+
+          TARGETS = sorted(set(
+              glob.glob("reference/*.md") + glob.glob("reference/*.txt")
+          ))
+          if not TARGETS:
+              print("::error::Keine Referenzdokumente gefunden.")
+              sys.exit(1)
+
+          SMART = "[\u201C\u201D\u201E\u201A\u2018\u2019]"
+          hard = 0
+
+          for path in TARGETS:
+              raw = open(path, "rb").read()
+              if raw[:3] == b"\xef\xbb\xbf":
+                  print(f"::error file={path}::UTF-8-BOM vorhanden - verschiebt Marker und Hashes.")
+                  hard += 1
+              try:
+                  text = raw.decode("utf-8")
+              except UnicodeDecodeError as e:
+                  print(f"::error file={path}::Kein gueltiges UTF-8: {e}")
+                  hard += 1
+                  continue
+
+              lines = text.split("\n")
+              in_fence = False
+              kind = []
+              fences = 0
+              for line in lines:
+                  if re.match(r"^\s*(```+|~~~+)", line):
+                      fences += 1
+                      in_fence = not in_fence
+                  kind.append("fence" if in_fence else "text")
+
+              if fences % 2:
+                  print(f"::error file={path}::Ungerade Anzahl Codeblock-Marker ({fences}) - ein Block ist nicht geschlossen.")
+                  hard += 1
+
+              in_code_smart = 0
+              inline_hits = []
+              for i, line in enumerate(lines):
+                  if kind[i] == "fence":
+                      in_code_smart += len(re.findall(SMART, line))
+                      continue
+                  for seg in re.findall(r"`([^`]+)`", line):
+                      if re.search(SMART, seg):
+                          inline_hits.append(i + 1)
+                          break
+
+              if in_code_smart:
+                  print(f"::error file={path}::{in_code_smart} typografische Anfuehrungszeichen in Codebloecken - brechen kopierten Code.")
+                  hard += 1
+              if inline_hits:
+                  shown = ", ".join(map(str, inline_hits[:10]))
+                  print(f"::error file={path}::Inline-Code mit typografischen Anfuehrungszeichen in Zeile(n): {shown}")
+                  hard += 1
+
+              print(f"OK  {path}  ({len(lines)} Zeilen, {fences} Codeblock-Marker)")
+
+          sys.exit(1 if hard else 0)
+          PY
+
+      - name: PowerShell - Syntax mit dem echten Parser
+        id: syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $strictLegacy = ($env:STRICT_LEGACY -eq 'true')
+          $files = @(Get-ChildItem -Recurse -File -Filter '*.ps1' | Sort-Object FullName)
+          $bad = 0
+          $warn = 0
+          $checked = 0
+          Write-Host "Geprueft werden $($files.Count) PowerShell-Dateien. STRICT_LEGACY=$strictLegacy`n"
+
+          foreach ($file in $files) {
+              $tokens = $null
+              $errors = $null
+              $null = [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+              $count = @($errors).Count
+              $rel = $file.FullName.Substring((Get-Location).Path.Length + 1).Replace('\', '/')
+              $isLegacy = $rel -like 'legacy/*'
+              $checked++
+
+              if ($count -eq 0) {
+                  Write-Host "OK        $rel"
+                  continue
+              }
+
+              $first = @($errors)[0]
+              $msg = "Zeile $($first.Extent.StartLineNumber), Spalte $($first.Extent.StartColumnNumber): $($first.Message)"
+
+              if ($isLegacy -and -not $strictLegacy) {
+                  Write-Host "::warning file=$rel,line=$($first.Extent.StartLineNumber)::$($first.Message)"
+                  Write-Host "WARNUNG   $rel  ->  $msg"
+                  $warn++
+                  continue
+              }
+
+              Write-Host "::error file=$rel,line=$($first.Extent.StartLineNumber),col=$($first.Extent.StartColumnNumber)::$($first.Message)"
+              Write-Host "FEHLER    $rel  ->  $msg"
+              $bad++
+          }
+
+          Write-Host "`n--------------------------------------------"
+          Write-Host "Geprueft : $checked"
+          Write-Host "Warnungen: $warn"
+          Write-Host "Fehler   : $bad"
+          if ($bad -gt 0) {
+              Write-Host "ERGEBNIS : FAIL"
+              exit 1
+          }
+          Write-Host "ERGEBNIS : PASS"
+
+      - name: Zusammenfassung
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Referenzpaket-Pruefung"
+            echo ""
+            echo "| Pruefung | Ergebnis |"
+            echo "|---|---|"
+            echo "| Pflichtdateien | \`${{ steps.structure.outcome }}\` |"
+            echo "| SHA256-Pins | \`${{ steps.hashes.outcome }}\` |"
+            echo "| Kodierung / Copy-Paste | \`${{ steps.docs.outcome }}\` |"
+            echo "| PowerShell-Syntax (echter Parser) | \`${{ steps.syntax.outcome }}\` |"
+            echo ""
+            echo "Nicht verwendet wird der tree-sitter-Vorfilter \`tools/psparse/pscheck.py\`:"
+            echo "er meldet gueltige Konstrukte wie \`1GB\`-Literale oder"
+            echo "\`Select-Object Name,DriverVersion\` faelschlich als Fehler."
+          } >> "${GITHUB_STEP_SUMMARY:-/dev/null}"

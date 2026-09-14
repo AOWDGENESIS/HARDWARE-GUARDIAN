@@ -1,0 +1,28 @@
+name: Validate reference package
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate required files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.md
+          test -f reference/KI_Dauerreferenz_Programmierung_und_Softwarequalitaet_DE.txt
+          test -f reference/LOAD_INSTRUCTION.txt
+          test -f tools/Update-KI-Dauerreferenz.ps1
+          test -f tools/Install-KI-Dauerreferenz-AutoUpdate.ps1
+          test -f .gitignore
+          test -f .gitattributes
+      - name: Check PowerShell parser where available
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [System.Management.Automation.Language.Parser]::ParseFile('tools/Update-KI-Dauerreferenz.ps1',[ref]$null,[ref]$null) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile('tools/Install-KI-Dauerreferenz-AutoUpdate.ps1',[ref]$null,[ref]$null) | Out-Null

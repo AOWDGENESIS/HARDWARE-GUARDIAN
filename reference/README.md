@@ -10,8 +10,11 @@ Zwei Ausfälle in kurzer Folge hatten dieselbe Ursache: Code und Texte wurden
 über Chat/Markdown kopiert. Dabei passieren zwei Dinge, die man nicht sieht:
 
 1. **Typografische Anführungszeichen** — die Darstellungsschicht ersetzt
-   `"` durch `„ " "`. PowerShell erkennt danach nicht einmal mehr die
-   Zeilenstruktur (Befund **F-01**).
+   das ASCII-Anfuehrungszeichen (U+0022) durch U+201E, U+201C oder U+201D.
+   PowerShell erkennt danach nicht einmal mehr die Zeilenstruktur
+   (Befund **F-01**). Die Zeichen stehen hier bewusst als Codepoint und nicht
+   als Zeichen: sonst waere dieses Dokument selbst von dem Defekt betroffen,
+   den es beschreibt.
 2. **`-replace`-Ersetzungen** — beim Einfügen über Skripte werden `$1`, `$&`,
    `` $` ``, `$_` als Ersetzungsanweisungen interpretiert und zerstören den
    Text (Befund **F-36** und der zerstörte DISCOVER-Patch).

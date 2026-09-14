@@ -1,0 +1,15 @@
+KI PROGRAMMING REFERENCE LOAD INSTRUCTION
+
+This project has two strict layers:
+1) Stable engineering guidance in reference/.
+2) Volatile local machine/tool facts in runtime/.
+
+Use the stable reference as durable behavioral guidance. Use the runtime profile only as current environment evidence. Never turn a version, path, port, model name, hardware fact, username, or tool presence into a timeless rule.
+
+Before environment-dependent operations, inspect the current runtime profile and verify live state when the operation can fail or cause side effects.
+
+The local updater is tools/Update-KI-Dauerreferenz.ps1. It refreshes runtime/KI_Maschinenprofil.json, runtime/KI_Maschinenprofil.md, runtime/CURRENT_MACHINE_SNAPSHOT.md and runtime/logs/. It does not install software and does not change system configuration.
+
+The scheduler installer is tools/Install-KI-Dauerreferenz-AutoUpdate.ps1. It creates a per-user scheduled task that refreshes the profile at logon and daily.
+
+GitHub safety rule: runtime files and logs contain local machine data and are intentionally ignored by Git. Do not override that ignore policy unless the user explicitly requests publication of sanitized data.

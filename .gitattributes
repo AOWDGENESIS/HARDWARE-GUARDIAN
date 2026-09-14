@@ -1,0 +1,10 @@
+# Zeilenenden vereinheitlichen, damit SHA256-Pins auf jedem System gleich sind.
+# Ohne diese Datei wandelt Git beim Checkout unter Windows LF in CRLF um, und
+# jede Hashpruefung gegen reference/manifest.json schlaegt fehl.
+#
+# Bewusst KEINE .ps1-Sonderregel: die im Repository gespeicherten Bytes sind LF,
+# und Get-FileHash muss auf jedem System dieselben Werte liefern.
+# Die Legacy-Ordner behalten ihre eigene Regel (*.ps1 eol=crlf) - dort greift
+# die tiefere .gitattributes-Datei im jeweiligen Ordner.
+* text=auto eol=lf
+*.zip binary
