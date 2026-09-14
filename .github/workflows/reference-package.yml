@@ -1,5 +1,10 @@
 name: Validate reference package
 
+# Dateiname bewusst NICHT "validate.yml": auf einem anderen Branch dieses
+# Repositories existiert bereits eine .github/workflows/validate.yml. Zwei
+# gleichnamige Dateien mit verschiedenem Inhalt wuerden beim Zusammenfuehren
+# kollidieren. Dieser Workflow prueft das Referenzpaket, der Name sagt das.
+#
 # Laeuft nur hier: GitHub fuehrt ausschliesslich Workflows unter
 # ".github/workflows/" im REPOSITORY-WURZELVERZEICHNIS aus.
 # Die gleichnamigen Dateien unter legacy/*/.github/workflows/ werden von GitHub
@@ -33,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Struktur - Pflichtdateien
         id: structure
@@ -183,7 +188,22 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $strictLegacy = ($env:STRICT_LEGACY -eq 'true')
-          $files = @(Get-ChildItem -Recurse -File -Filter '*.ps1' | Sort-Object FullName)
+          $root = (Get-Location).Path
+
+          # review/ wird ausgenommen: dort liegen Transkriptionen von Codeauszuegen
+          # aus Chatverlaeufen, die mitten im Code enden. Sie sind Belege, kein
+          # ausfuehrbarer Code, und koennen eine Syntaxpruefung nicht bestehen.
+          # Nachweis fuer die abgeschnittene Datei
+          # review/LocalCloudCode.v9.2.stand-2026-09-13.ps1: die Klammerbilanz
+          # endet bei +3 (drei offene Bloecke), die letzte Zeile lautet ').TrimS'.
+          $files = @(
+              Get-ChildItem -Recurse -File -Filter '*.ps1' |
+                  Where-Object {
+                      $rel = $_.FullName.Substring($root.Length + 1).Replace('\', '/')
+                      $rel -notlike 'review/*'
+                  } |
+                  Sort-Object FullName
+          )
           $bad = 0
           $warn = 0
           $checked = 0
@@ -203,25 +223,34 @@ jobs:
                   continue
               }
 
-              $first = @($errors)[0]
-              $msg = "Zeile $($first.Extent.StartLineNumber), Spalte $($first.Extent.StartColumnNumber): $($first.Message)"
+              # Alle Fehler einer Datei melden, nicht nur den ersten: sonst bleibt
+              # die zweite defekte Zeile unsichtbar (in den 2941-B-Dateien ist es
+              # Zeile 29 UND Zeile 31).
+              $shown = @($errors) | Select-Object -First 5
 
-              if ($isLegacy -and -not $strictLegacy) {
-                  Write-Host "::warning file=$rel,line=$($first.Extent.StartLineNumber)::$($first.Message)"
-                  Write-Host "WARNUNG   $rel  ->  $msg"
-                  $warn++
-                  continue
+              foreach ($err in $shown) {
+                  $msg = "Zeile $($err.Extent.StartLineNumber), Spalte $($err.Extent.StartColumnNumber): $($err.Message)"
+                  $level = if ($isLegacy -and -not $strictLegacy) { 'warning' } else { 'error' }
+                  Write-Host "::$level file=$rel,line=$($err.Extent.StartLineNumber),col=$($err.Extent.StartColumnNumber)::$($err.Message)"
+                  $prefix = if ($level -eq 'warning') { 'WARNUNG  ' } else { 'FEHLER   ' }
+                  Write-Host "$prefix$rel  ->  $msg"
               }
 
-              Write-Host "::error file=$rel,line=$($first.Extent.StartLineNumber),col=$($first.Extent.StartColumnNumber)::$($first.Message)"
-              Write-Host "FEHLER    $rel  ->  $msg"
-              $bad++
+              if (@($errors).Count -gt 5) {
+                  Write-Host "          ... und $((@($errors).Count) - 5) weitere Fehler in dieser Datei"
+              }
+
+              if ($isLegacy -and -not $strictLegacy) {
+                  $warn++
+              } else {
+                  $bad++
+              }
           }
 
           Write-Host "`n--------------------------------------------"
-          Write-Host "Geprueft : $checked"
-          Write-Host "Warnungen: $warn"
-          Write-Host "Fehler   : $bad"
+          Write-Host "Geprueft : $checked Dateien"
+          Write-Host "Warnungen: $warn Datei(en)"
+          Write-Host "Fehler   : $bad Datei(en)"
           if ($bad -gt 0) {
               Write-Host "ERGEBNIS : FAIL"
               exit 1

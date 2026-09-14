@@ -286,3 +286,90 @@ Solange keine der beiden Varianten gewählt ist, ist ein roter Lauf die **ehrlic
    extrahiert und auf einer Kopie des Baums ausgeführt. Der `pwsh`-Schritt konnte hier
    nicht laufen (im Sandkasten ist kein PowerShell installiert) — dort ist der echte
    Parser auf GitHub die Prüfinstanz, und ich behaupte nichts anderes.
+
+---
+
+## 7. Nachtrag 2: Was der erste echte CI-Lauf gefunden hat
+
+Der Workflow ist auf PR #4 gelaufen (Lauf `34878640404`) und war **rot** — wie angekündigt.
+Aber **nicht nur** wegen W-01: der echte PowerShell-Parser hat drei Fehler gefunden, die mein
+tree-sitter-Vorfilter als „OK" gemeldet hatte.
+
+**Korrektur meiner eigenen Ankündigung:** Ich hatte geschrieben, der Lauf zeige „genau diesen
+Fehler" in zwei Dateien. Es sind **fünf**. Meine Angabe war falsch, der echte Parser hat sie
+korrigiert:
+
+| Datei | Zeile | Meldung des echten Parsers | Status |
+|---|---|---|---|
+| `legacy/…/Install-KI-Dauerreferenz-AutoUpdate.ps1` | 9 | `Missing argument in parameter list` | W-01, bekannt |
+| `legacy/…/Install-KI-Engineering-Memory-AutoUpdate.ps1` | 9 | `Missing argument in parameter list` | W-01, bekannt |
+| `legacy/…/Update-KI-MachineProfile.ps1` | 29 | `Variable reference is not valid. ':' was not followed by a valid variable name character` | **W-12, neu** |
+| `legacy/…/Update-KI-Dauerreferenz.ps1` | 29 | dieselbe Meldung | **W-12, neu** |
+| `review/LocalCloudCode.v9.2.stand-2026-09-13.ps1` | 818 | `Missing closing '}' in statement block` | **W-13, kein Defekt** |
+
+### W-12 — zwei weitere Dateien sind nicht ausführbar
+
+Zeile 29 (und 31) beider 2941-Byte-Dateien:
+
+```powershell
+foreach($k in $apps.Keys){$md += "- $k: $($apps[$k])"}
+```
+
+`$k:` — in PowerShell ist der Doppelpunkt nach einer Variablen die Scope- bzw.
+Laufwerksangabe (`$env:PATH`, `$script:x`). `"$k: "` ist deshalb kein gültiger Ausdruck:
+nach dem Doppelpunkt müsste ein Namenszeichen folgen, es folgt ein Leerzeichen. Beide Dateien
+lassen sich damit **nicht einmal laden** — sie sind also nicht nur falsch benannt (W-02),
+sondern zusätzlich defekt. Der Updater hat auf diesem Rechner nie gearbeitet.
+
+**Lösung** — geschweifte Klammern setzen, beide Zeilen:
+
+```powershell
+foreach($k in $apps.Keys){$md += "- ${k}: $($apps[$k])"}
+foreach($k in $apis.Keys){$md += "- ${k}: online=$($apis[$k].online), ..."}
+```
+
+Der echte Parser meldet nur die **erste** fehlerhafte Zeile je Datei. Es sind zwei — deshalb
+gibt der Workflow jetzt bis zu fünf Meldungen je Datei aus.
+
+### W-13 — die Transkription ist am Ende abgeschnitten (kein Defekt im Code)
+
+`review/LocalCloudCode.v9.2.stand-2026-09-13.ps1` endet mitten in einem Ausdruck; die letzte
+Zeile lautet `).TrimS`. Nachgemessen: die Klammerbilanz endet bei **+3** — drei Blöcke sind
+offen, weil der Auszug dort abbricht. Die Datei ist ein **Beleg**, kein ausführbarer Code
+(Transkription eines Chat-Auszugs) und kann eine Syntaxprüfung nicht bestehen.
+
+**Konsequenz im Workflow:** `review/**` ist von der Syntaxprüfung ausgenommen, mit Begründung
+und Nachweis direkt im Workflow. **Wichtig:** Zeilennummern in dieser Datei sind die Nummern
+des Auszugs — über die echte `LocalCloudCode.ps1` auf dem PC sagen sie nichts.
+
+### W-14 — mein Vorfilter hat drei Fehler übersehen (Methodik)
+
+Das ist der wichtigste Punkt dieses Nachtrags. `tools/psparse/pscheck.py` hatte für drei
+Dateien „PARSE: OK" gemeldet, die der echte Parser ablehnt — nachgewiesen durch den CI-Lauf,
+nicht durch eine Vermutung.
+
+Konsequenz, umgesetzt:
+
+- Die Grenze ist in der Docstring des Werkzeugs dokumentiert, **mit der Lauf-ID als Beleg**.
+- Es gibt eine zusätzliche Musterprüfung für die Klasse `"$name:"`. Sie ist ausdrücklich als
+  `VERDACHT` gekennzeichnet (Musterprüfung, kein Syntaxbaum) und **nicht** als Parserfehler.
+- Gegenprobe: die Prüfung findet genau die 4 echten Stellen (Zeile 29 und 31 in beiden
+  Dateien) und erzeugt bei den übrigen 17 Dateien **keinen** Fehlalarm.
+
+Und daraus die Regel, die jetzt ohne Einschränkung gilt: **„PARSE: OK" dieses Vorfilters ist
+kein Beweis für gültige Syntax. Verbindlich ist ausschließlich der echte Parser.**
+
+### Zusätzlich umgesetzt
+
+| Änderung | Grund |
+|---|---|
+| Workflow umbenannt `validate.yml` → `reference-package.yml` | Auf einem anderen Branch dieses Repositories liegt bereits eine `validate.yml`. Zwei gleichnamige Dateien mit verschiedenem Inhalt kollidieren beim Zusammenführen. Der neue Name sagt außerdem, was geprüft wird. |
+| `actions/checkout` v4 → v5 | Die v4-Warnung („Node.js 20 is deprecated") ist damit weg. |
+| `review/**` von der Syntaxprüfung ausgenommen | siehe W-13 |
+| Bis zu 5 Fehler je Datei statt nur der erste | siehe W-12 (zwei betroffene Zeilen) |
+
+### Erwartung des nächsten Laufs
+
+Rot, **vier** Dateien: 2 × W-01 (Zeile 9) und 2 × W-12 (Zeilen 29 und 31). Sonst nichts.
+Die Prüfungen für Pflichtdateien, SHA256-Pins und Kodierung sind im ersten Lauf **grün**
+gewesen — die Hash-Pins funktionieren also nachweislich.
