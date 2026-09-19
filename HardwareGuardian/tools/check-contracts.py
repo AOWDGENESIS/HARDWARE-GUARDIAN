@@ -13,6 +13,11 @@ What it does:
   4. checks every static member access    StaticClass.Member
   5. checks every `local.Member` whose local type is resolvable inside this repository
   6. checks that each `class X : IFoo` implements every member of the interface IFoo
+  7. binds the parameter of a `collection.Select(p => …)` style lambda to the element type of the
+     collection, so LINQ bodies are checked as well; the binding is limited to the lambda body,
+     because the same parameter name is reused with different element types in one method
+  8. keeps the `{ … }` holes of interpolated strings while blanking the literal around them, so
+     `$"{entry.Kind}"` is checked instead of disappearing with the string
      (src/ and, when present, tests/)
 
 Exit code 1 when findings exist. Run:  python3 tools/check-contracts.py
@@ -123,6 +128,105 @@ class TypeInfo:
     is_static: bool = False
 
 
+def blank_nested_literals(text: str) -> str:
+    """Blanks string and character literals inside an interpolation hole, keeping every position."""
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        char = text[i]
+        if char == '"':
+            j = i + 1
+            while j < len(text):
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == '"':
+                    j += 1
+                    break
+                j += 1
+            out.append(" " * (j - i))
+            i = j
+            continue
+        if char == "'":
+            j = i + 1
+            while j < len(text):
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == "'":
+                    j += 1
+                    break
+                j += 1
+            out.append(" " * (j - i))
+            i = j
+            continue
+        out.append(char)
+        i += 1
+    return "".join(out)
+
+
+def blank_interpolated(text: str, start: int, verbatim: bool, prefix_length: int) -> tuple[str, int]:
+    """Blanks an interpolated string but keeps `{ … }` holes, so member access inside them stays visible.
+
+    Without this, every `$"{entry.KindTypo}"` was invisible to the checker: the literal is replaced
+    by a placeholder, and the expression in it disappeared with the rest of the text.
+    """
+    length = len(text)
+    out: list[str] = [" "] * prefix_length
+    i = start + prefix_length
+    while i < length:
+        char = text[i]
+        if char == "\\" and not verbatim:
+            out.append(" ")
+            out.append(" ")
+            i += 2
+            continue
+        if char == '"':
+            if verbatim and i + 1 < length and text[i + 1] == '"':
+                out.append(" ")
+                out.append(" ")
+                i += 2
+                continue
+            out.append(" ")
+            i += 1
+            break
+        if char == "{":
+            if i + 1 < length and text[i + 1] == "{":
+                out.append(" ")
+                out.append(" ")
+                i += 2
+                continue
+            depth = 0
+            j = i
+            while j < length:
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            if j >= length:
+                out.append(" ")
+                i += 1
+                continue
+            out.append(blank_nested_literals(text[i : j + 1]))
+            i = j + 1
+            continue
+        if char == "}":
+            if i + 1 < length and text[i + 1] == "}":
+                out.append(" ")
+                out.append(" ")
+                i += 2
+                continue
+            out.append(" ")
+            i += 1
+            continue
+        out.append(" ")
+        i += 1
+    return "".join(out), i
+
+
 def strip_comments_and_strings(text: str) -> str:
     """Single pass replacement of comments and literals by neutral placeholders.
 
@@ -152,6 +256,16 @@ def strip_comments_and_strings(text: str) -> str:
             i = end_index
             continue
 
+        # interpolated verbatim string: $@"…" or @$"…"
+        if char == "$" and i + 2 < length and text[i + 1] == "@" and text[i + 2] == '"':
+            blob, i = blank_interpolated(text, i, True, 3)
+            out.append(blob)
+            continue
+        if char == "@" and i + 2 < length and text[i + 1] == "$" and text[i + 2] == '"':
+            blob, i = blank_interpolated(text, i, True, 3)
+            out.append(blob)
+            continue
+
         # verbatim string
         if char == "@" and i + 1 < length and text[i + 1] == '"':
             j = i + 2
@@ -167,19 +281,10 @@ def strip_comments_and_strings(text: str) -> str:
             i = j
             continue
 
-        # interpolated or regular string
+        # interpolated string
         if char == "$" and i + 1 < length and text[i + 1] == '"':
-            j = i + 2
-            while j < length:
-                if text[j] == "\\":
-                    j += 2
-                    continue
-                if text[j] == '"':
-                    j += 1
-                    break
-                j += 1
-            out.append('""')
-            i = j
+            blob, i = blank_interpolated(text, i, False, 2)
+            out.append(blob)
             continue
 
         if char == '"':
@@ -298,6 +403,16 @@ def collect_types(files: list[Path]) -> dict[str, TypeInfo]:
     return types
 
 
+def collect_namespace_segments(files: list[Path]) -> set[str]:
+    """Every segment of every namespace declared in the repository (`HardwareGuardian.Core` -> two)."""
+    segments: set[str] = set()
+    for path in files:
+        text = strip_comments_and_strings(path.read_text(encoding="utf-8", errors="replace"))
+        for name in NAMESPACE.findall(text):
+            segments.update(part for part in name.split(".") if part)
+    return segments
+
+
 def check_object_initialisers(files: list[Path], types: dict[str, TypeInfo]) -> list[str]:
     findings = []
     pattern = re.compile(r"new\s+([A-Za-z_][\w\.]*(?:<[^;{]*?>)?)\s*(?:\([^)]*\))?\s*\{")
@@ -331,6 +446,12 @@ def check_member_access(files: list[Path], types: dict[str, TypeInfo]) -> list[s
         "ReferenceEquals", "Deconstruct", "PrintMembers",
     }
     access = re.compile(r"\b([A-Z][A-Za-z0-9_]*)\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)")
+    # A type name that is itself a member of something else is not a static access:
+    # `device.HealthStatus.Display` reads a property of the device, and the enum rule would report
+    # `Display` as a missing enum member. Only a namespace segment (or `global`) before the dot keeps
+    # the chain qualified, as in `HardwareGuardian.Core.HealthStatus.Display`.
+    namespace_segments = collect_namespace_segments(files)
+    qualifier = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*$")
     for path in files:
         text = strip_comments_and_strings(path.read_text(encoding="utf-8", errors="replace"))
         for m in access.finditer(text):
@@ -338,6 +459,10 @@ def check_member_access(files: list[Path], types: dict[str, TypeInfo]) -> list[s
             info = types.get(owner)
             if info is None or member in inherited:
                 continue
+            if m.start() > 0 and text[m.start() - 1] == ".":
+                before = qualifier.search(text[: m.start() - 1])
+                if before is None or (before.group(1) not in namespace_segments and before.group(1) != "global"):
+                    continue
             if info.kind == "enum" and member not in info.members:
                 findings.append(f"{path.relative_to(ROOT)}: enum {owner} has no member '{member}' (declared in {info.file})")
             elif info.kind == "class" and info.is_static and member not in info.members:
@@ -368,6 +493,26 @@ EXTENSION = re.compile(
     r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^()]*>)?\s*\(\s*this\s+"
     r"(?P<type>[A-Z][A-Za-z0-9_]*(?:<[^()]*>)?)\s+(?:[A-Za-z_][A-Za-z0-9_]*)\s*[,)]"
 )
+NAMESPACE = re.compile(r"^\s*namespace\s+([A-Za-z_][A-Za-z0-9_.]*)", re.M)
+
+# `if (request.Snapshot is { } snapshot)` - a property pattern binds a name of the checked type.
+PATTERN_EMPTY = re.compile(
+    r"(?P<source>[A-Za-z_][A-Za-z0-9_.]*)\s+is\s+\{\s*\}\s+(?P<name>[a-z_][A-Za-z0-9_]*)"
+)
+
+PATTERN_DECL = re.compile(
+    r"(?P<source>[A-Za-z_][A-Za-z0-9_.]*)\s+is\s+(?:not\s+null\s+)?(?:\(\s*)?"
+    r"(?P<type>[A-Z][A-Za-z0-9_<>?]*)\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*(?:\)|&&|\|\||[,)])"
+)
+
+SEQUENCE_LAMBDA = re.compile(
+    r"(?P<receiver>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\.\s*"
+    r"(?P<method>Select|Where|Any|All|First|FirstOrDefault|Last|LastOrDefault|Single|SingleOrDefault|"
+    r"Count|OrderBy|OrderByDescending|SelectMany|Take|Skip|Distinct|ForEach|ToDictionary|Sum|Max|Min|"
+    r"Average|Aggregate)\s*(?P<callopen>\()\s*\(?\s*(?P<name>[a-z_][A-Za-z0-9_]*)\s*"
+    r"(?:,\s*(?P<other>[a-z_][A-Za-z0-9_]*))?\s*\)?\s*=>"
+)
+
 VAR_DECL = re.compile(r"\bvar\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*=\s*(?P<rhs>[^;\n]*)")
 WRAPPER = re.compile(r"^(?:Task|ValueTask|IReadOnlyList|IEnumerable|IList|List|ICollection|HashSet|IReadOnlyCollection)<\s*(?P<inner>[A-Za-z0-9_]+)\s*>$")
 METHOD_START = re.compile(
@@ -415,6 +560,143 @@ def evaluate(expression: str, types: dict[str, TypeInfo], scope: dict[str, set[s
         if resolved not in types:
             return None
     return resolved
+
+
+def matching_close(expression: str, open_index: int) -> int:
+    """Index of the bracket that closes the bracket at `open_index`."""
+    depth = 0
+    for i in range(open_index, len(expression)):
+        char = expression[i]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+            if depth == 0:
+                return i
+    return len(expression) - 1
+
+
+def call_extent(region: str, open_paren: int, body_start: int) -> tuple[int, int]:
+    """Range of a lambda body inside the call whose opening bracket is `open_paren`.
+
+    The end is the bracket that closes the call, not the next comma: `new Dictionary<string, object?>`
+    contains a comma inside its type arguments, and stopping there left a 21 character "body" in
+    which the access was invisible - the mutation test of this tool caught exactly that.
+    """
+    return body_start, matching_close(region, open_paren)
+
+
+def statement_extent(region: str, position: int) -> tuple[int, int]:
+    """Range of the statement that begins at `position` (a `foreach` body, for instance)."""
+    i = position
+    while i < len(region) and region[i].isspace():
+        i += 1
+    if i < len(region) and region[i] == "{":
+        inner = direct_body(region, i)
+        return i + 1, i + 1 + len(inner)
+    depth = 0
+    j = i
+    while j < len(region):
+        char = region[j]
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            if depth == 0:
+                break
+            depth -= 1
+        elif char == ";" and depth == 0:
+            break
+        j += 1
+    return i, j
+
+
+def raw_type_of(expression: str, types: dict[str, TypeInfo], scope: dict[str, set[str]]) -> str | None:
+    """Declared type of a resolvable member chain, before unwrapping: `_plan.Items` -> `IReadOnlyList<MaintenanceItem>`.
+
+    `evaluate` deliberately throws the wrappers away; the sequence lambda needs them, because the
+    element type of a collection is what a `p => p.Member` lambda binds its parameter to.
+    """
+    text = re.sub(r"^await\s+", "", expression.strip())
+    text = text.split("(")[0]
+    parts = [p for p in re.split(r"\??\.", text) if p]
+    if not parts:
+        return None
+    candidates = scope.get(parts[0])
+    if not candidates or len(candidates) != 1:
+        return None
+    resolved = next(iter(candidates))
+    raw = resolved
+    for part in parts[1:]:
+        info = types.get(resolved)
+        if info is None:
+            return None
+        member_type = info.member_types.get(part)
+        if member_type is None:
+            for base in info.bases:
+                base_info = types.get(base.split(".")[-1])
+                if base_info and part in base_info.member_types:
+                    member_type = base_info.member_types[part]
+                    break
+        if member_type is None:
+            return None
+        raw = member_type
+        resolved = unwrap(member_type)
+        if resolved not in types:
+            return None
+    return raw
+
+
+def single_type_argument(raw: str) -> str | None:
+    """Element type of a single-argument generic: `IReadOnlyList<MaintenanceItem>` -> `MaintenanceItem`.
+
+    A type with more than one argument is rejected on purpose - the element of a dictionary is a
+    KeyValuePair, and guessing here would produce a wrong scope and therefore false findings.
+    """
+    start = raw.find("<")
+    if start < 0:
+        return None
+    depth = 0
+    end = -1
+    for i in range(start, len(raw)):
+        if raw[i] == "<":
+            depth += 1
+        elif raw[i] == ">":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end < 0:
+        return None
+    inner = raw[start + 1 : end]
+    if top_level_comma(inner):
+        return None
+    return inner.strip().rstrip("?").strip()
+
+
+def top_level_comma(text: str) -> bool:
+    depth = 0
+    for char in text:
+        if char == "<":
+            depth += 1
+        elif char == ">":
+            depth -= 1
+        elif char == "," and depth == 0:
+            return True
+    return False
+
+
+def element_type_of(expression: str, types: dict[str, TypeInfo], scope: dict[str, set[str]]) -> str | None:
+    """Type a `x => x.…` lambda parameter is bound to, or None when that cannot be decided."""
+    raw = raw_type_of(expression, types, scope)
+    if raw is None:
+        return None
+    if raw.endswith("[]"):
+        candidate = raw[:-2].strip().rstrip("?")
+        return candidate if candidate in types else None
+    argument = single_type_argument(raw)
+    if argument is None:
+        return None
+    return argument if argument in types else None
 
 
 def unwrap(type_name: str) -> str:
@@ -494,10 +776,15 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
     """Validates `local.Member` against the declared type of the local.
 
     This catches the defect class that was found by hand several times: a member was used on a Core
-    type that does not declare it. The scope is built per method, because the same local name is
-    reused with different types in different methods; a name that stays ambiguous is skipped instead
-    of guessed. Only receivers whose type is declared in this repository are checked, and every
-    extension method declared here is exempt.
+    type that does not declare it. The scope is positional: a local, a `foreach` variable or a
+    lambda parameter is only in scope inside its own block or lambda body. A method-wide scope for
+    the same name was wrong for `foreach (var entry in request.History)` next to
+    `foreach (var entry in request.Audit)` - the name became ambiguous and both loops went
+    unchecked, which hid a deliberate typo during the mutation test of this tool.
+
+    Nothing is guessed: an unresolvable link ends the resolution and the receiver stays unchecked.
+    Only receivers whose type is declared in this repository are checked, and every extension method
+    declared here is exempt.
     """
     findings: list[str] = []
     extensions: dict[str, set[str]] = {}
@@ -509,38 +796,118 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
             for m in EXTENSION.finditer(body_of(text, decl.end())):
                 extensions.setdefault(re.sub(r"<.*", "", m.group("type")), set()).add(m.group("name"))
 
-    def bind(scope: dict[str, set[str]], name: str, type_name: str) -> None:
-        base = re.sub(r"<.*", "", type_name).strip().rstrip("?").strip()
-        if base in types:
-            scope.setdefault(name, set()).add(base)
+    def simple_name(type_name: str) -> str:
+        return re.sub(r"<.*", "", type_name).strip().rstrip("?").strip()
 
-    def collect(region: str, base: dict[str, set[str]] | None = None) -> dict[str, set[str]]:
-        found: dict[str, set[str]] = {k: set(v) for k, v in (base or {}).items()}
-        for m in TYPED_LOCAL.finditer(region):
-            bind(found, m.group("name"), m.group("type"))
-        for m in VAR_DECL.finditer(region):
+    def bind(bindings: list[tuple[int, int, str, str]], start: int, end: int, name: str, type_name: str) -> None:
+        base = simple_name(type_name)
+        if base in types:
+            bindings.append((start, end, name, base))
+
+    def enclosing_block(region: str, position: int) -> tuple[int, int]:
+        """Innermost brace pair that contains `position`; the whole region when there is none."""
+        best = (0, len(region))
+        stack: list[int] = []
+        for i, char in enumerate(region):
+            if char == "{":
+                stack.append(i)
+            elif char == "}" and stack:
+                opened = stack.pop()
+                if opened < position <= i and (i - opened) < (best[1] - best[0]):
+                    best = (opened, i)
+        return best
+
+    def effective(
+        bindings: list[tuple[int, int, str, str]],
+        position: int,
+        fallback: dict[str, str],
+    ) -> dict[str, set[str]]:
+        """Name to type that is valid at `position`: the innermost binding wins over the fallback."""
+        chosen: dict[str, str] = {}
+        span: dict[str, int] = {}
+        for start, end, name, type_name in bindings:
+            if start <= position <= end:
+                width = end - start
+                if name not in span or width < span[name]:
+                    span[name] = width
+                    chosen[name] = type_name
+        for name, type_name in fallback.items():
+            chosen.setdefault(name, type_name)
+        return {name: {type_name} for name, type_name in chosen.items()}
+
+    def collect(files_text: str, fallback: dict[str, str]) -> list[tuple[int, int, str, str]]:
+        bindings: list[tuple[int, int, str, str]] = []
+        for m in TYPED_LOCAL.finditer(files_text):
+            start, end = enclosing_block(files_text, m.start())
+            bind(bindings, start, end, m.group("name"), m.group("type"))
+        for m in VAR_DECL.finditer(files_text):
             expression = m.group("rhs").strip()
             if expression.startswith("new "):
-                bind(found, m.group("name"), expression[4:].split("(")[0])
+                type_name = expression[4:].split("(")[0]
             else:
-                resolved = evaluate(expression, types, found)
-                if resolved:
-                    bind(found, m.group("name"), resolved)
-                else:
-                    found.pop(m.group("name"), None)
-        for m in FOREACH.finditer(region):
-            source = evaluate(m.group("source"), types, found)
-            if source:
-                bind(found, m.group("name"), source)
-        return found
+                type_name = evaluate(expression, types, effective(bindings, m.start(), fallback))
+            if type_name is None:
+                continue
+            start, end = enclosing_block(files_text, m.start())
+            bind(bindings, start, end, m.group("name"), type_name)
+        for m in FOREACH.finditer(files_text):
+            source = evaluate(m.group("source"), types, effective(bindings, m.start(), fallback))
+            if source is None:
+                continue
+            start, end = statement_extent(files_text, m.end())
+            bind(bindings, start, end, m.group("name"), source)
+        # `x is { } name` / `x is Type name`: the name carries the type of the left operand, because
+        # a `{ }` pattern has no type of its own.
+        for m in PATTERN_EMPTY.finditer(files_text):
+            resolved = evaluate(m.group("source"), types, effective(bindings, m.start(), fallback))
+            if resolved is None:
+                continue
+            start, end = enclosing_block(files_text, m.start())
+            bind(bindings, start, end, m.group("name"), resolved)
+        for m in PATTERN_DECL.finditer(files_text):
+            resolved = evaluate(m.group("source"), types, effective(bindings, m.start(), fallback))
+            if resolved is None:
+                continue
+            start, end = enclosing_block(files_text, m.start())
+            bind(bindings, start, end, m.group("name"), resolved)
+        for m in SEQUENCE_LAMBDA.finditer(files_text):
+            element = element_type_of(m.group("receiver"), types, effective(bindings, m.start(), fallback))
+            if element is None:
+                continue
+            start, end = call_extent(files_text, m.start("callopen"), m.end())
+            bind(bindings, start, end, m.group("name"), element)
+        return bindings
 
-    def check_region(region: str, scope: dict[str, str], path: Path) -> None:
+    def ambiguous_names(text: str, fallback: dict[str, str]) -> dict[str, str]:
+        """Names that keep exactly one type over the whole text - used for fields and parameters."""
+        combined: dict[str, set[str]] = {k: {v} for k, v in fallback.items()}
+        for m in TYPED_LOCAL.finditer(text):
+            base = simple_name(m.group("type"))
+            if base in types:
+                combined.setdefault(m.group("name"), set()).add(base)
+        for m in VAR_DECL.finditer(text):
+            expression = m.group("rhs").strip()
+            if expression.startswith("new "):
+                base = simple_name(expression[4:].split("(")[0])
+                if base in types:
+                    combined.setdefault(m.group("name"), set()).add(base)
+        return {k: next(iter(v)) for k, v in combined.items() if len(v) == 1}
+
+    def check_region(
+        region: str,
+        bindings: list[tuple[int, int, str, str]],
+        fallback: dict[str, str],
+        path: Path,
+        text: str,
+        offset: int,
+    ) -> None:
         access = re.compile(r"\b(?P<name>[a-z_][A-Za-z0-9_]*)\s*\.\s*(?P<member>[A-Za-z_][A-Za-z0-9_]*)")
         for m in access.finditer(region):
-            owner = scope.get(m.group("name"))
             member = m.group("member")
+            owner = effective(bindings, m.start(), fallback).get(m.group("name"))
             if owner is None:
                 continue
+            owner = next(iter(owner))
             info = types[owner]
             if info.kind == "enum" or member in info.members:
                 continue
@@ -558,8 +925,9 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
                 pending += [types[b.split(".")[-1]] for b in current.bases if b.split(".")[-1] in types]
             if member in declared:
                 continue
+            line = text.count("\n", 0, offset + m.start()) + 1
             findings.append(
-                f"{path.relative_to(ROOT)}: {owner} has no member '{member}' "
+                f"{path.relative_to(ROOT)}:{line}: {owner} has no member '{member}' "
                 f"(receiver '{m.group('name')}', declared in {info.file})"
             )
 
@@ -579,17 +947,17 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
         blanked = text
         for _, _, signature, start, end in regions:
             blanked = blanked[:signature] + " " * (end - signature) + blanked[end:]
-        fields = collect(blanked)
-        field_scope = {k: next(iter(v)) for k, v in fields.items() if len(v) == 1}
+        fallback = ambiguous_names(blanked, {})
 
         for _, parameters, _, start, end in regions:
             body = text[start:end]
             # The trailing comma makes a single parameter ("SystemSnapshot snapshot") match as well:
             # the declaration pattern needs a delimiter after the name.
-            local = collect(parameters + ",", {k: {v} for k, v in field_scope.items()})
-            merged = collect(body, local)
-            scope = {k: next(iter(v)) for k, v in merged.items() if len(v) == 1}
-            check_region(body, scope, path)
+            parameters_scope = dict(fallback)
+            for name, type_name in ambiguous_names(parameters + ",", parameters_scope).items():
+                parameters_scope[name] = type_name
+            bindings = collect(body, parameters_scope)
+            check_region(body, bindings, parameters_scope, path, text, start)
     return findings
 
 

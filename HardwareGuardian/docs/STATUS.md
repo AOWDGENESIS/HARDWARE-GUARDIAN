@@ -76,6 +76,7 @@ hardware. PDF export is intentionally not implemented (see section 4).
 | `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 139 bindings, 0 findings |
 | `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared | 15 projects / 118 sources, 0 findings |
 | `tools/generate-solution.py --check` | `HardwareGuardian.sln` matches the projects on disk | up to date |
+| `tools/check-mutation.py` | the checkers above actually fail: ten deliberate defects (property, enum member, field/parameter/lambda/`foreach` member, unknown localisation key, hard-coded UI text, wrong binding) are injected into a temporary copy one at a time | 10/10 reported, exit code 0 |
 
 ### The application shell
 
@@ -103,7 +104,8 @@ the views:
 ## 3. Defects found and fixed in this session (continued and extended)
 
 Checks that run without a .NET SDK (`bash tools/verify-all.sh`): syntax, contracts, localisation,
-XAML, bindings, project references and solution freshness. Last result: 118 files / 370 types,
+XAML, bindings, project references, solution freshness and a mutation self-test of the checkers
+themselves. Last result: 118 files / 370 types,
 659 localisation keys in both languages, 15 projects, 10 XAML files with 139 resolved bindings -
 all clean (0 findings, every key used in code is defined, no unused key left behind, every binding
 path resolves against its data scope). **This is not a build.**
@@ -141,6 +143,7 @@ against the real Core contracts. Findings that were fixed:
 | **Real UI bug:** `MainWindow.xaml` bound the simulation banner to `MainViewModel.SimulationNotice`, which did not exist — WPF fails such a binding silently, so the banner would have stayed empty | `App/ViewModels/MainViewModel.cs` | Property added (uses `Report_SimulationWarning`); found by the new binding checker |
 | **Compile error:** `MainViewModel.ProtocolEntries` was an `ObservableCollection<T>` but called `Reset(...)`, which only exists on `BulkObservableCollection<T>` | `App/ViewModels/MainViewModel.cs` | Type corrected |
 | No check existed for WPF bindings at all (a wrong path does not throw, it produces an empty control) | `tools/check-bindings.py` (new) | Resolves every `{Binding}` root against the view model of the file or the item type of the surrounding templates; 139 bindings checked, 0 findings |
+| **The contract checker skipped the most common code shapes:** a lambda parameter (`problems.Select(p => …)`), a `foreach` variable whose name was reused in a second loop, and any expression inside an interpolated string (`$"{entry.Kind}"`). A deliberate typo in each of those places stayed invisible | `tools/check-contracts.py` | Scopes are positional now (local, loop body, lambda body - the innermost binding wins), interpolation holes stay visible while the literal around them is blanked, findings carry the line number, and a type name that is itself a member (`device.HealthStatus.Display`) is no longer mistaken for a static access. All six shapes are covered by the mutation self-test |
 | **Localisation gap in the UI:** 99 visible strings in the ten XAML files were hard-coded English (`"Cancel"`, `"Findings"`, every column header), so switching to German would have left the shell in English | `App/Views/*.xaml` + `Core/Resources/{en,de}.json` | All 99 replaced by `{services:Loc Key}` (82 distinct keys, `Shell_*`, `Section_*`, `Column_*`, `Action_*`, `Option_*`, `Field_*`, `Notice_*`); `check-xaml.py` now fails on any new hard-coded visible literal, and `check-localization.py` reads XAML keys as well |
 
 Verified as **already correct** against the real contracts (no change needed): `BackupService`

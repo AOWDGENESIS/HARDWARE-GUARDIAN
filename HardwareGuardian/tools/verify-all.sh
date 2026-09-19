@@ -4,7 +4,8 @@
 # What this cannot do: compile the code, run the tests, or touch real hardware.
 # What it does: catch the classes of mistakes this project kept producing by hand
 # (wrong member names, missing localisation keys, missing project references, broken syntax,
-# binding paths that would silently produce an empty control).
+# binding paths that would silently produce an empty control). The last step breaks the code on
+# purpose in a temporary copy: a checker that never fails would otherwise look like proof.
 #
 # Usage:  bash tools/verify-all.sh
 set -u
@@ -27,6 +28,7 @@ run "XAML (well formed, resource keys, DataTypes, code-behind)" python3 tools/ch
 run "Bindings (every {Binding} root against its data scope)" python3 tools/check-bindings.py
 run "Projects (references, central package versions)" python3 tools/check-projects.py
 run "Solution file is up to date" python3 tools/generate-solution.py --check
+run "The checks themselves (deliberate defects must be reported)" python3 tools/check-mutation.py
 
 echo
 if [ "$status" -eq 0 ]; then
