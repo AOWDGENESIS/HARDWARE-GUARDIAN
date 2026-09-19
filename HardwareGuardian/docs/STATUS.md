@@ -3,7 +3,7 @@
 This file is deliberately blunt. It exists so that no reader can mistake the current
 state for a finished product. It is updated after every work session.
 
-Last updated: 2026-09-19 (second session)
+Last updated: 2026-09-19 (third session)
 
 ---
 
@@ -15,8 +15,9 @@ Last updated: 2026-09-19 (second session)
 | NuGet restore (`dotnet restore`) | **NOT AVAILABLE** (api.nuget.org unreachable from the shell) | Package pins were verified against the NuGet flat-container index, but no package has been downloaded. |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
-| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 77 C# files parse without syntax errors (2026-09-19). **Syntax only — not a compile, not a type check.** |
-| Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, interface implementations. Currently **0 findings**. Not a compiler. |
+| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 118 C# files parse without syntax errors (2026-09-19). **Syntax only — not a compile, not a type check.** |
+| Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
+| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/HardwareGuardian.Tests` exists (11 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. |
 
 Therefore, for the current revision:
 
@@ -32,7 +33,7 @@ Therefore, for the current revision:
 | Project | Files | Lines | Purpose | State |
 | --- | --- | --- | --- | --- |
 | `HardwareGuardian.Core` | 42 | 7 341 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 470/470 keys |
-| `HardwareGuardian.Infrastructure` | 23 | 4 010 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
+| `HardwareGuardian.Infrastructure` | 24 | 4 138 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
 | `HardwareGuardian.Hardware` | 2 | 1 095 | WMI provider for real hardware | Written; contract-checked |
 | `HardwareGuardian.Sensors` | 2 | 524 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
 | `HardwareGuardian.Drivers` | 1 | 277 | Driver inventory + PnP problem-code analysis | Written; contract-checked |
@@ -43,14 +44,15 @@ Therefore, for the current revision:
 | `HardwareGuardian.Windows` | 1 | 931 | `IWindowsHealthService`: DISM, event log, Defender (read only), Windows Update, startup/services | Written; contract-checked |
 | `HardwareGuardian.Simulation` | 1 | 419 | `MockHardwareProvider` fixture, clearly labelled as simulation | Written; contract-checked |
 | `HardwareGuardian.Reporting` | 1 | 620 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
-| `HardwareGuardian.Diagnostics` | 5 | ~430 | Diagnostic modules: driver health, Windows health, sensors, workloads | Written; contract-checked |
-| `HardwareGuardian.App` | 22 | ~2 250 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
+| `HardwareGuardian.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
+| `HardwareGuardian.App` | 17 | 2 510 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
+| `tests/HardwareGuardian.Tests` | 11 | 1 333 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture | Written; contract-checked; **NOT EXECUTED** |
 
-Total: **105 C# files, ~21 500 lines + 10 XAML files** in 14 projects, all listed in
+Total: **118 C# files, 22 904 lines + 10 XAML files** in 15 projects, all listed in
 `HardwareGuardian.sln`.
 
-Not present yet: `HardwareGuardian.Tests`, `scripts/`, CI workflow, installer definition
-(Inno Setup or WiX) and the real build/test/hardware evidence. PDF export is intentionally not
+Not present yet: `scripts/`, the CI workflow, the installer definition (Inno Setup or WiX), the
+release artefacts and the real build/test/hardware evidence. PDF export is intentionally not
 implemented (see section 4).
 
 ### The application shell
@@ -79,8 +81,9 @@ the views:
 ## 3. Defects found and fixed in this session (continued and extended)
 
 Checks that run without a .NET SDK (`bash tools/verify-all.sh`): contracts, localisation, project
-references, XAML and syntax. Last result: 105 files / 352 types, 504 localisation keys in both
-languages, 14 projects, 10 XAML files - all clean. **This is not a build.**
+references, XAML and syntax. Last result: 118 files / 370 types, 577 localisation keys in both
+languages, 15 projects, 10 XAML files - all clean (0 findings, and every key used in code is
+defined, with no unused key left behind). **This is not a build.**
 
 A contract checker (`tools/check-contracts.py`) was written and used to compare every module
 against the real Core contracts. Findings that were fixed:
@@ -107,6 +110,11 @@ against the real Core contracts. Findings that were fixed:
 | `IRegistryAccess` reads were called without the required `retrievedAt` argument | `Maintenance/InventoryServices.cs` | Corrected |
 | `DriverRecord.ServiceOrDriver` does not exist (it is on `PnpDeviceInfo`) | driver analysis | Corrected to `InfName`/`DriverFileName` |
 | CS8602 risk: `.Value.…` chains without guaranteed narrowing | `Hardware/Wmi/WindowsHardwareProvider.cs` | Values are pulled into local variables first (3 places) |
+| **Real bug:** `SystemSnapshot.StorageDevices` does not exist (the member is `Storage`) | `Manufacturer/UpdateCenter.cs` (2 places) | Corrected; found by the new typed-receiver check after the member map had been repaired |
+| **Real gap:** 6 vendor keys (`Vendor_AMD`, `Vendor_ASUS`, `Vendor_GIGABYTE`, `Vendor_HP`, `Vendor_MSI`, `Vendor_NVIDIA`) were used but not defined — they are the ones the reference machine needs | `Core/Resources/*.json` | Added in both languages; the checker now recognises `…Key = "…"` positions, which the old "every segment must contain a lower-case letter" rule had skipped |
+| Test project used four members that do not exist (`MaintenanceResult.Outcome`, `ModuleResult.SkipReasonKey`, `SystemIdentity.Model`, `IClock` without `UtcNow`) | `tests/HardwareGuardian.Tests` | Corrected against the real contracts; the checker now scans `tests/` as well |
+| Contract checker had five blind spots: interfaces were not parsed (no access modifier ⇒ no members collected), `record struct` produced a bogus type named `struct` and lost `Measured<T>`/`TextInfo`/`ValueOrigin` completely, extension methods were misread as their parameter names, nested types merged the scopes of outer and inner methods, and single-parameter methods never bound their parameter | `tools/check-contracts.py` | All five fixed and documented in the tool; the member map grew from 352 to 370 types, which is why the real defects above became visible |
+| Localisation checker reported deliberately missing test keys as findings and could not see vendor keys | `tools/check-localization.py` | Test-only keys are built at runtime; `…Key` positions are recognised as keys |
 
 Verified as **already correct** against the real contracts (no change needed): `BackupService`
 (`IBackupService` signature and `BackupRequest` usage), all hardware/sensor/BIOS/manufacturer model
@@ -159,9 +167,10 @@ behaviour. A compiler and the test suite are still mandatory.
    `IRollbackService`, `MockHardwareProvider`, `ILocalizer` + resources, diagnostic modules.
 2. ~~Implement the WPF shell and the composition root~~ **done**: `src/HardwareGuardian.App` with
    DI, MVVM, Dark/Light/System theme, runtime DE/EN, five working pages.
-3. Implement `tests/HardwareGuardian.Tests` covering the safety invariants (fail-closed paths,
-   version comparison, decision engine, path guard, maintenance dry run vs. execute, localizer key
-   parity, report generator blocked-format path).
+3. ~~Implement `tests/HardwareGuardian.Tests`~~ **written, not executed.** The project covers the
+   safety invariants (fail-closed paths, version comparison, decision engine, path guard, maintenance
+   dry run vs. execute, localizer key parity, report generator blocked-format path, simulation
+   fixture). It must be run on a machine with the SDK; until then the test result is **unknown**.
 4. Build on a Windows machine with the pinned .NET 10 SDK, fix what the compiler reports, run the
    tests, and record the raw output as evidence.
 5. Run the application on the reference machine (Ryzen 5 5600G / GIGABYTE B450M S2H / BIOS F67 /

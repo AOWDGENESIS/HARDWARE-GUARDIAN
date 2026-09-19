@@ -280,7 +280,7 @@ public sealed class UpdateCenterService : IUpdateCenter
             });
         }
 
-        foreach (var device in snapshot.StorageDevices.Where(d => d.FriendlyName.IsKnown))
+        foreach (var device in snapshot.Storage.Where(d => d.FriendlyName.IsKnown))
         {
             if (components.Any(c => c.Category == ComponentCategory.Storage && string.Equals(c.Name.Display, device.FriendlyName.Display, StringComparison.OrdinalIgnoreCase)))
             {
@@ -378,7 +378,7 @@ public sealed class UpdateCenterService : IUpdateCenter
         Component = component,
         Processor = snapshot.Processors.FirstOrDefault(),
         Graphics = snapshot.Graphics.FirstOrDefault(),
-        Storage = snapshot.StorageDevices.FirstOrDefault(),
+        Storage = snapshot.Storage.FirstOrDefault(),
         Motherboard = snapshot.Motherboard,
         Bios = snapshot.Bios,
         Manufacturer = component.Manufacturer.Value,

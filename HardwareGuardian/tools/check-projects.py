@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
+TESTS = ROOT / "tests"
 
 NAMESPACE = re.compile(r"^\s*namespace\s+([A-Za-z_][\w\.]*)", re.M)
 USING = re.compile(r"^\s*using\s+(HardwareGuardian[\w\.]*)\s*;", re.M)
@@ -68,13 +69,19 @@ class Project:
 
 
 def main() -> int:
-    projects = [Project(p) for p in sorted(SRC.rglob("*.csproj"))]
+    project_files = sorted(SRC.rglob("*.csproj"))
+    if TESTS.is_dir():
+        # The test project is part of the solution and is checked with the same rules.
+        project_files += sorted(TESTS.rglob("*.csproj"))
+    projects = [Project(p) for p in project_files]
     by_path = {p.path.resolve(): p for p in projects}
     findings: list[str] = []
 
-    # 2. one project file per source directory, no orphan directories
-    for directory in sorted(d for d in SRC.iterdir() if d.is_dir()):
-        matches = list(directory.glob("*.csproj"))
+    # 2. every source directory below src/ or tests/ belongs to a project, and every project has sources
+    roots = [SRC] + ([TESTS] if TESTS.is_dir() else [])
+    for directory in sorted(d for root in roots for d in root.iterdir() if d.is_dir()):
+        # The project file may live in a subdirectory (tests/HardwareGuardian.Tests).
+        matches = list(directory.rglob("*.csproj"))
         sources = list(directory.rglob("*.cs"))
         if not matches and sources:
             findings.append(f"{directory.relative_to(ROOT)}: {len(sources)} source file(s) but no project file")

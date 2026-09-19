@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("2150E333-8FDC-42A3-9474-1A3956D46DE8") = "src", "src", "{D4BCB964-1F21-5B53-94B0-F847799377A5}"
 EndProject
+Project("2150E333-8FDC-42A3-9474-1A3956D46DE8") = "tests", "tests", "{C4BB5EF7-3F45-57B3-AACD-1B4CD0AC6E65}"
+EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.App\HardwareGuardian.App", "src\HardwareGuardian.App\HardwareGuardian.App.csproj", "{1B3202AB-F697-549A-B802-8057B4CECB61}"
 EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Bios\HardwareGuardian.Bios", "src\HardwareGuardian.Bios\HardwareGuardian.Bios.csproj", "{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE}"
@@ -31,6 +33,8 @@ EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Simulation\HardwareGuardian.Simulation", "src\HardwareGuardian.Simulation\HardwareGuardian.Simulation.csproj", "{4932A3E1-2D9D-5FD0-A94C-38C173093BC4}"
 EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Windows\HardwareGuardian.Windows", "src\HardwareGuardian.Windows\HardwareGuardian.Windows.csproj", "{70BB0EBE-0846-55BF-BEBF-5306C986C482}"
+EndProject
+Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "tests\HardwareGuardian.Tests\HardwareGuardian.Tests", "tests\HardwareGuardian.Tests\HardwareGuardian.Tests.csproj", "{3DF76615-8E6C-5967-9653-F5D90E4106DD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -124,6 +128,12 @@ Global
 		{70BB0EBE-0846-55BF-BEBF-5306C986C482}.Release|x64.Build.0 = Release|Any CPU
 		{70BB0EBE-0846-55BF-BEBF-5306C986C482}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{70BB0EBE-0846-55BF-BEBF-5306C986C482}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Release|x64.Build.0 = Release|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -143,5 +153,6 @@ Global
 		{948E83FE-2216-5539-8C48-57F37AA9EA7E} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{4932A3E1-2D9D-5FD0-A94C-38C173093BC4} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{70BB0EBE-0846-55BF-BEBF-5306C986C482} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
+		{3DF76615-8E6C-5967-9653-F5D90E4106DD} = {C4BB5EF7-3F45-57B3-AACD-1B4CD0AC6E65}
 	EndGlobalSection
 EndGlobal

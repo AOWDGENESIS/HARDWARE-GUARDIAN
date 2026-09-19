@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HardwareGuardian.Tests</RootNamespace>
+    <AssemblyName>HardwareGuardian.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- xUnit v3 test projects are executables; the VSTest adapter runs them as well. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Only projects that compile and run on every platform: the tests must be runnable in CI and
+         on a developer machine, and they must not need Windows, network access or real hardware. -->
+    <ProjectReference Include="..\..\src\HardwareGuardian.Core\HardwareGuardian.Core.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Infrastructure\HardwareGuardian.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Maintenance\HardwareGuardian.Maintenance.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Reporting\HardwareGuardian.Reporting.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Simulation\HardwareGuardian.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Diagnostics\HardwareGuardian.Diagnostics.csproj" />
+  </ItemGroup>
+
+</Project>

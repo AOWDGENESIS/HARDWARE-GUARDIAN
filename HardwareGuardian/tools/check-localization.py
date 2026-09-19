@@ -31,6 +31,16 @@ RESOURCE_DIRS = [p for p in SRC.rglob("Resources") if p.is_dir()]
 
 KEY_PATTERN = re.compile(r'"([A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)+(?:\.[A-Za-z0-9_]+)*)"')
 
+# Members whose value is a localisation key by contract. They are recognised as key positions even
+# when a segment is written in capitals (Vendor_NVIDIA), which the generic pattern above rejects.
+# ModuleKey is deliberately not in this list: module identifiers are not localised.
+KEY_POSITION_PATTERN = re.compile(
+    r"\b(?:DisplayName|Display|Name|Title|Step|Action|Reason|Message|Summary|SkipReason|"
+    r"MeasurementPoint|Description|Category|Status|Section|Label|Tooltip|Unit)Key"
+    r"\s*[:=]\s*\"([^\"]+)\""
+)
+OF_PATTERN = re.compile(r"LocalizedText\.Of\(\s*\"([^\"]+)\"")
+
 # Literals that match the pattern but are not localisation keys:
 # WMI/CIM class names, registry roots and the machine readable block reason codes
 # (which are ALL_CAPS by design, while every real key is UpperCamelCase_Segments).
@@ -85,13 +95,22 @@ def strip_comments(text: str) -> str:
 
 def used_keys() -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
-    for path in sorted(SRC.rglob("*.cs")):
+    files = sorted(SRC.rglob("*.cs"))
+    if (ROOT / "tests").is_dir():
+        files += sorted((ROOT / "tests").rglob("*.cs"))
+    for path in files:
         text = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
         for match in KEY_PATTERN.finditer(text):
             key = match.group(1)
             if not looks_like_key(key):
                 continue
             result.setdefault(key, set()).add(str(path.relative_to(ROOT)))
+        for pattern in (KEY_POSITION_PATTERN, OF_PATTERN):
+            for match in pattern.finditer(text):
+                key = match.group(1)
+                if key.startswith(EXCLUDED_PREFIXES):
+                    continue
+                result.setdefault(key, set()).add(str(path.relative_to(ROOT)))
     return result
 
 
