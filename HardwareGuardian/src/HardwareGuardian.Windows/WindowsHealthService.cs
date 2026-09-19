@@ -31,6 +31,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
     private readonly IHardwareProvider _hardware;
     private readonly IRegistryAccess _registry;
     private readonly ILiveProtocol _protocol;
+    private readonly IAuditLog _audit;
     private readonly IClock _clock;
 
     public WindowsHealthService(
@@ -41,6 +42,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
         IHardwareProvider hardware,
         IRegistryAccess registry,
         ILiveProtocol protocol,
+        IAuditLog audit,
         IClock clock)
     {
         _runner = runner;
@@ -50,6 +52,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
         _hardware = hardware;
         _registry = registry;
         _protocol = protocol;
+        _audit = audit;
         _clock = clock;
     }
 
@@ -105,66 +108,107 @@ public sealed class WindowsHealthService : IWindowsHealthService
     // ---------------------------------------------------------------------------------------------
     // Integrity checks (DISM / SFC)
     // ---------------------------------------------------------------------------------------------
-    public Task<IntegrityCheckResult> RunComponentStoreCheckAsync(bool repair, IProgressReporter progress, CancellationToken cancellationToken) =>
-        RunIntegrityCheckAsync(WindowsCheckId.ComponentStore, repair, progress, cancellationToken);
+    public Task<IntegrityCheckResult> RunComponentStoreCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken) =>
+        RunIntegrityCheckAsync(WindowsCheckId.ComponentStore, repair, approval, progress, cancellationToken);
 
-    public Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, IProgressReporter progress, CancellationToken cancellationToken) =>
-        RunIntegrityCheckAsync(WindowsCheckId.SystemFileIntegrity, repair, progress, cancellationToken);
+    public Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken) =>
+        RunIntegrityCheckAsync(WindowsCheckId.SystemFileIntegrity, repair, approval, progress, cancellationToken);
 
-    private async Task<IntegrityCheckResult> RunIntegrityCheckAsync(WindowsCheckId check, bool repair, IProgressReporter progress, CancellationToken cancellationToken)
+    private async Task<IntegrityCheckResult> RunIntegrityCheckAsync(
+        WindowsCheckId check,
+        bool repair,
+        ApprovalRecord? approval,
+        IProgressReporter progress,
+        CancellationToken cancellationToken)
     {
-        var displayKey = check == WindowsCheckId.ComponentStore ? "WindowsCheck_ComponentStore" : "WindowsCheck_SystemFileIntegrity";
+        var isComponentStore = check == WindowsCheckId.ComponentStore;
+        var displayKey = isComponentStore ? "WindowsCheck_ComponentStore" : "WindowsCheck_SystemFileIntegrity";
+        var tool = isComponentStore ? "dism.exe" : "sfc.exe";
         var arguments = BuildIntegrityArguments(check, repair);
-        var commandLine = $"dism.exe {string.Join(' ', arguments)}";
+        var commandLine = $"{tool} {string.Join(' ', arguments)}";
 
         if (!_environment.IsWindows)
         {
             return NotRun(check, displayKey, "Integrity checks require Windows; this host is not Windows.", commandLine);
         }
 
+        // Fail closed: a repair changes the system, so it is refused unless the record of the
+        // confirmed operation is present. The service does not trust the caller to have asked.
+        if (repair && check == WindowsCheckId.SystemFileIntegrity)
+        {
+            return await BlockedAsync(
+                check,
+                BlockReasons.RepairNotAutomated,
+                LocalizedText.Of("Integrity_Blocked_SfcRepairNotAutomated"),
+                commandLine,
+                requiresAdministrator: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (repair && approval is null)
+        {
+            return await BlockedAsync(
+                check,
+                BlockReasons.ApprovalMissing,
+                LocalizedText.Of("Integrity_Blocked_NoApproval"),
+                commandLine,
+                requiresAdministrator: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+
         if (!_environment.IsElevated)
         {
-            return new IntegrityCheckResult
+            var blocked = new IntegrityCheckResult
             {
                 Check = check,
                 Outcome = StageOutcome.Blocked,
                 CommandLine = commandLine,
                 RequiresAdministrator = true,
+                RepairRequested = repair,
                 Summary = LocalizedText.Of("Integrity_Blocked_NotElevated"),
                 Evidence = new[] { "elevation: false", $"command: {commandLine}" },
             };
+            await AuditAsync(check, repair, approval, StageOutcome.Blocked, blocked.Summary.Key, result: null, evidence: new[] { "elevation: false" }, cancellationToken).ConfigureAwait(false);
+            return blocked;
         }
 
         var started = _clock.Now;
-        progress.Start(check == WindowsCheckId.ComponentStore ? "Progress_Dism" : "Progress_Sfc", ModuleKey, null);
+        progress.Start(isComponentStore ? "Progress_Dism" : "Progress_Sfc", ModuleKey, null);
         _protocol.Info(ModuleKey, LocalizedText.Of(repair ? "Integrity_Running_Repair" : "Integrity_Running_Scan", displayKey));
 
-        var result = await _runner.RunAsync(
-            "dism.exe",
-            arguments,
-            new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(repair ? 60 : 45), MaxOutputCharacters = 2_000_000 },
-            cancellationToken).ConfigureAwait(false);
+        var runOptions = new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(repair ? 75 : 45), MaxOutputCharacters = 2_000_000 };
+        // Both tools are started through the same runner: the arguments decide what happens, and
+        // for SFC that is `/verifyonly`, a read-only verification.
+        var result = await _runner.RunAsync(tool, arguments, runOptions, cancellationToken).ConfigureAwait(false);
 
         var duration = _clock.Now - started;
         var output = result.CombinedOutput;
-        var (changesPerformed, repairSucceeded, summary) = InterpretDismOutput(output, repair);
+        var (changesPerformed, repairSucceeded, summary) = isComponentStore
+            ? InterpretDismOutput(output, repair)
+            : InterpretSfcOutput(output);
 
         var needsVerification = repair && repairSucceeded && changesPerformed;
         var verified = false;
         var evidence = new List<string>
         {
+            $"tool={tool}",
             $"exitCode={result.ExitCode}",
             $"timedOut={result.TimedOut}",
             $"duration={duration.TotalSeconds:0.0}s",
             $"changesPerformed={changesPerformed}",
         };
 
+        if (repair && approval is not null)
+        {
+            evidence.Add($"approval={approval.RequestId} operation={approval.OperationId} decided={approval.DecidedAt:O}");
+        }
+
         if (needsVerification)
         {
-            // A repair is only reported as successful after a separate verification run confirmed it.
+            // A repair counts as successful only after a separate verification run confirmed it.
             progress.ReportStep("Integrity_Verifying", null);
             var verify = await _runner.RunAsync(
-                "dism.exe",
+                tool,
                 BuildIntegrityArguments(check, repair: false),
                 new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(45), MaxOutputCharacters = 1_000_000 },
                 cancellationToken).ConfigureAwait(false);
@@ -182,7 +226,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             : repair && !repairSucceeded ? StageOutcome.Failed
             : StageOutcome.Succeeded;
 
-        return new IntegrityCheckResult
+        var final = new IntegrityCheckResult
         {
             Check = check,
             Outcome = outcome,
@@ -201,21 +245,76 @@ public sealed class WindowsHealthService : IWindowsHealthService
             Evidence = evidence,
             Duration = duration,
         };
+
+        await AuditAsync(check, repair, approval, outcome, final.Summary.Key, final, evidence, cancellationToken).ConfigureAwait(false);
+        return final;
+    }
+
+    /// <summary>Refusal result; it is audited as well, because a refused repair is a real event.</summary>
+    private async Task<IntegrityCheckResult> BlockedAsync(
+        WindowsCheckId check,
+        string reasonCode,
+        LocalizedText reason,
+        string commandLine,
+        bool requiresAdministrator,
+        CancellationToken cancellationToken)
+    {
+        var blocked = new IntegrityCheckResult
+        {
+            Check = check,
+            Outcome = StageOutcome.Blocked,
+            CommandLine = commandLine,
+            RepairRequested = true,
+            RequiresAdministrator = requiresAdministrator,
+            Summary = reason,
+            Evidence = new[] { $"reasonCode={reasonCode}", $"reason={reason.Key}", $"command: {commandLine}" },
+        };
+
+        _protocol.Warning(ModuleKey, LocalizedText.Of("Integrity_Protocol_Blocked", reasonCode), reason.Key);
+        await AuditAsync(check, repair: true, approval: null, StageOutcome.Blocked, reason.Key, blocked, blocked.Evidence, cancellationToken).ConfigureAwait(false);
+        return blocked;
+    }
+
+    /// <summary>
+    /// Writes the audit entry of an integrity run. The audit is written with
+    /// <see cref="CancellationToken.None"/> on purpose: an operation that happened must stay
+    /// recorded even when the caller cancelled right after it.
+    /// </summary>
+    private Task AuditAsync(
+        WindowsCheckId check,
+        bool repair,
+        ApprovalRecord? approval,
+        StageOutcome outcome,
+        string summaryKey,
+        IntegrityCheckResult? result,
+        IReadOnlyList<string> evidence,
+        CancellationToken cancellationToken)
+    {
+        _ = cancellationToken;
+        return _audit.RecordAsync(
+            repair ? OperationKind.Execute : OperationKind.Verify,
+            $"windows-integrity-{check}",
+            ComponentCategory.Windows,
+            outcome,
+            componentId: check.ToString(),
+            newState: summaryKey,
+            approval: approval,
+            error: outcome == StageOutcome.Failed ? $"exitCode={result?.ExitCode}" : null,
+            evidence: evidence,
+            cancellationToken: CancellationToken.None);
     }
 
     private static IReadOnlyList<string> BuildIntegrityArguments(WindowsCheckId check, bool repair)
     {
-        // Only documented DISM component store operations are used. SFC is not scripted here
-        // because its exit codes are ambiguous and it cannot repair from an offline source safely;
-        // the component store check is the documented, verifiable path.
-        var arguments = new List<string> { "/Online", "/Cleanup-Image", repair ? "/RestoreHealth" : "/ScanHealth" };
-        if (check == WindowsCheckId.SystemFileIntegrity && !repair)
+        if (check == WindowsCheckId.SystemFileIntegrity)
         {
-            arguments = new List<string> { "/Online", "/Cleanup-Image", "/CheckHealth" };
+            // `sfc.exe /verifyonly` only reads and reports. The repair (`/scannow`) is deliberately
+            // not automated: its exit codes are ambiguous and a silent repair is not verifiable here.
+            return new List<string> { "/verifyonly" };
         }
 
-        arguments.Add("/NoRestart");
-        return arguments;
+        // Only documented DISM component store operations are used.
+        return new List<string> { "/Online", "/Cleanup-Image", repair ? "/RestoreHealth" : "/ScanHealth", "/NoRestart" };
     }
 
     /// <summary>
@@ -255,6 +354,35 @@ public sealed class WindowsHealthService : IWindowsHealthService
         if (unrepaired)
         {
             return (false, false, LocalizedText.Of("Integrity_Summary_Corrupted"));
+        }
+
+        return (false, false, LocalizedText.Of("Integrity_Summary_Unknown"));
+    }
+
+    /// <summary>Maps real SFC output to a result; an unrecognised message stays unknown.</summary>
+    private static (bool ChangesPerformed, bool RepairSucceeded, LocalizedText Summary) InterpretSfcOutput(string output)
+    {
+        var text = output ?? string.Empty;
+
+        if (text.Contains("did not find any integrity violations", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, true, LocalizedText.Of("Integrity_Summary_NoViolations"));
+        }
+
+        if (text.Contains("found integrity violations", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("Windows Resource Protection found corrupt files", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, false, LocalizedText.Of("Integrity_Summary_ViolationsFound"));
+        }
+
+        if (text.Contains("system repair pending", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, false, LocalizedText.Of("Integrity_Summary_RepairPending"));
+        }
+
+        if (text.Contains("could not perform the requested operation", StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, false, LocalizedText.Of("Integrity_Summary_NotPossible"));
         }
 
         return (false, false, LocalizedText.Of("Integrity_Summary_Unknown"));

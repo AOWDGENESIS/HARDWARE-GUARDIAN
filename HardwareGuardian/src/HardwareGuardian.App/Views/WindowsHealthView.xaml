@@ -11,7 +11,7 @@
                     <Button Content="{services:Loc Action_CheckOffline}" Command="{Binding AssessOfflineCommand}" />
                     <Button Content="{services:Loc Action_DismScan}" Command="{Binding DismScanCommand}" />
                     <Button Content="{services:Loc Action_DismRepair}" Command="{Binding DismRepairCommand}" />
-                    <Button Content="{services:Loc Action_Sfc}" Command="{Binding SfcCommand}" />
+                    <Button Content="{services:Loc Action_SfcVerify}" Command="{Binding SfcVerifyCommand}" ToolTip="{services:Loc Sfc_Verify_Tooltip}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Border Background="{Binding OverallStatus, Converter={StaticResource StatusBrush}}" CornerRadius="4" Padding="10,3" Margin="0,0,10,0">
@@ -21,6 +21,17 @@
                 </StackPanel>
                 <TextBlock Style="{StaticResource Muted}" Text="{Binding ElevationHint}" Margin="0,6,0,0" />
                 <TextBlock Style="{StaticResource Muted}" Text="{Binding Message}" Foreground="{DynamicResource BrushAttention}" />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}" Visibility="{Binding IsAwaitingRepairApproval, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_ApprovalRequired}" />
+                <TextBlock Text="{Binding RepairApprovalSummary}" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="{services:Loc Action_Approve}" Command="{Binding ApproveRepairCommand}" Style="{StaticResource PrimaryButton}" />
+                    <Button Content="{services:Loc Action_Reject}" Command="{Binding RejectRepairCommand}" />
+                </StackPanel>
             </StackPanel>
         </Border>
 

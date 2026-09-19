@@ -218,6 +218,7 @@ public partial class App : Application
             sp.GetRequiredService<IHardwareProvider>(),
             sp.GetRequiredService<IRegistryAccess>(),
             sp.GetRequiredService<ILiveProtocol>(),
+            sp.GetRequiredService<IAuditLog>(),
             sp.GetRequiredService<IClock>()));
 
         // Sensors

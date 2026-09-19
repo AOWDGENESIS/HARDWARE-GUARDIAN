@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using HardwareGuardian.App.Mvvm;
 using HardwareGuardian.Core;
 using HardwareGuardian.Core.Abstractions;
@@ -9,38 +8,47 @@ namespace HardwareGuardian.App.ViewModels;
 
 /// <summary>
 /// Windows health page (spec sections 30 to 33). Every integrity run needs an explicit click, the
-/// repair is only offered with administrator rights and the result is shown as the tool reported it.
+/// read-only checks run without approval, and the component store repair is only started after the
+/// user approved that exact operation - the approval record travels with the call and the service
+/// refuses a repair without it. The result is shown as the tool reported it, never as assumed.
 /// </summary>
 public sealed class WindowsHealthViewModel : ViewModelBase
 {
     private readonly IWindowsHealthService _service;
+    private readonly IApprovalService _approvals;
     private readonly IProgressReporter _progress;
     private readonly ISettingsService _settings;
     private readonly IEnvironmentProbe _environment;
 
     private WindowsHealthReport? _report;
+    private ApprovalRequest? _pendingRepair;
     private string _statusText = string.Empty;
     private string? _message;
     private bool _hasResult;
+    private bool _isAwaitingRepairApproval;
 
     public WindowsHealthViewModel(
         ILocalizer localizer,
         IWindowsHealthService service,
+        IApprovalService approvals,
         IProgressReporter progress,
         ISettingsService settings,
         IEnvironmentProbe environment)
         : base(localizer)
     {
         _service = service;
+        _approvals = approvals;
         _progress = progress;
         _settings = settings;
         _environment = environment;
 
         AssessCommand = new AsyncRelayCommand(() => RunAsync(() => AssessAsync(includeOnline: true)), () => CanInteract);
         AssessOfflineCommand = new AsyncRelayCommand(() => RunAsync(() => AssessAsync(includeOnline: false)), () => CanInteract);
-        DismScanCommand = new AsyncRelayCommand(() => RunAsync(() => IntegrityAsync(repair: false)), () => CanInteract);
-        DismRepairCommand = new AsyncRelayCommand(() => RunAsync(() => IntegrityAsync(repair: true)), () => CanInteract && _environment.IsElevated);
-        SfcCommand = new AsyncRelayCommand(() => RunAsync(() => IntegrityAsync(repair: false, systemFiles: true)), () => CanInteract);
+        DismScanCommand = new AsyncRelayCommand(() => RunAsync(() => IntegrityAsync()), () => CanInteract);
+        DismRepairCommand = new AsyncRelayCommand(() => RunAsync(RequestRepairAsync), () => CanInteract && _environment.IsElevated);
+        SfcVerifyCommand = new AsyncRelayCommand(() => RunAsync(() => IntegrityAsync(systemFiles: true)), () => CanInteract);
+        ApproveRepairCommand = new AsyncRelayCommand(ApproveRepairAsync, () => _isAwaitingRepairApproval);
+        RejectRepairCommand = new RelayCommand(RejectRepair, () => _isAwaitingRepairApproval);
     }
 
     public BulkObservableCollection<CheckRow> Checks { get; } = new();
@@ -53,7 +61,11 @@ public sealed class WindowsHealthViewModel : ViewModelBase
 
     public AsyncRelayCommand DismRepairCommand { get; }
 
-    public AsyncRelayCommand SfcCommand { get; }
+    public AsyncRelayCommand SfcVerifyCommand { get; }
+
+    public AsyncRelayCommand ApproveRepairCommand { get; }
+
+    public RelayCommand RejectRepairCommand { get; }
 
     public string StatusText
     {
@@ -73,6 +85,26 @@ public sealed class WindowsHealthViewModel : ViewModelBase
         private set => SetProperty(ref _hasResult, value);
     }
 
+    /// <summary>True while a repair waits for the decision of the user; the buttons appear then.</summary>
+    public bool IsAwaitingRepairApproval
+    {
+        get => _isAwaitingRepairApproval;
+        private set
+        {
+            if (SetProperty(ref _isAwaitingRepairApproval, value))
+            {
+                OnPropertyChanged(nameof(RepairApprovalSummary));
+                ApproveRepairCommand.RaiseCanExecuteChanged();
+                RejectRepairCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>What the user is asked to approve, in plain words, with the risk and the steps.</summary>
+    public string RepairApprovalSummary => _pendingRepair is null
+        ? string.Empty
+        : $"{L(_pendingRepair.Draft.Action)}\n{L(_pendingRepair.Draft.What)}\n{L(_pendingRepair.Draft.RiskSummary)}";
+
     public HealthStatus OverallStatus => _report?.Status ?? HealthStatus.Unknown;
 
     public string PendingRebootText => _report?.PendingRebootReason is null
@@ -80,7 +112,7 @@ public sealed class WindowsHealthViewModel : ViewModelBase
         : _report.PendingRebootReason;
 
     public string DefenderText => _report?.Defender is { } defender
-        ? L(defender.Summary) + (defender.ErrorDetail is null ? string.Empty : " — " + defender.ErrorDetail)
+        ? L(defender.Summary) + (defender.ErrorDetail is null ? string.Empty : " - " + defender.ErrorDetail)
         : L("Defender_Unknown");
 
     public string UpdateText => _report?.Updates is { } updates
@@ -97,16 +129,88 @@ public sealed class WindowsHealthViewModel : ViewModelBase
         Apply(report);
     }
 
-    private async Task IntegrityAsync(bool repair, bool systemFiles = false)
+    /// <summary>
+    /// Read-only integrity run. The repair variant is not reachable from here: it goes through
+    /// <see cref="RequestRepairAsync"/>, which asks first and passes the resulting record on.
+    /// </summary>
+    private async Task IntegrityAsync(ApprovalRecord? approval = null, bool systemFiles = false)
     {
         var result = systemFiles
-            ? await _service.RunSystemFileCheckAsync(false, _progress, CancellationToken.None).ConfigureAwait(true)
-            : await _service.RunComponentStoreCheckAsync(repair, _progress, CancellationToken.None).ConfigureAwait(true);
+            ? await _service.RunSystemFileCheckAsync(repair: false, approval: null, _progress, CancellationToken.None).ConfigureAwait(true)
+            : await _service.RunComponentStoreCheckAsync(repair: approval is not null, approval: approval, _progress, CancellationToken.None).ConfigureAwait(true);
 
         StatusText = L(result.Summary);
-        Message = string.Join(" · ", result.Evidence.Take(3));
+        Message = string.Join(" | ", result.Evidence.Take(4));
         HasResult = true;
         OnPropertyChanged(nameof(OverallStatus));
+    }
+
+    /// <summary>Creates the approval request for the component store repair; nothing runs yet.</summary>
+    private async Task RequestRepairAsync()
+    {
+        var draft = new ApprovalRequestDraft
+        {
+            Operation = OperationKind.Execute,
+            Category = ComponentCategory.Windows,
+            Action = LocalizedText.Of("Windows_Repair_Action"),
+            What = LocalizedText.Of("Windows_Repair_What"),
+            Why = LocalizedText.Of("Windows_Repair_Why"),
+            Risk = RiskLevel.High,
+            RiskSummary = LocalizedText.Of("Windows_Repair_Risk"),
+            RequiresAdministrator = true,
+            Steps = new[] { LocalizedText.Of("Windows_Repair_What") },
+            Evidence = new[]
+            {
+                "tool=dism.exe /Online /Cleanup-Image /RestoreHealth",
+                $"elevation={_environment.IsElevated}",
+                $"windowsHealthStatus={_report?.Status.ToString() ?? "not assessed"}",
+            },
+        };
+
+        _pendingRepair = await _approvals.CreateAsync(draft, CancellationToken.None).ConfigureAwait(true);
+        IsAwaitingRepairApproval = true;
+        StatusText = L("Windows_Repair_Pending");
+    }
+
+    private async Task ApproveRepairAsync()
+    {
+        if (_pendingRepair is null)
+        {
+            return;
+        }
+
+        var requestId = _pendingRepair.RequestId;
+        _approvals.Decide(requestId, ApprovalDecision.Approved, note: null);
+        IsAwaitingRepairApproval = false;
+
+        var decided = await _approvals.WaitForDecisionAsync(requestId, CancellationToken.None).ConfigureAwait(true);
+        var record = new ApprovalRecord
+        {
+            RequestId = decided.RequestId,
+            OperationId = decided.Draft.OperationId,
+            Decision = decided.Decision,
+            DecidedAt = decided.DecidedAt ?? decided.CreatedAt,
+            Note = decided.Note,
+            Risk = decided.Draft.Risk,
+            WasRequired = true,
+        };
+
+        _pendingRepair = null;
+        Message = L("Windows_Repair_Completed");
+        await IntegrityAsync(record, systemFiles: false).ConfigureAwait(true);
+    }
+
+    private void RejectRepair()
+    {
+        if (_pendingRepair is null)
+        {
+            return;
+        }
+
+        _approvals.Decide(_pendingRepair.RequestId, ApprovalDecision.Rejected, note: null);
+        _pendingRepair = null;
+        IsAwaitingRepairApproval = false;
+        StatusText = L("Windows_Repair_Rejected");
     }
 
     private void Apply(WindowsHealthReport report)
@@ -155,7 +259,9 @@ public sealed class WindowsHealthViewModel : ViewModelBase
             AssessOfflineCommand.RaiseCanExecuteChanged();
             DismScanCommand.RaiseCanExecuteChanged();
             DismRepairCommand.RaiseCanExecuteChanged();
-            SfcCommand.RaiseCanExecuteChanged();
+            SfcVerifyCommand.RaiseCanExecuteChanged();
+            ApproveRepairCommand.RaiseCanExecuteChanged();
+            RejectRepairCommand.RaiseCanExecuteChanged();
         }
     }
 

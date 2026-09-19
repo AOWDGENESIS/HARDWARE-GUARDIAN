@@ -65,13 +65,28 @@ Delivery layer:
 Not present: the release artefacts themselves, the build/test evidence and the verification on real
 hardware. PDF export is intentionally not implemented (see section 4).
 
+### Fourth session - safety review of the delivery level
+
+The pass over the shell and the delivery level found more than names this time: the Windows repair
+path did not ask for approval, one button promised SFC and ran DISM, and the contract checker had
+blind spots that made deliberate typos invisible (see the findings table). What is verified now:
+
+* every check run (`check-contracts`, `check-localization`, `check-xaml`, `check-bindings`,
+  `check-projects`, `verify-syntax`, `generate-solution --check`, `check-mutation`) is clean,
+* the mutation self-test proves that ten deliberate defects are still reported,
+* the binding checker resolves all 139 bindings, the XAML checker reports no hard-coded UI text and
+  the localisation checker reports no missing and no unused key in either language.
+
+Still not verified: compilation, the unit tests, real hardware, the PowerShell scripts, the
+installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
+
 ### Checks that run without an SDK
 
 | Tool | What it proves | Current result |
 | --- | --- | --- |
 | `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 118 files, no syntax error |
 | `tools/check-contracts.py` | object initialisers, enum/static members, `local.Member` against the declared type, interface implementations (src **and** tests) | 118 files / 370 types, 0 findings |
-| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no unused key; both files symmetric | 659 keys, 0 missing, 0 unused |
+| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no unused key; both files symmetric | 674 keys, 0 missing, 0 unused |
 | `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 10 files, 0 findings |
 | `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 139 bindings, 0 findings |
 | `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared | 15 projects / 118 sources, 0 findings |
@@ -143,6 +158,8 @@ against the real Core contracts. Findings that were fixed:
 | **Real UI bug:** `MainWindow.xaml` bound the simulation banner to `MainViewModel.SimulationNotice`, which did not exist — WPF fails such a binding silently, so the banner would have stayed empty | `App/ViewModels/MainViewModel.cs` | Property added (uses `Report_SimulationWarning`); found by the new binding checker |
 | **Compile error:** `MainViewModel.ProtocolEntries` was an `ObservableCollection<T>` but called `Reset(...)`, which only exists on `BulkObservableCollection<T>` | `App/ViewModels/MainViewModel.cs` | Type corrected |
 | No check existed for WPF bindings at all (a wrong path does not throw, it produces an empty control) | `tools/check-bindings.py` (new) | Resolves every `{Binding}` root against the view model of the file or the item type of the surrounding templates; 139 bindings checked, 0 findings |
+| **Safety rule broken in the Windows page:** the "DISM repair" button started `DISM /RestoreHealth` after a single click, without an approval record - every other system-changing path in the app asks first | `IWindowsHealthService` (Core), `WindowsHealthService`, `WindowsHealthViewModel`, `WindowsHealthView.xaml` | The contract now carries the `ApprovalRecord`; the service refuses a repair without it (BLOCKED, `APPROVAL_REQUIRED`) and refuses `sfc.exe /scannow` in general (`REPAIR_NOT_AUTOMATED`); the page asks for approval and only then calls the service. Both refusals are written to the audit log |
+| **The "SFC" button was mislabelled:** it ran `DISM /CheckHealth`, so neither the label nor the evidence matched the action | `WindowsHealthService`, `WindowsHealthView.xaml` | System file verification really runs `sfc.exe /verifyonly` (read-only) and is interpreted from its own output; a repair of system files stays unautomated with a documented reason. The button says what it does |
 | **The contract checker skipped the most common code shapes:** a lambda parameter (`problems.Select(p => …)`), a `foreach` variable whose name was reused in a second loop, and any expression inside an interpolated string (`$"{entry.Kind}"`). A deliberate typo in each of those places stayed invisible | `tools/check-contracts.py` | Scopes are positional now (local, loop body, lambda body - the innermost binding wins), interpolation holes stay visible while the literal around them is blanked, findings carry the line number, and a type name that is itself a member (`device.HealthStatus.Display`) is no longer mistaken for a static access. All six shapes are covered by the mutation self-test |
 | **Localisation gap in the UI:** 99 visible strings in the ten XAML files were hard-coded English (`"Cancel"`, `"Findings"`, every column header), so switching to German would have left the shell in English | `App/Views/*.xaml` + `Core/Resources/{en,de}.json` | All 99 replaced by `{services:Loc Key}` (82 distinct keys, `Shell_*`, `Section_*`, `Column_*`, `Action_*`, `Option_*`, `Field_*`, `Notice_*`); `check-xaml.py` now fails on any new hard-coded visible literal, and `check-localization.py` reads XAML keys as well |
 

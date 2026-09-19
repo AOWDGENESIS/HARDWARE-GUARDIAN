@@ -164,9 +164,17 @@ public interface IWindowsHealthService
 {
     Task<WindowsHealthReport> AssessAsync(SystemSnapshot? snapshot, bool includeOnlineChecks, IProgressReporter progress, CancellationToken cancellationToken);
 
-    Task<IntegrityCheckResult> RunComponentStoreCheckAsync(bool repair, IProgressReporter progress, CancellationToken cancellationToken);
+    /// <summary>
+    /// Component store check. A repair needs the approval record of the confirmed operation: the
+    /// service refuses to change the system without it (fail closed), it does not trust the caller.
+    /// </summary>
+    Task<IntegrityCheckResult> RunComponentStoreCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken);
 
-    Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, IProgressReporter progress, CancellationToken cancellationToken);
+    /// <summary>
+    /// System file integrity check. Verification runs as the read-only <c>sfc.exe /verifyonly</c>;
+    /// the repair is deliberately not automated and always answers BLOCKED with that reason.
+    /// </summary>
+    Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken);
 
     Task<UpdateAvailability> CheckUpdateAvailabilityAsync(bool queryOnline, CancellationToken cancellationToken);
 

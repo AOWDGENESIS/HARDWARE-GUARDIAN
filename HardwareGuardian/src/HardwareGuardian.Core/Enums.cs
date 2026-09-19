@@ -348,4 +348,10 @@ public static class BlockReasons
     public const string UnsupportedPlatform = "UNSUPPORTED_PLATFORM";
     public const string FirmwareFlashNotAutomated = "FIRMWARE_FLASH_NOT_AUTOMATED";
     public const string ProtectionActive = "PROTECTED_CATEGORY";
+
+    /// <summary>Set with a strictly system changing operation that was started without an approval record.</summary>
+    public const string ApprovalMissing = "APPROVAL_REQUIRED";
+
+    /// <summary>Set for a repair that is deliberately not automated (SFC repair, firmware flash).</summary>
+    public const string RepairNotAutomated = "REPAIR_NOT_AUTOMATED";
 }
