@@ -1,0 +1,89 @@
+name: Hardware Guardian
+
+# Two independent jobs:
+#   checks    - the checks that need no Windows and no SDK (contracts, localisation, XAML, projects,
+#               syntax). They run on every push so that an invented member or a missing key is caught
+#               immediately.
+#   windows   - the real build, the real tests and the release artefacts. This is the job that
+#               produces the evidence the project is missing.
+#
+# Nothing in this workflow is allowed to report success without having run. A skipped or failed step
+# fails the job; there is no "continue on error" for build and test.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'HardwareGuardian/**'
+      - '.github/workflows/hardwareguardian.yml'
+  pull_request:
+    paths:
+      - 'HardwareGuardian/**'
+      - '.github/workflows/hardwareguardian.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: HardwareGuardian
+
+jobs:
+  checks:
+    name: Checks without SDK (contracts, localisation, XAML, projects, syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the C# grammar for the syntax check
+        run: |
+          python -m pip install --disable-pip-version-check tree-sitter==0.26.0 tree-sitter-c-sharp
+      - name: Run every available check
+        run: bash tools/verify-all.sh
+
+  windows:
+    name: Build, test and package (Windows, .NET 10)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Show the SDK that is used
+        run: dotnet --info
+      - name: Restore
+        run: dotnet restore HardwareGuardian.sln
+      - name: Build (warnings as errors)
+        run: dotnet build HardwareGuardian.sln -c Release --no-restore -p:TreatWarningsAsErrors=true
+      - name: Tests
+        run: pwsh ./scripts/test.ps1 -Configuration Release
+      - name: Publish the portable executable
+        run: pwsh ./scripts/build.ps1 -Configuration Release -RuntimeIdentifier win-x64 -OutputDirectory artifacts/portable
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build installer, checksums and release notes
+        run: pwsh ./scripts/release.ps1
+      - name: Verify the checksum file against the artefacts
+        shell: pwsh
+        run: |
+          $release = 'artifacts/release'
+          $expected = Get-Content "$release/HardwareGuardian-Checksums.txt"
+          foreach ($line in $expected) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line -split '\s+', 2
+            $actual = (Get-FileHash -Algorithm SHA256 "$release/$($parts[1])").Hash.ToLowerInvariant()
+            if ($actual -ne $parts[0]) { throw "checksum mismatch for $($parts[1])" }
+          }
+          Write-Host 'all checksums match the artefacts'
+      - name: Upload the artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardwareguardian-release
+          path: |
+            HardwareGuardian/artifacts/release/*
+            HardwareGuardian/artifacts/test-results/*
+          if-no-files-found: error
+          retention-days: 30

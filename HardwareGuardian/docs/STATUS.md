@@ -51,9 +51,19 @@ Therefore, for the current revision:
 Total: **118 C# files, 22 904 lines + 10 XAML files** in 15 projects, all listed in
 `HardwareGuardian.sln`.
 
-Not present yet: `scripts/`, the CI workflow, the installer definition (Inno Setup or WiX), the
-release artefacts and the real build/test/hardware evidence. PDF export is intentionally not
-implemented (see section 4).
+Delivery layer:
+
+| Component | State |
+| --- | --- |
+| `scripts/build.ps1` | Written: restore, build (with commit and build date injected), publish the portable single-file exe. **NOT EXECUTED.** |
+| `scripts/test.ps1` | Written: `dotnet test` with TRX + console logger, fails on the first failing test. **NOT EXECUTED.** |
+| `scripts/release.ps1` | Written: portable exe, Inno Setup call, `HardwareGuardian-Checksums.txt` (SHA-256) and `HardwareGuardian-ReleaseNotes.txt`. **NOT EXECUTED.** |
+| `installer/HardwareGuardian.iss` | Written: Inno Setup 6, per-user or per-machine, Start Menu entry + optional desktop shortcut, clean uninstall that asks before deleting settings and audit data. **NOT COMPILED.** |
+| `.github/workflows/hardwareguardian.yml` | Written: a Linux job running the SDK-free checks, and a Windows job for build, tests, packaging, checksum verification and artefact upload. **NOT EXECUTED** (never ran on GitHub). |
+| `docs/BUILD.md`, `docs/RELEASE.md`, `docs/SECURITY.md`, `README.md` | Written. |
+
+Not present: the release artefacts themselves, the build/test evidence and the verification on real
+hardware. PDF export is intentionally not implemented (see section 4).
 
 ### The application shell
 
@@ -177,4 +187,5 @@ behaviour. A compiler and the test suite are still mandatory.
    Windows 11 Pro / RTX 3060 / 24 GB) and record which values are detected correctly — without
    modifying that machine.
 6. Produce the release artefacts (portable exe, installer, checksums, release notes) **by building
-   them**, never by hand.
+   them**, never by hand. The scripts and the installer definition exist; they have never been run,
+   because that needs Windows + SDK + Inno Setup.
