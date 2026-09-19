@@ -110,7 +110,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public SettingsViewModel SettingsPage { get; }
 
-    public ObservableCollection<ProtocolEntry> ProtocolEntries { get; } = new();
+    public BulkObservableCollection<ProtocolEntry> ProtocolEntries { get; } = new();
 
     public List<NavigationEntry> Navigation { get; } = new();
 
@@ -193,6 +193,9 @@ public sealed class MainViewModel : ViewModelBase
         $"{_environment.OsDescription} · {_environment.OsArchitecture} · {L(_environment.IsElevated ? "Build_Privilege_Administrator" : "Build_Privilege_StandardUser")}";
 
     public bool IsSimulation => App.IsSimulationRequested;
+
+    /// <summary>Banner text shown in the window header while the simulation fixture is active.</summary>
+    public string SimulationNotice => L("Report_SimulationWarning");
 
     /// <summary>True when update checks are switched off in the settings (offline working mode).</summary>
     public bool IsOffline => !_settings.Current.UpdateCheckEnabled;

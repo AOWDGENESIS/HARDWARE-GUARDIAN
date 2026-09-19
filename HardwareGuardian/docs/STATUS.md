@@ -65,6 +65,18 @@ Delivery layer:
 Not present: the release artefacts themselves, the build/test evidence and the verification on real
 hardware. PDF export is intentionally not implemented (see section 4).
 
+### Checks that run without an SDK
+
+| Tool | What it proves | Current result |
+| --- | --- | --- |
+| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 118 files, no syntax error |
+| `tools/check-contracts.py` | object initialisers, enum/static members, `local.Member` against the declared type, interface implementations (src **and** tests) | 118 files / 370 types, 0 findings |
+| `tools/check-localization.py` | every key used in code exists in both languages; no unused key; both files symmetric | 577 keys, 0 missing, 0 unused |
+| `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every root element with `x:Class` has code-behind | 10 files, 0 findings |
+| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 139 bindings, 0 findings |
+| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared | 15 projects / 118 sources, 0 findings |
+| `tools/generate-solution.py --check` | `HardwareGuardian.sln` matches the projects on disk | up to date |
+
 ### The application shell
 
 `HardwareGuardian.App` is a WPF application with a real composition root and no service locator in
@@ -90,10 +102,11 @@ the views:
 
 ## 3. Defects found and fixed in this session (continued and extended)
 
-Checks that run without a .NET SDK (`bash tools/verify-all.sh`): contracts, localisation, project
-references, XAML and syntax. Last result: 118 files / 370 types, 577 localisation keys in both
-languages, 15 projects, 10 XAML files - all clean (0 findings, and every key used in code is
-defined, with no unused key left behind). **This is not a build.**
+Checks that run without a .NET SDK (`bash tools/verify-all.sh`): syntax, contracts, localisation,
+XAML, bindings, project references and solution freshness. Last result: 118 files / 370 types,
+577 localisation keys in both languages, 15 projects, 10 XAML files with 139 resolved bindings -
+all clean (0 findings, every key used in code is defined, no unused key left behind, every binding
+path resolves against its data scope). **This is not a build.**
 
 A contract checker (`tools/check-contracts.py`) was written and used to compare every module
 against the real Core contracts. Findings that were fixed:
@@ -125,6 +138,9 @@ against the real Core contracts. Findings that were fixed:
 | Test project used four members that do not exist (`MaintenanceResult.Outcome`, `ModuleResult.SkipReasonKey`, `SystemIdentity.Model`, `IClock` without `UtcNow`) | `tests/HardwareGuardian.Tests` | Corrected against the real contracts; the checker now scans `tests/` as well |
 | Contract checker had five blind spots: interfaces were not parsed (no access modifier ⇒ no members collected), `record struct` produced a bogus type named `struct` and lost `Measured<T>`/`TextInfo`/`ValueOrigin` completely, extension methods were misread as their parameter names, nested types merged the scopes of outer and inner methods, and single-parameter methods never bound their parameter | `tools/check-contracts.py` | All five fixed and documented in the tool; the member map grew from 352 to 370 types, which is why the real defects above became visible |
 | Localisation checker reported deliberately missing test keys as findings and could not see vendor keys | `tools/check-localization.py` | Test-only keys are built at runtime; `…Key` positions are recognised as keys |
+| **Real UI bug:** `MainWindow.xaml` bound the simulation banner to `MainViewModel.SimulationNotice`, which did not exist — WPF fails such a binding silently, so the banner would have stayed empty | `App/ViewModels/MainViewModel.cs` | Property added (uses `Report_SimulationWarning`); found by the new binding checker |
+| **Compile error:** `MainViewModel.ProtocolEntries` was an `ObservableCollection<T>` but called `Reset(...)`, which only exists on `BulkObservableCollection<T>` | `App/ViewModels/MainViewModel.cs` | Type corrected |
+| No check existed for WPF bindings at all (a wrong path does not throw, it produces an empty control) | `tools/check-bindings.py` (new) | Resolves every `{Binding}` root against the view model of the file or the item type of the surrounding templates; 139 bindings checked, 0 findings |
 
 Verified as **already correct** against the real contracts (no change needed): `BackupService`
 (`IBackupService` signature and `BackupRequest` usage), all hardware/sensor/BIOS/manufacturer model
