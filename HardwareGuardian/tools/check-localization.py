@@ -93,6 +93,10 @@ def strip_comments(text: str) -> str:
     return "".join(out)
 
 
+# XAML resolves a key through the markup extension: Text="{services:Loc Dashboard_Title}"
+XAML_LOC = re.compile(r"\{services:Loc\s+([A-Za-z0-9_]+)\s*\}")
+
+
 def used_keys() -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
     files = sorted(SRC.rglob("*.cs"))
@@ -111,6 +115,11 @@ def used_keys() -> dict[str, set[str]]:
                 if key.startswith(EXCLUDED_PREFIXES):
                     continue
                 result.setdefault(key, set()).add(str(path.relative_to(ROOT)))
+
+    for path in sorted(SRC.rglob("*.xaml")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for match in XAML_LOC.finditer(text):
+            result.setdefault(match.group(1), set()).add(str(path.relative_to(ROOT)))
     return result
 
 

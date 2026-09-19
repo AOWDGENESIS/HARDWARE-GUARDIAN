@@ -20,25 +20,25 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Reports" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Reports}" />
                 <StackPanel Orientation="Horizontal">
-                    <Button Content="Report JSON" Command="{Binding ReportJsonCommand}" />
-                    <Button Content="Report TXT" Command="{Binding ReportTextCommand}" />
-                    <Button Content="Report HTML" Command="{Binding ReportHtmlCommand}" />
+                    <Button Content="{services:Loc Action_ReportJson}" Command="{Binding ReportJsonCommand}" />
+                    <Button Content="{services:Loc Action_ReportTxt}" Command="{Binding ReportTextCommand}" />
+                    <Button Content="{services:Loc Action_ReportHtml}" Command="{Binding ReportHtmlCommand}" />
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Findings" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Findings}" />
                 <DataGrid ItemsSource="{Binding Problems}" MaxHeight="260">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="120" />
-                        <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90" />
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
-                        <DataGridTextColumn Header="Title" Binding="{Binding Title, Converter={StaticResource Text}}" Width="280" />
-                        <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" />
+                        <DataGridTextColumn Header="{services:Loc Column_Id}" Binding="{Binding Id}" Width="120" />
+                        <DataGridTextColumn Header="{services:Loc Column_Severity}" Binding="{Binding Severity}" Width="90" />
+                        <DataGridTextColumn Header="{services:Loc Column_Status}" Binding="{Binding Status}" Width="90" />
+                        <DataGridTextColumn Header="{services:Loc Column_Title}" Binding="{Binding Title, Converter={StaticResource Text}}" Width="280" />
+                        <DataGridTextColumn Header="{services:Loc Column_Evidence}" Binding="{Binding Evidence}" Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </StackPanel>
@@ -46,14 +46,14 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Sensors" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Sensors}" />
                 <DataGrid ItemsSource="{Binding Sensors}" MaxHeight="200">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Reading" Binding="{Binding Name}" Width="200" />
-                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="120" />
-                        <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100" />
-                        <DataGridTextColumn Header="Measurement point" Binding="{Binding MeasurementPoint}" Width="240" />
-                        <DataGridTextColumn Header="Source" Binding="{Binding Origin}" Width="*" />
+                        <DataGridTextColumn Header="{services:Loc Column_Reading}" Binding="{Binding Name}" Width="200" />
+                        <DataGridTextColumn Header="{services:Loc Column_Value}" Binding="{Binding Value}" Width="120" />
+                        <DataGridTextColumn Header="{services:Loc Column_Quality}" Binding="{Binding Quality}" Width="100" />
+                        <DataGridTextColumn Header="{services:Loc Column_MeasurementPoint}" Binding="{Binding MeasurementPoint}" Width="240" />
+                        <DataGridTextColumn Header="{services:Loc Column_Source}" Binding="{Binding Origin}" Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </StackPanel>
@@ -61,14 +61,14 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Modules" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Modules}" />
                 <DataGrid ItemsSource="{Binding Modules}" MaxHeight="220">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Module" Binding="{Binding Name}" Width="220" />
-                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
-                        <DataGridTextColumn Header="Checks" Binding="{Binding Checks}" Width="80" />
-                        <DataGridTextColumn Header="Seconds" Binding="{Binding Seconds}" Width="80" />
-                        <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" />
+                        <DataGridTextColumn Header="{services:Loc Column_Module}" Binding="{Binding Name}" Width="220" />
+                        <DataGridTextColumn Header="{services:Loc Column_Status}" Binding="{Binding Status}" Width="110" />
+                        <DataGridTextColumn Header="{services:Loc Section_Checks}" Binding="{Binding Checks}" Width="80" />
+                        <DataGridTextColumn Header="{services:Loc Column_Seconds}" Binding="{Binding Seconds}" Width="80" />
+                        <DataGridTextColumn Header="{services:Loc Column_Evidence}" Binding="{Binding Evidence}" Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </StackPanel>

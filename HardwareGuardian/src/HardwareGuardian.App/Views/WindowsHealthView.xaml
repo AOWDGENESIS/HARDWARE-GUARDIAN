@@ -1,16 +1,17 @@
 <UserControl x:Class="HardwareGuardian.App.Views.WindowsHealthView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="clr-namespace:HardwareGuardian.App.Services">
     <StackPanel>
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Windows state" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_WindowsState}" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Content="Check (online allowed)" Command="{Binding AssessCommand}" Style="{StaticResource PrimaryButton}" />
-                    <Button Content="Check (offline)" Command="{Binding AssessOfflineCommand}" />
-                    <Button Content="DISM scan" Command="{Binding DismScanCommand}" />
-                    <Button Content="DISM repair" Command="{Binding DismRepairCommand}" />
-                    <Button Content="SFC" Command="{Binding SfcCommand}" />
+                    <Button Content="{services:Loc Action_CheckOnline}" Command="{Binding AssessCommand}" Style="{StaticResource PrimaryButton}" />
+                    <Button Content="{services:Loc Action_CheckOffline}" Command="{Binding AssessOfflineCommand}" />
+                    <Button Content="{services:Loc Action_DismScan}" Command="{Binding DismScanCommand}" />
+                    <Button Content="{services:Loc Action_DismRepair}" Command="{Binding DismRepairCommand}" />
+                    <Button Content="{services:Loc Action_Sfc}" Command="{Binding SfcCommand}" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Border Background="{Binding OverallStatus, Converter={StaticResource StatusBrush}}" CornerRadius="4" Padding="10,3" Margin="0,0,10,0">
@@ -25,7 +26,7 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Details" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Details}" />
                 <TextBlock Text="{Binding DefenderText}" />
                 <TextBlock Text="{Binding UpdateText}" Margin="0,4,0,0" />
                 <TextBlock Text="{Binding PendingRebootText}" Margin="0,4,0,0" />
@@ -34,15 +35,15 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
-                <TextBlock Style="{StaticResource SectionHeader}" Text="Checks" />
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Checks}" />
                 <DataGrid ItemsSource="{Binding Checks}" MaxHeight="380">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Check" Binding="{Binding Title}" Width="230" />
-                        <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="90" />
-                        <DataGridTextColumn Header="Performed" Binding="{Binding Performed}" Width="80" />
-                        <DataGridTextColumn Header="Admin" Binding="{Binding RequiresAdministrator}" Width="70" />
-                        <DataGridTextColumn Header="Summary" Binding="{Binding Summary, Converter={StaticResource Text}}" Width="340" />
-                        <DataGridTextColumn Header="Evidence" Binding="{Binding Evidence}" Width="*" />
+                        <DataGridTextColumn Header="{services:Loc Column_Check}" Binding="{Binding Title}" Width="230" />
+                        <DataGridTextColumn Header="{services:Loc Column_Status}" Binding="{Binding StatusText}" Width="90" />
+                        <DataGridTextColumn Header="{services:Loc Column_Performed}" Binding="{Binding Performed}" Width="80" />
+                        <DataGridTextColumn Header="{services:Loc Column_Admin}" Binding="{Binding RequiresAdministrator}" Width="70" />
+                        <DataGridTextColumn Header="{services:Loc Column_Summary}" Binding="{Binding Summary, Converter={StaticResource Text}}" Width="340" />
+                        <DataGridTextColumn Header="{services:Loc Column_Evidence}" Binding="{Binding Evidence}" Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </StackPanel>

@@ -17,6 +17,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 import sys
@@ -28,8 +29,29 @@ XAML_NS = "{http://schemas.microsoft.com/winfx/2006/xaml}"
 
 KEY_DEFINITION = re.compile(r'x:Key="([^"]+)"')
 RESOURCE_REFERENCE = re.compile(r'\{(?:StaticResource|DynamicResource)\s+([A-Za-z0-9_\.]+)\s*\}')
+
+# {services:Loc Key} - the markup extension that resolves a localisation key at runtime.
+LOC_REFERENCE = re.compile(r"\{services:Loc\s+([A-Za-z0-9_]+)\s*\}")
+
+# Attributes that end up in front of the user. A literal here is not translated and the German UI
+# would silently show English text, so it is a finding.
+VISIBLE_ATTRIBUTE = re.compile(r'\b(?:Text|Content|Header|ToolTip|Title)="([^"{][^"]*)"')
 DATA_TYPE = re.compile(r'\bx:Type\s+([A-Za-z0-9_]+):([A-Za-z0-9_]+)')
 X_CLASS = re.compile(r'x:Class="([^"]+)"')
+
+
+def load_resource_strings() -> set[str]:
+    """Every key defined in any resource file under src/**/Resources."""
+    keys: set[str] = set()
+    for resource in (ROOT / "src").rglob("Resources/*.json"):
+        try:
+            data = json.loads(resource.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        strings = data.get("strings")
+        if isinstance(strings, dict):
+            keys.update(strings)
+    return keys
 
 
 def declared_types() -> set[str]:
@@ -67,9 +89,18 @@ def main() -> int:
         "String", "Boolean", "Int32", "Double", "Object", "XmlElement", "ContentControl",
     }
 
+    resource_strings = load_resource_strings()
+
     for path, _ in parsed:
         text = path.read_text(encoding="utf-8", errors="replace")
         relative = path.relative_to(ROOT)
+
+        for key in sorted(set(LOC_REFERENCE.findall(text))):
+            if resource_strings and key not in resource_strings:
+                findings.append(f"{relative}: localisation key '{key}' is used but not defined in the resources")
+
+        for literal in VISIBLE_ATTRIBUTE.findall(text):
+            findings.append(f"{relative}: visible text \"{literal}\" is not localised (use {{services:Loc Key}})")
 
         for reference in sorted(set(RESOURCE_REFERENCE.findall(text))):
             if reference not in defined_keys:
