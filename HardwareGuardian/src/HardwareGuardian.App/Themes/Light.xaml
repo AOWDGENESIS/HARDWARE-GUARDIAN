@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Light theme: identical keys, so every view works in both themes without a code change. -->
+    <Color x:Key="ColorBackground">#FFF6F7F9</Color>
+    <Color x:Key="ColorSurface">#FFFFFFFF</Color>
+    <Color x:Key="ColorSurfaceAlt">#FFEEF0F4</Color>
+    <Color x:Key="ColorBorder">#FFC9CDD6</Color>
+    <Color x:Key="ColorForeground">#FF1A1C20</Color>
+    <Color x:Key="ColorMuted">#FF5C636E</Color>
+    <Color x:Key="ColorAccent">#FF1F6FEB</Color>
+    <Color x:Key="ColorHealthy">#FF1A7F52</Color>
+    <Color x:Key="ColorAttention">#FF8A6100</Color>
+    <Color x:Key="ColorWarning">#FF9A4B00</Color>
+    <Color x:Key="ColorCritical">#FFB42318</Color>
+    <Color x:Key="ColorBlocked">#FF5B3FA8</Color>
+    <Color x:Key="ColorUnknown">#FF6B7280</Color>
+
+    <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
+    <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
+    <SolidColorBrush x:Key="BrushSurfaceAlt" Color="{StaticResource ColorSurfaceAlt}" />
+    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
+    <SolidColorBrush x:Key="BrushForeground" Color="{StaticResource ColorForeground}" />
+    <SolidColorBrush x:Key="BrushMuted" Color="{StaticResource ColorMuted}" />
+    <SolidColorBrush x:Key="BrushAccent" Color="{StaticResource ColorAccent}" />
+    <SolidColorBrush x:Key="BrushHealthy" Color="{StaticResource ColorHealthy}" />
+    <SolidColorBrush x:Key="BrushAttention" Color="{StaticResource ColorAttention}" />
+    <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="BrushCritical" Color="{StaticResource ColorCritical}" />
+    <SolidColorBrush x:Key="BrushBlocked" Color="{StaticResource ColorBlocked}" />
+    <SolidColorBrush x:Key="BrushUnknown" Color="{StaticResource ColorUnknown}" />
+</ResourceDictionary>

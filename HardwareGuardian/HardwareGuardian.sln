@@ -4,9 +4,13 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("2150E333-8FDC-42A3-9474-1A3956D46DE8") = "src", "src", "{D4BCB964-1F21-5B53-94B0-F847799377A5}"
 EndProject
+Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.App\HardwareGuardian.App", "src\HardwareGuardian.App\HardwareGuardian.App.csproj", "{1B3202AB-F697-549A-B802-8057B4CECB61}"
+EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Bios\HardwareGuardian.Bios", "src\HardwareGuardian.Bios\HardwareGuardian.Bios.csproj", "{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE}"
 EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Core\HardwareGuardian.Core", "src\HardwareGuardian.Core\HardwareGuardian.Core.csproj", "{2A9258ED-3F52-5E6B-99B4-B801B4802D62}"
+EndProject
+Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Diagnostics\HardwareGuardian.Diagnostics", "src\HardwareGuardian.Diagnostics\HardwareGuardian.Diagnostics.csproj", "{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}"
 EndProject
 Project("FAE04EC0-301F-11D3-BF4B-00C04F79EFBC") = "src\HardwareGuardian.Drivers\HardwareGuardian.Drivers", "src\HardwareGuardian.Drivers\HardwareGuardian.Drivers.csproj", "{630CC6BF-5D0B-5DF4-BF85-48120B2EEB18}"
 EndProject
@@ -36,6 +40,12 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Debug|x64.Build.0 = Debug|Any CPU
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Release|x64.ActiveCfg = Release|Any CPU
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Release|x64.Build.0 = Release|Any CPU
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B3202AB-F697-549A-B802-8057B4CECB61}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE}.Debug|x64.Build.0 = Debug|Any CPU
 		{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE}.Release|x64.ActiveCfg = Release|Any CPU
@@ -48,6 +58,12 @@ Global
 		{2A9258ED-3F52-5E6B-99B4-B801B4802D62}.Release|x64.Build.0 = Release|Any CPU
 		{2A9258ED-3F52-5E6B-99B4-B801B4802D62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2A9258ED-3F52-5E6B-99B4-B801B4802D62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Debug|x64.Build.0 = Debug|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Release|x64.ActiveCfg = Release|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Release|x64.Build.0 = Release|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{630CC6BF-5D0B-5DF4-BF85-48120B2EEB18}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{630CC6BF-5D0B-5DF4-BF85-48120B2EEB18}.Debug|x64.Build.0 = Debug|Any CPU
 		{630CC6BF-5D0B-5DF4-BF85-48120B2EEB18}.Release|x64.ActiveCfg = Release|Any CPU
@@ -113,8 +129,10 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{1B3202AB-F697-549A-B802-8057B4CECB61} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{F79D2C11-1DF8-5DE5-AB08-CF9D7A372CEE} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{2A9258ED-3F52-5E6B-99B4-B801B4802D62} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
+		{93A1EAFA-526E-56F1-9EB2-CF514C2D9D7E} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{630CC6BF-5D0B-5DF4-BF85-48120B2EEB18} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{2E074BF1-91BF-5EA0-AE0C-8347F6F244F3} = {D4BCB964-1F21-5B53-94B0-F847799377A5}
 		{E6A2583B-02E9-5551-8F8F-FBC41F472D52} = {D4BCB964-1F21-5B53-94B0-F847799377A5}

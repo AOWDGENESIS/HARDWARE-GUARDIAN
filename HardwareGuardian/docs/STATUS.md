@@ -43,16 +43,44 @@ Therefore, for the current revision:
 | `HardwareGuardian.Windows` | 1 | 931 | `IWindowsHealthService`: DISM, event log, Defender (read only), Windows Update, startup/services | Written; contract-checked |
 | `HardwareGuardian.Simulation` | 1 | 419 | `MockHardwareProvider` fixture, clearly labelled as simulation | Written; contract-checked |
 | `HardwareGuardian.Reporting` | 1 | 620 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
+| `HardwareGuardian.Diagnostics` | 5 | ~430 | Diagnostic modules: driver health, Windows health, sensors, workloads | Written; contract-checked |
+| `HardwareGuardian.App` | 22 | ~2 250 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
 
-Total: **83 C# files, 18 122 lines** in 12 projects, all listed in `HardwareGuardian.sln`.
+Total: **105 C# files, ~21 500 lines + 10 XAML files** in 14 projects, all listed in
+`HardwareGuardian.sln`.
 
-Not present yet: `HardwareGuardian.App` (WPF/MVVM/DI shell and composition root),
-`HardwareGuardian.Tests`, `scripts/`, CI workflow, installer definition (Inno Setup or WiX), and the
-real build/test/hardware evidence. PDF export is intentionally not implemented (see section 4).
+Not present yet: `HardwareGuardian.Tests`, `scripts/`, CI workflow, installer definition
+(Inno Setup or WiX) and the real build/test/hardware evidence. PDF export is intentionally not
+implemented (see section 4).
+
+### The application shell
+
+`HardwareGuardian.App` is a WPF application with a real composition root and no service locator in
+the views:
+
+* `App.xaml.cs` builds the container, creates the logger, loads the settings, applies the theme and
+  the language, and selects **exactly one** hardware provider - `WindowsHardwareProvider`, or
+  `MockHardwareProvider` when the application is started with `--simulation`. Simulation is never
+  chosen automatically, and a banner stays visible while it is active.
+* Five pages exist and work against the real services: Overview (status, findings, sensors, modules,
+  report export), Hardware (components, details, origin of every value), Windows (checks, DISM, SFC,
+  Defender, updates), Maintenance (scan, selection, **mandatory dry run**, approval, execute),
+  Settings (language, theme, offline mode, privacy of reports, locations, audit log).
+* Theme: Dark is the default, Light and System are selectable; colours live only in
+  `Themes/Dark.xaml` and `Themes/Light.xaml`, so switching a theme changes open windows immediately.
+* Language: every visible string is resolved through `ILocalizer`; a change raises one notification
+  that refreshes all bound texts. Missing keys are shown as `[[Key]]` and listed in
+  `JsonLocalizer.MissingKeys`.
+* Unhandled errors (dispatcher, domain, task) are logged and surfaced as a notification instead of
+  closing the window silently.
 
 ---
 
 ## 3. Defects found and fixed in this session (continued and extended)
+
+Checks that run without a .NET SDK (`bash tools/verify-all.sh`): contracts, localisation, project
+references, XAML and syntax. Last result: 105 files / 352 types, 504 localisation keys in both
+languages, 14 projects, 10 XAML files - all clean. **This is not a build.**
 
 A contract checker (`tools/check-contracts.py`) was written and used to compare every module
 against the real Core contracts. Findings that were fixed:
@@ -128,9 +156,9 @@ behaviour. A compiler and the test suite are still mandatory.
 ## 5. What has to happen before this can be called production ready
 
 1. ~~Implement the remaining services~~ **done**: `IWindowsHealthService`, `IReportGenerator`,
-   `IRollbackService`, `MockHardwareProvider`, `ILocalizer` + resources. Still missing: the WPF shell.
-2. Implement `src/HardwareGuardian.App` (WPF, MVVM, DI, Dark default, runtime DE/EN switch) and the
-   DI composition root that wires all 12 projects.
+   `IRollbackService`, `MockHardwareProvider`, `ILocalizer` + resources, diagnostic modules.
+2. ~~Implement the WPF shell and the composition root~~ **done**: `src/HardwareGuardian.App` with
+   DI, MVVM, Dark/Light/System theme, runtime DE/EN, five working pages.
 3. Implement `tests/HardwareGuardian.Tests` covering the safety invariants (fail-closed paths,
    version comparison, decision engine, path guard, maintenance dry run vs. execute, localizer key
    parity, report generator blocked-format path).

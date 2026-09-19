@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HardwareGuardian.Diagnostics</RootNamespace>
+    <AssemblyName>HardwareGuardian.Diagnostics</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only the contract layer: every module talks to interfaces, so the modules stay testable
+         against MockHardwareProvider and never reach into a platform project. -->
+    <ProjectReference Include="..\HardwareGuardian.Core\HardwareGuardian.Core.csproj" />
+  </ItemGroup>
+
+</Project>

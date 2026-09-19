@@ -1,0 +1,126 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- All colours are DynamicResource so a theme switch is applied to open windows immediately. -->
+
+    <Style TargetType="Window">
+        <Setter Property="Background" Value="{DynamicResource BrushBackground}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style x:Key="SectionHeader" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <Style x:Key="Muted" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource BrushMuted}" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="MinWidth" Value="96" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource BrushAccent}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="Margin" Value="0,2,0,2" />
+    </Style>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="Padding" Value="6,3" />
+        <Setter Property="MinWidth" Value="140" />
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="Padding" Value="6,3" />
+    </Style>
+
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style TargetType="ListView">
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+    </Style>
+
+    <Style TargetType="DataGrid">
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="RowBackground" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource BrushSurfaceAlt}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="AutoGenerateColumns" Value="False" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+    </Style>
+
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushAccent}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style TargetType="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+    </Style>
+
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Foreground" Value="{DynamicResource BrushForeground}" />
+        <Setter Property="Background" Value="{DynamicResource BrushSurfaceAlt}" />
+    </Style>
+
+    <Style TargetType="Separator">
+        <Setter Property="Background" Value="{DynamicResource BrushBorder}" />
+    </Style>
+</ResourceDictionary>

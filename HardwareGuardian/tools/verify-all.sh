@@ -22,6 +22,7 @@ run() {
 run "Syntax (tree-sitter, C# grammar)" python3 tools/verify-syntax.py
 run "Contracts (members, types, interface implementation)" python3 tools/check-contracts.py
 run "Localisation (keys used vs. keys defined)" python3 tools/check-localization.py
+run "XAML (well formed, resource keys, DataTypes, code-behind)" python3 tools/check-xaml.py
 run "Projects (references, central package versions)" python3 tools/check-projects.py
 run "Solution file is up to date" python3 tools/generate-solution.py --check
 
