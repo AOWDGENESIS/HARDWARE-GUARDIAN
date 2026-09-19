@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HardwareGuardian.Sensors</RootNamespace>
+    <AssemblyName>HardwareGuardian.Sensors</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HardwareGuardian.Core\HardwareGuardian.Core.csproj" />
+    <ProjectReference Include="..\HardwareGuardian.Hardware\HardwareGuardian.Hardware.csproj" />
+    <ProjectReference Include="..\HardwareGuardian.Infrastructure\HardwareGuardian.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

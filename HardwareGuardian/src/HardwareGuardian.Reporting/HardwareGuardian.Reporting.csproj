@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HardwareGuardian.Reporting</RootNamespace>
+    <AssemblyName>HardwareGuardian.Reporting</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HardwareGuardian.Core\HardwareGuardian.Core.csproj" />
+    <ProjectReference Include="..\HardwareGuardian.Infrastructure\HardwareGuardian.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

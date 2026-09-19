@@ -1,0 +1,35 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{csproj,props,targets,resx,xaml,config,json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Language / style rules that matter for reviewability
+dotnet_sort_system_directives_first = true
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_style_readonly_field = true:suggestion
+dotnet_diagnostic.IDE0005.severity = suggestion
+
+# Analyzer policy (see docs/BUILD.md, section "Static analysis")
+dotnet_analyzer_diagnostic.category-Performance.severity = suggestion
+dotnet_analyzer_diagnostic.category-Globalization.severity = none
+dotnet_diagnostic.CA1031.severity = suggestion   # catch(Exception) is intentional at process boundaries
+dotnet_diagnostic.CA1303.severity = none         # localisation is enforced by HardwareGuardian.Localization tests
+dotnet_diagnostic.CA1848.severity = none         # LoggerMessage delegates are not required for this app
+dotnet_diagnostic.CA2007.severity = none         # WPF application, no SynchronizationContext avoidance needed
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1822.severity = suggestion
+dotnet_diagnostic.IDE0060.severity = none

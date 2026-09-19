@@ -1,0 +1,32 @@
+<Project>
+
+  <!--
+    Central Package Management: every NuGet version is pinned exactly once.
+    Versions are intentionally exact (no floating ranges) so that a restore is reproducible.
+    See docs/BUILD.md -> "Dependency policy" and docs/SECURITY.md.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="Runtime">
+    <!-- WMI / CIM access. Part of the .NET release train, only needed on Windows. -->
+    <PackageVersion Include="System.Management" Version="10.0.12" />
+    <!--
+      Explicit, version pinned access to the Windows registry. The assembly is a type forwarder
+      on .NET 5+ for Windows, so referencing it is safe whether or not the platform provides the
+      types itself - see docs/BUILD.md, "Registry access".
+    -->
+    <PackageVersion Include="Microsoft.Win32.Registry" Version="5.0.0" />
+    <!-- Dependency injection + structured logging infrastructure. -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>HardwareGuardian.Simulation</RootNamespace>
+    <AssemblyName>HardwareGuardian.Simulation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HardwareGuardian.Core\HardwareGuardian.Core.csproj" />
+  </ItemGroup>
+
+</Project>

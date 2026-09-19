@@ -1,0 +1,644 @@
+using HardwareGuardian.Core;
+using HardwareGuardian.Core.Abstractions;
+using HardwareGuardian.Core.Models;
+using HardwareGuardian.Core.Values;
+
+namespace HardwareGuardian.Maintenance;
+
+/// <summary>
+/// Maintenance engine (spec sections 18, 20, 77 and 78). It implements the mandatory pipeline
+/// of the specification literally:
+/// SCAN (measure only) -> PLAN (what exactly would change) -> DRY RUN -> APPROVAL ->
+/// EXECUTE -> VERIFY. Nothing is deleted without an approved plan, protected categories are never
+/// cleaned, and every deletion passes the path guard for the individual file.
+/// </summary>
+public sealed class MaintenanceService : IMaintenanceService
+{
+    private const string ModuleKey = "MNT";
+
+    private readonly IPathGuard _pathGuard;
+    private readonly IAuditLog _audit;
+    private readonly ILiveProtocol _protocol;
+    private readonly IProgressReporter _progress;
+    private readonly IEnvironmentProbe _environment;
+    private readonly ISettingsService _settings;
+    private readonly IClock _clock;
+
+    public MaintenanceService(
+        IPathGuard pathGuard,
+        IAuditLog audit,
+        ILiveProtocol protocol,
+        IProgressReporter progress,
+        IEnvironmentProbe environment,
+        ISettingsService settings,
+        IClock clock)
+    {
+        _pathGuard = pathGuard;
+        _audit = audit;
+        _protocol = protocol;
+        _progress = progress;
+        _environment = environment;
+        _settings = settings;
+        _clock = clock;
+    }
+
+    public IReadOnlyList<MaintenanceCategoryDescriptor> DescribeCategories() =>
+        CleanupTargetCatalog.DescribeCategories()
+            .Where(entry => entry.IsOffered)
+            .Select(entry => new MaintenanceCategoryDescriptor
+            {
+                Category = entry.Category,
+                DisplayNameKey = entry.NameKey,
+                Description = entry.Description,
+                SafetyClass = entry.Safety,
+                RequiresAdministrator = entry.RequiresAdmin,
+                IsOptIn = entry.IsOptIn,
+                Restriction = entry.Restriction,
+            })
+            .ToList();
+
+    // -----------------------------------------------------------------------------------------
+    // 1. Scan: measure only, never delete, never modify.
+    // -----------------------------------------------------------------------------------------
+    public Task<MaintenanceScanResult> ScanAsync(MaintenanceScanOptions options, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var started = _clock.Now;
+        var settings = _settings.Current;
+        var maxDepth = options.MaxDepth <= 0 ? 6 : options.MaxDepth;
+
+        var targets = CleanupTargetCatalog.ForCurrentMachine(
+            includeBrowserCache: options.IncludeBrowserCache && settings.MaintenanceIncludeBrowserCache,
+            includePrefetch: options.IncludePrefetch && settings.IncludePrefetchedData,
+            includeWindowsUpdateCache: options.IncludeWindowsUpdateCache && settings.MaintenanceIncludeWindowsUpdateCache);
+
+        _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_Scan_Started", targets.Count));
+
+        var items = new List<MaintenanceItem>();
+        var problems = new List<Problem>();
+        long totalEligible = 0;
+        var measuredAnything = false;
+        var counter = 0;
+
+        foreach (var target in targets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var roots = ResolveRoots(target);
+            if (roots.Count == 0)
+            {
+                items.Add(BuildItem(target, null, "the location could not be resolved on this system (environment folder not available)"));
+                continue;
+            }
+
+            var notes = new List<string>();
+            var totalBytes = 0L;
+            var totalFiles = 0;
+            long eligibleBytes = 0;
+            var eligibleFiles = 0;
+            var skipped = 0;
+            var exists = false;
+
+            foreach (var root in roots)
+            {
+                var decision = EvaluateAccess(root, PathGuardIntent.Measure);
+                if (!decision.Allowed && decision.IsProtected)
+                {
+                    notes.Add($"measurement refused by path guard: {decision.ReasonCode} ({decision.Path})");
+                }
+
+                // Measuring is read-only; a protected location is still measured so that its size
+                // can be reported, but it can never be cleaned (see the protection reason below).
+                var measurement = DirectoryMeasurer.Measure(root, target.FilePattern, target.MinimumAge, maxDepth, _clock.Now, cancellationToken);
+                exists |= measurement.RootExists;
+                totalBytes += measurement.TotalBytes.Value ?? 0;
+                totalFiles += measurement.TotalFiles.Value ?? 0;
+                eligibleBytes += measurement.EligibleBytes.Value ?? 0;
+                eligibleFiles += measurement.EligibleFiles.Value ?? 0;
+                skipped += measurement.SkippedCount;
+                notes.AddRange(measurement.Notes);
+            }
+
+            if (!exists)
+            {
+                items.Add(BuildItem(target, null, "the location does not exist on this machine"));
+                continue;
+            }
+
+            measuredAnything = true;
+            totalEligible += eligibleBytes;
+
+            if (skipped > 0)
+            {
+                notes.Add($"{skipped} entry/entries could not be read (in use or access denied)");
+            }
+
+            items.Add(BuildItem(target, new DirectoryMeasurement
+            {
+                RootExists = true,
+                TotalBytes = Measured<long>.Known(totalBytes, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                TotalFiles = Measured<int>.Known(totalFiles, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                EligibleBytes = Measured<long>.Known(eligibleBytes, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                EligibleFiles = Measured<int>.Known(eligibleFiles, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                SkippedCount = skipped,
+                Notes = notes,
+            }, null));
+
+            if (target.SafetyClass == SafetyClass.Protected && eligibleBytes > 0)
+            {
+                problems.Add(BuildProtectedProblem(target, eligibleBytes, ref counter));
+            }
+        }
+
+        var duration = _clock.Now - started;
+        _protocol.Success(ModuleKey, LocalizedText.Of("Maintenance_Scan_Completed", items.Count), $"{duration.TotalSeconds:0.0} s");
+
+        return Task.FromResult(new MaintenanceScanResult
+        {
+            Items = items,
+            TotalSizeBytes = measuredAnything
+                ? Measured<long>.Known(totalEligible, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
+                : Measured<long>.NotAvailable("no cleanup location could be measured on this machine"),
+            ScannedAt = started,
+            Duration = duration,
+            Problems = problems,
+        });
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // 2. Plan: exactly what would happen, per item, with risk and protection state.
+    // -----------------------------------------------------------------------------------------
+    public Task<MaintenancePlan> BuildPlanAsync(MaintenanceScanResult scan, IReadOnlyList<MaintenanceCategory> selection, ExecutionMode mode, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(scan);
+        ArgumentNullException.ThrowIfNull(selection);
+
+        var selected = new HashSet<MaintenanceCategory>(selection);
+        var items = new List<MaintenancePlanItem>();
+        long planned = 0;
+
+        foreach (var item in scan.Items.Where(i => selected.Contains(i.Category)))
+        {
+            var isProtected = item.SafetyClass == SafetyClass.Protected;
+            var size = item.SizeBytes.Value ?? 0;
+            if (!isProtected)
+            {
+                planned += size;
+            }
+
+            items.Add(new MaintenancePlanItem
+            {
+                ItemId = item.Id,
+                Category = item.Category,
+                DisplayNameKey = item.DisplayNameKey,
+                SafetyClass = item.SafetyClass,
+                RootPath = item.RootPath,
+                SizeBytes = item.SizeBytes,
+                FileCount = item.FileCount,
+                Change = isProtected
+                    ? LocalizedText.Of("Maintenance_Change_None", item.DisplayNameKey)
+                    : LocalizedText.Of("Maintenance_Change_Delete", item.FileCount.Display, item.SizeBytes.Display),
+                Reason = item.ProtectionReason ?? LocalizedText.Of("Maintenance_Reason_Evidence", item.Notes.FirstOrDefault() ?? "measured"),
+                Risk = isProtected ? RiskLevel.High : item.SafetyClass == SafetyClass.Optional ? RiskLevel.Medium : RiskLevel.Low,
+                IsProtected = isProtected,
+                IsSelected = !isProtected,
+            });
+        }
+
+        var risk = items.Any(i => i.Risk == RiskLevel.High) ? RiskLevel.High
+            : items.Any(i => i.Risk == RiskLevel.Medium) ? RiskLevel.Medium
+            : items.Count > 0 ? RiskLevel.Low : RiskLevel.Low;
+
+        var plan = new MaintenancePlan
+        {
+            PlanId = $"MNT-{_clock.Now:yyyyMMdd-HHmmss}",
+            Mode = mode,
+            Items = items,
+            TotalBytesToFree = planned > 0
+                ? Measured<long>.Known(planned, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
+                : Measured<long>.NotAvailable("nothing selected that may be removed"),
+            Risk = risk,
+            RequiresAdministrator = items.Any(i => i.IsSelected && scan.Items.FirstOrDefault(s => s.Id == i.ItemId)?.RequiresAdministrator == true),
+            CreatedAt = _clock.Now,
+            Summary = items.Count == 0
+                ? LocalizedText.Of("Maintenance_Plan_Empty")
+                : LocalizedText.Of("Maintenance_Plan_Summary", items.Count(i => i.IsSelected), planned / (1024d * 1024d)),
+        };
+
+        _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_Plan_Created", plan.PlanId), $"{items.Count(i => i.IsSelected)} item(s)");
+        return Task.FromResult(plan);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // 3. Dry run: the same plan, evaluated completely, without a single write.
+    // -----------------------------------------------------------------------------------------
+    public async Task<MaintenanceResult> ExecuteDryRunAsync(MaintenancePlan plan, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var started = _clock.Now;
+        var results = new List<MaintenanceItemResult>();
+
+        foreach (var item in plan.Items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var outcome = item.IsProtected ? StageOutcome.Blocked
+                : item.SafetyClass == SafetyClass.Unknown ? StageOutcome.Blocked
+                : StageOutcome.Succeeded;
+
+            var message = item.IsProtected
+                ? LocalizedText.Of("Maintenance_DryRun_Protected", item.DisplayNameKey)
+                : item.SafetyClass == SafetyClass.Unknown
+                    ? LocalizedText.Of("Maintenance_DryRun_UnknownCategory", item.DisplayNameKey)
+                    : LocalizedText.Of("Maintenance_DryRun_WouldFree", item.SizeBytes.Display, item.FileCount.Display);
+
+            results.Add(new MaintenanceItemResult
+            {
+                ItemId = item.ItemId,
+                Category = item.Category,
+                DisplayNameKey = item.DisplayNameKey,
+                Outcome = outcome,
+                PlannedBytes = item.SizeBytes,
+                FreedBytes = Measured<long>.NotAvailable("dry run: nothing was deleted"),
+                DeletedFiles = Measured<int>.NotAvailable("dry run: nothing was deleted"),
+                SkippedFiles = Measured<int>.NotAvailable("dry run: nothing was deleted"),
+                Message = message,
+            });
+        }
+
+        _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_DryRun_Completed"), $"{results.Count(r => r.Outcome == StageOutcome.Succeeded)} item(s) executable");
+
+        await _audit.RecordAsync(
+            OperationKind.Maintenance,
+            plan.PlanId,
+            ComponentCategory.Maintenance,
+            StageOutcome.Succeeded,
+            oldState: "unchanged",
+            newState: "dry-run-only",
+            evidence: new[] { "mode=dry-run", $"items={plan.Items.Count}", $"protected={plan.Items.Count(i => i.IsProtected)}" },
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return new MaintenanceResult
+        {
+            PlanId = plan.PlanId,
+            Mode = ExecutionMode.DryRun,
+            StartedAt = started,
+            CompletedAt = _clock.Now,
+            Items = results,
+            FreedBytes = Measured<long>.NotAvailable("dry run: nothing was deleted"),
+            Summary = LocalizedText.Of("Maintenance_Result_DryRun", plan.Items.Count(i => !i.IsProtected), plan.TotalBytesToFree.Display),
+        };
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // 4. Execute: only with an approved plan, only safe items, every file checked individually.
+    // -----------------------------------------------------------------------------------------
+    public async Task<MaintenanceResult> ExecuteAsync(MaintenancePlan plan, ApprovalRecord approval, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(approval);
+
+        if (plan.Mode != ExecutionMode.Execute)
+        {
+            // A plan that was built for a dry run is never executed implicitly.
+            return await ExecuteDryRunAsync(plan, cancellationToken).ConfigureAwait(false);
+        }
+
+        var started = _clock.Now;
+        var results = new List<MaintenanceItemResult>();
+        var evidence = new List<string>();
+        long freedTotal = 0;
+        var deletedTotal = 0;
+
+        var approvalValid = approval.Decision == ApprovalDecision.Approved
+            && string.Equals(approval.OperationId, plan.PlanId, StringComparison.Ordinal);
+
+        if (!approvalValid)
+        {
+            var reason = approval.Decision != ApprovalDecision.Approved
+                ? LocalizedText.Of("Maintenance_Blocked_NotApproved", approval.Decision.ToString())
+                : LocalizedText.Of("Maintenance_Blocked_ApprovalMismatch", approval.OperationId, plan.PlanId);
+
+            _protocol.Blocked(ModuleKey, LocalizedText.Of("Maintenance_Blocked_Title", plan.PlanId), reason.Key);
+            await _audit.RecordAsync(
+                OperationKind.Maintenance, plan.PlanId, ComponentCategory.Maintenance, StageOutcome.Blocked,
+                approval: approval, error: reason.Key, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            return new MaintenanceResult
+            {
+                PlanId = plan.PlanId,
+                Mode = plan.Mode,
+                StartedAt = started,
+                CompletedAt = _clock.Now,
+                Items = plan.Items.Select(i => new MaintenanceItemResult
+                {
+                    ItemId = i.ItemId,
+                    Category = i.Category,
+                    DisplayNameKey = i.DisplayNameKey,
+                    Outcome = StageOutcome.Blocked,
+                    PlannedBytes = i.SizeBytes,
+                    Message = reason,
+                }).ToList(),
+                FreedBytes = Measured<long>.NotAvailable("blocked: nothing was deleted"),
+                Summary = reason,
+            };
+        }
+
+        var isElevated = _environment.IsElevated;
+        var targetMap = CleanupTargetCatalog.ForCurrentMachine(
+            includeBrowserCache: _settings.Current.MaintenanceIncludeBrowserCache,
+            includePrefetch: _settings.Current.IncludePrefetchedData,
+            includeWindowsUpdateCache: _settings.Current.MaintenanceIncludeWindowsUpdateCache);
+
+        _progress.Start("Progress_Maintenance", ModuleKey, plan.Items.Count);
+        var step = 0;
+
+        foreach (var item in plan.Items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            step++;
+            _progress.ReportFraction((double)step / Math.Max(1, plan.Items.Count), "Maintenance_Step_Clean", item.DisplayNameKey);
+
+            if (item.IsProtected)
+            {
+                results.Add(Blocked(item, LocalizedText.Of("Maintenance_Blocked_Protected", item.DisplayNameKey)));
+                continue;
+            }
+
+            if (item.SafetyClass == SafetyClass.Unknown)
+            {
+                results.Add(Blocked(item, LocalizedText.Of("Maintenance_Blocked_UnknownCategory", item.DisplayNameKey)));
+                continue;
+            }
+
+            // Several targets can share one category (for example three WER folders). The plan
+            // item identifies its own root, so the executor must match on root + category.
+            var target = targetMap.FirstOrDefault(t => t.Category == item.Category
+                    && !string.IsNullOrWhiteSpace(item.RootPath)
+                    && string.Equals(t.Root, item.RootPath, StringComparison.OrdinalIgnoreCase))
+                ?? targetMap.FirstOrDefault(t => t.Category == item.Category);
+            if (target is null)
+            {
+                results.Add(Blocked(item, LocalizedText.Of("Maintenance_Blocked_UnknownTarget", item.Category.ToString())));
+                continue;
+            }
+
+            if (target.RequiresAdministrator && !isElevated)
+            {
+                results.Add(Blocked(item, LocalizedText.Of("Maintenance_Blocked_NoAdmin", item.DisplayNameKey), BlockReasons.NotElevated));
+                continue;
+            }
+
+            var roots = ResolveRoots(target);
+            if (roots.Count == 0)
+            {
+                results.Add(Blocked(item, LocalizedText.Of("Maintenance_Blocked_NoLocation", item.DisplayNameKey)));
+                continue;
+            }
+
+            var deleted = 0;
+            var skippedFiles = 0;
+            long freed = 0;
+            var notes = new List<string>();
+
+            foreach (var root in roots)
+            {
+                var files = DirectoryMeasurer.EnumerateFiles(root, target.FilePattern, target.MinimumAge, 6, _clock.Now, cancellationToken);
+
+                foreach (var file in files)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // Every single file must pass the guard for the concrete root of this target.
+                    var decision = _pathGuard.Evaluate(file, PathGuardIntent.Delete, new[] { root });
+                    if (!decision.Allowed)
+                    {
+                        skippedFiles++;
+                        if (decision.IsProtected)
+                        {
+                            notes.Add($"refused by path guard: {decision.ReasonCode}");
+                        }
+
+                        continue;
+                    }
+
+                    if (!_pathGuard.TryNormalise(file, out var normalised, out _))
+                    {
+                        skippedFiles++;
+                        continue;
+                    }
+
+                    // A second, independent containment check on the normalised path.
+                    if (!PathGuard.IsStrictlyInside(normalised, root))
+                    {
+                        skippedFiles++;
+                        notes.Add($"containment check failed for {normalised}");
+                        continue;
+                    }
+
+                    try
+                    {
+                        var length = new FileInfo(normalised).Length;
+                        File.Delete(normalised);
+                        deleted++;
+                        freed += length;
+                        deletedTotal++;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        skippedFiles++;
+                        notes.Add($"{Path.GetFileName(normalised)}: {ex.GetType().Name}");
+                    }
+                }
+            }
+
+            // VERIFY: re-measure the same location and report the observed difference.
+            var verification = new List<string>();
+            foreach (var root in roots)
+            {
+                var after = DirectoryMeasurer.Measure(root, target.FilePattern, target.MinimumAge, 6, _clock.Now, cancellationToken);
+                verification.Add($"re-measured {root}: {after.EligibleFiles.Display()} eligible file(s), {after.EligibleBytes.Display()} byte");
+            }
+
+            freedTotal += freed;
+            var outcome = deleted > 0 ? StageOutcome.Succeeded : skippedFiles > 0 ? StageOutcome.Failed : StageOutcome.Skipped;
+
+            results.Add(new MaintenanceItemResult
+            {
+                ItemId = item.ItemId,
+                Category = item.Category,
+                DisplayNameKey = item.DisplayNameKey,
+                Outcome = outcome,
+                PlannedBytes = item.SizeBytes,
+                FreedBytes = Measured<long>.Known(freed, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                DeletedFiles = Measured<int>.Known(deleted, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                SkippedFiles = Measured<int>.Known(skippedFiles, ValueOrigin.LocalFile(_clock.Now, roots[0])),
+                Message = LocalizedText.Of("Maintenance_Item_Result", deleted, freed / (1024d * 1024d), skippedFiles),
+            });
+
+            evidence.Add($"item={item.ItemId}; deleted={deleted}; freed={freed}; skipped={skippedFiles}");
+            evidence.AddRange(notes.Take(10));
+            evidence.AddRange(verification);
+
+            await _audit.RecordAsync(
+                OperationKind.FileDeletion,
+                item.ItemId,
+                ComponentCategory.Maintenance,
+                outcome,
+                componentId: item.RootPath,
+                oldState: item.SizeBytes.Display,
+                newState: $"{freed} byte removed ({deleted} file(s))",
+                approval: approval,
+                evidence: new[] { $"category={item.Category}", $"deleted={deleted}", $"freed={freed}", $"skipped={skippedFiles}" },
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+
+        _progress.Complete(true);
+
+        var overall = results.Any(r => r.Outcome == StageOutcome.Blocked) ? StageOutcome.Blocked
+            : results.Any(r => r.Outcome == StageOutcome.Failed) ? StageOutcome.Failed
+            : results.Count > 0 ? StageOutcome.Succeeded
+            : StageOutcome.Skipped;
+
+        await _audit.RecordAsync(
+            OperationKind.Maintenance,
+            plan.PlanId,
+            ComponentCategory.Maintenance,
+            overall,
+            approval: approval,
+            evidence: evidence.Count > 0 ? evidence : new[] { "no item was executed" },
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        _protocol.Report(ModuleKey, LocalizedText.Of("Maintenance_Execute_Completed", plan.PlanId), overall == StageOutcome.Succeeded ? Severity.Success : Severity.Warning, $"{deletedTotal} file(s), {freedTotal / (1024 * 1024)} MB");
+
+        return new MaintenanceResult
+        {
+            PlanId = plan.PlanId,
+            Mode = ExecutionMode.Execute,
+            StartedAt = started,
+            CompletedAt = _clock.Now,
+            Items = results,
+            FreedBytes = deletedTotal > 0
+                ? Measured<long>.Known(freedTotal, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
+                : Measured<long>.NotAvailable("nothing was deleted"),
+            Summary = LocalizedText.Of("Maintenance_Result_Executed", deletedTotal, freedTotal / (1024d * 1024d), results.Count(r => r.Outcome == StageOutcome.Blocked)),
+        };
+    }
+
+    private static MaintenanceItemResult Blocked(MaintenancePlanItem item, LocalizedText reason, string? reasonCode = null) => new()
+    {
+        ItemId = item.ItemId,
+        Category = item.Category,
+        DisplayNameKey = item.DisplayNameKey,
+        Outcome = StageOutcome.Blocked,
+        PlannedBytes = item.SizeBytes,
+        FreedBytes = Measured<long>.NotAvailable("blocked: nothing was deleted"),
+        Message = reason,
+    };
+
+    private MaintenanceItem BuildItem(CleanupTarget target, DirectoryMeasurement? measurement, string? unavailableReason)
+    {
+        var notes = new List<string>
+        {
+            $"source: {target.SourceNote}",
+        };
+
+        if (measurement is not null)
+        {
+            notes.AddRange(measurement.Notes);
+        }
+        else if (unavailableReason is not null)
+        {
+            notes.Add(unavailableReason);
+        }
+
+        return new MaintenanceItem
+        {
+            Id = $"{target.Category}-{Math.Abs(target.Root.GetHashCode() % 10000):D4}",
+            Category = target.Category,
+            SafetyClass = target.SafetyClass,
+            DisplayNameKey = target.DisplayNameKey,
+            Description = target.Description,
+            RootPath = string.IsNullOrWhiteSpace(target.Root) ? null : target.Root,
+            SizeBytes = measurement is not null ? measurement.EligibleBytes : Measured<long>.NotAvailable(unavailableReason ?? "not measured"),
+            FileCount = measurement is not null ? measurement.EligibleFiles : Measured<int>.NotAvailable(unavailableReason ?? "not measured"),
+            RequiresAdministrator = target.RequiresAdministrator,
+            IsEnabledByDefault = target.SafetyClass == SafetyClass.Safe && target.IsCleanable,
+            ProtectionReasonCode = target.IsCleanable ? null : "PROTECTED_CATEGORY",
+            ProtectionReason = target.ProtectionReason,
+            Notes = notes,
+        };
+    }
+
+    private Problem BuildProtectedProblem(CleanupTarget target, long bytes, ref int counter) => new()
+    {
+        Id = $"{ProblemIdFactory.CategoryPrefix(ComponentCategory.Maintenance)}-{++counter:D3}",
+        Category = ComponentCategory.Maintenance,
+        Severity = Severity.Info,
+        Status = ProblemStatus.Open,
+        Title = LocalizedText.Of("Problem_ProtectedLocation_Title", target.DisplayNameKey),
+        Description = target.ProtectionReason ?? LocalizedText.Of("Problem_ProtectedLocation_Description"),
+        Evidence = $"{target.Root}; eligible bytes={bytes}; source={target.SourceNote}",
+        Impact = LocalizedText.Of("Problem_ProtectedLocation_Impact"),
+        RecommendedAction = LocalizedText.Of("Problem_ProtectedLocation_Action"),
+        DetectedAt = _clock.Now,
+        ComponentId = target.Root,
+        RequiresAdministrator = target.RequiresAdministrator,
+        References = new[] { target.SourceNote },
+    };
+
+    private PathGuardDecision EvaluateAccess(string path, PathGuardIntent intent)
+    {
+        var roots = CleanupTargetCatalog.ForCurrentMachine(includeBrowserCache: true, includePrefetch: true, includeWindowsUpdateCache: true)
+            .Select(t => t.Root)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return _pathGuard.Evaluate(path, intent, roots);
+    }
+
+    /// <summary>
+    /// Resolves the concrete roots of a target, including documented sub-directories such as the
+    /// per-profile Firefox cache.
+    /// </summary>
+    private static IReadOnlyList<string> ResolveRoots(CleanupTarget target)
+    {
+        if (string.IsNullOrWhiteSpace(target.Root))
+        {
+            return Array.Empty<string>();
+        }
+
+        if (string.IsNullOrWhiteSpace(target.WildcardChildDirectory))
+        {
+            return new[] { target.Root };
+        }
+
+        if (!Directory.Exists(target.Root))
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            return Directory.GetDirectories(target.Root)
+                .Select(profile => Path.Combine(profile, target.WildcardChildDirectory))
+                .Where(child => Directory.Exists(child))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return Array.Empty<string>();
+        }
+    }
+}
+
+/// <summary>Small helper so that reports can render an unknown measurement without a value.</summary>
+internal static class MeasuredFormatting
+{
+    public static string Display<T>(this Measured<T> measured) where T : struct => measured.HasValue
+        ? measured.Value!.ToString() ?? "UNKNOWN"
+        : $"UNKNOWN ({measured.UnknownReason})";
+}

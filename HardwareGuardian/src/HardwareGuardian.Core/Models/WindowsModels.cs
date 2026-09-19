@@ -1,0 +1,198 @@
+using HardwareGuardian.Core.Values;
+
+namespace HardwareGuardian.Core.Models;
+
+/// <summary>Identifiers of the Windows checks that Hardware Guardian can actually perform.</summary>
+public enum WindowsCheckId
+{
+    SystemFileIntegrity,
+    ComponentStore,
+    EventLogErrors,
+    DeviceErrors,
+    StorageSpace,
+    DefenderStatus,
+    UpdateStatus,
+    SecureBoot,
+    ServiceHealth,
+    StartupImpact,
+    TimeSynchronisation,
+    DriverSignatures,
+}
+
+/// <summary>One executed Windows check with its real outcome.</summary>
+public sealed record WindowsCheckResult
+{
+    public WindowsCheckId Check { get; init; }
+
+    public string DisplayNameKey { get; init; } = "Windows_Check_Unknown";
+
+    public HealthStatus Status { get; init; } = HealthStatus.Unknown;
+
+    public StageOutcome Outcome { get; init; } = StageOutcome.NotRun;
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("Windows_Check_NotRun");
+
+    public string? Detail { get; init; }
+
+    public string? CommandLine { get; init; }
+
+    public bool RequiresAdministrator { get; init; }
+
+    public bool Performed { get; init; }
+
+    public IReadOnlyList<string> Evidence { get; init; } = Array.Empty<string>();
+}
+
+/// <summary>Full Windows health view.</summary>
+public sealed record WindowsHealthReport
+{
+    public WindowsIdentityInfo Identity { get; init; } = new();
+
+    public HealthStatus Status { get; init; } = HealthStatus.Unknown;
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("Windows_Health_Unknown");
+
+    public IReadOnlyList<WindowsCheckResult> Checks { get; init; } = Array.Empty<WindowsCheckResult>();
+
+    public DefenderStatus Defender { get; init; } = new();
+
+    public UpdateAvailability Updates { get; init; } = new();
+
+    public IReadOnlyList<ServiceStartupInfo> Startup { get; init; } = Array.Empty<ServiceStartupInfo>();
+
+    public string? PendingRebootReason { get; init; }
+
+    public DateTimeOffset AssessedAt { get; init; }
+}
+
+/// <summary>
+/// Result of an integrity check (DISM/SFC). Repair is only requested explicitly by the user
+/// and the outcome is derived from the real tool output, never assumed (spec section 17).
+/// </summary>
+public sealed record IntegrityCheckResult
+{
+    public WindowsCheckId Check { get; init; }
+
+    public StageOutcome Outcome { get; init; } = StageOutcome.NotRun;
+
+    public string CommandLine { get; init; } = string.Empty;
+
+    public int ExitCode { get; init; }
+
+    public bool TimedOut { get; init; }
+
+    public bool RepairRequested { get; init; }
+
+    public bool RepairSucceeded { get; init; }
+
+    /// <summary>True when the tool reported that changes were made.</summary>
+    public bool ChangesPerformed { get; init; }
+
+    /// <summary>True when a verification run after the repair confirmed the new state.</summary>
+    public bool VerifiedAfterRepair { get; init; }
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("Integrity_NotRun");
+
+    public string RawOutput { get; init; } = string.Empty;
+
+    public bool RequiresAdministrator { get; init; } = true;
+
+    public IReadOnlyList<string> Evidence { get; init; } = Array.Empty<string>();
+
+    public TimeSpan Duration { get; init; }
+}
+
+/// <summary>An installed Windows update (from the local update history).</summary>
+public sealed record WindowsUpdateInfo
+{
+    public TextInfo HotFixId { get; init; }
+
+    public TextInfo Description { get; init; }
+
+    public TextInfo InstalledOn { get; init; }
+
+    public TextInfo InstalledBy { get; init; }
+
+    public TextInfo Caption { get; init; }
+
+    public TextInfo SupportUrl { get; init; }
+}
+
+/// <summary>Availability check for Windows updates. Only the real update agent is queried.</summary>
+public sealed record UpdateAvailability
+{
+    public StageOutcome Outcome { get; init; } = StageOutcome.NotRun;
+
+    public bool SearchPerformed { get; init; }
+
+    public bool RequiresAdministrator { get; init; }
+
+    public int PendingCount { get; init; }
+
+    public bool PendingReboot { get; init; }
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("WindowsUpdate_NotChecked");
+
+    public IReadOnlyList<WindowsUpdateInfo> RecentUpdates { get; init; } = Array.Empty<WindowsUpdateInfo>();
+
+    public IReadOnlyList<WindowsUpdateInfo> Available { get; init; } = Array.Empty<WindowsUpdateInfo>();
+
+    public string? ErrorDetail { get; init; }
+}
+
+/// <summary>Service or autostart entry, read only (spec section 54: never changed silently).</summary>
+public sealed record ServiceStartupInfo
+{
+    public TextInfo Name { get; init; }
+
+    public TextInfo DisplayName { get; init; }
+
+    public TextInfo StartMode { get; init; }
+
+    public TextInfo State { get; init; }
+
+    public TextInfo BinaryPath { get; init; }
+
+    public TextInfo Account { get; init; }
+
+    public bool IsAutomatic { get; init; }
+
+    public bool IsDelayedAutomatic { get; init; }
+
+    public bool IsThirdParty { get; init; }
+
+    public bool IsDisabled { get; init; }
+
+    /// <summary>Importance for the workload assessment: 1 = low impact, 3 = do not touch.</summary>
+    public int Importance { get; init; } = 2;
+
+    public string SourceKey { get; init; } = "Startup_Source_Service";
+}
+
+/// <summary>Microsoft Defender status as reported by the platform.</summary>
+public sealed record DefenderStatus
+{
+    public bool Available { get; init; }
+
+    public TextInfo AntivirusEnabled { get; init; }
+
+    public TextInfo RealTimeProtectionEnabled { get; init; }
+
+    public TextInfo EngineVersion { get; init; }
+
+    public TextInfo SignatureVersion { get; init; }
+
+    public TextInfo SignatureLastUpdated { get; init; }
+
+    public TextInfo TamperProtection { get; init; }
+
+    public TextInfo ThreatsDetected { get; init; }
+
+    public TextInfo AntivirusProvider { get; init; }
+
+    public TextInfo AntispywareEnabled { get; init; }
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("Defender_Unknown");
+
+    public string? ErrorDetail { get; init; }
+}
