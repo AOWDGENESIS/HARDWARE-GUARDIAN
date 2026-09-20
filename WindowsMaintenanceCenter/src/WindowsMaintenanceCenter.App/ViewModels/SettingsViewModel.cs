@@ -19,7 +19,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly IEnvironmentProbe _environment;
     private readonly IBuildInfoProvider _buildInfo;
     private readonly IAuditLog _audit;
-    private readonly App.Services.ThemeManager _themes;
+    private readonly WindowsMaintenanceCenter.App.Services.ThemeManager _themes;
 
     private AppSettings _current;
     private string _statusText = string.Empty;
@@ -31,7 +31,7 @@ public sealed class SettingsViewModel : ViewModelBase
         IEnvironmentProbe environment,
         IBuildInfoProvider buildInfo,
         IAuditLog audit,
-        App.Services.ThemeManager themes)
+        WindowsMaintenanceCenter.App.Services.ThemeManager themes)
         : base(localizer)
     {
         _settings = settings;

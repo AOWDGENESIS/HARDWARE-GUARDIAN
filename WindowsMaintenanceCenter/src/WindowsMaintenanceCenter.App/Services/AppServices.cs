@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Threading;
+using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;

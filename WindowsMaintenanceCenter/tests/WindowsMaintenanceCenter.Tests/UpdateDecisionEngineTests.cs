@@ -186,7 +186,7 @@ public sealed class UpdateDecisionEngineTests
 
     private static VersionInfo Version(string value) => new()
     {
-        Raw = TextInfo.Known(value, ValueOrigin.OfficialManufacturer(DateTimeOffset.UnixEpoch, "nvidia", VerificationLevel.MetadataMatch)),
-        Normalized = TextInfo.Known(value, ValueOrigin.OfficialManufacturer(DateTimeOffset.UnixEpoch, "nvidia", VerificationLevel.MetadataMatch)),
+        Raw = TextInfo.Known(value, ValueOrigin.Manufacturer(DateTimeOffset.UnixEpoch, "nvidia", VerificationLevel.MetadataMatch)),
+        Normalized = TextInfo.Known(value, ValueOrigin.Manufacturer(DateTimeOffset.UnixEpoch, "nvidia", VerificationLevel.MetadataMatch)),
     };
 }
