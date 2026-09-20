@@ -1,3 +1,4 @@
+using System.Net;
 using HardwareGuardian.Core;
 using HardwareGuardian.Core.Abstractions;
 using HardwareGuardian.Core.Models;
@@ -330,4 +331,53 @@ internal sealed class NoOpDiagnosticModule : IDiagnosticModule
             Evidence = new[] { "no-op module executed" },
         });
     }
+}
+
+/// <summary>
+/// HTTP transport for tests: answers every request from a function instead of the network. Shared by
+/// all tests that exercise real decision logic against a prepared response.
+/// </summary>
+internal sealed class StubHttpHandler : HttpMessageHandler
+{
+    private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+
+    public StubHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
+
+    /// <summary>Number of requests that were actually sent.</summary>
+    public int CallCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        CallCount++;
+        return Task.FromResult(_responder(request));
+    }
+
+    /// <summary>An OK response with the given body.</summary>
+    public static HttpResponseMessage Ok(string body = "ok")
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        response.Content = new StringContent(body);
+        return response;
+    }
+
+    /// <summary>A redirect to the given absolute target.</summary>
+    public static HttpResponseMessage Redirect(string target)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+        response.Headers.Location = new Uri(target);
+        return response;
+    }
+}
+
+/// <summary>Hands out clients that use a prepared handler.</summary>
+internal sealed class StubHttpClientProvider : IHttpClientProvider
+{
+    private readonly HttpMessageHandler _handler;
+
+    public StubHttpClientProvider(HttpMessageHandler handler) => _handler = handler;
+
+    public HttpClient GetClient(string name, TimeSpan timeout) => new(_handler, disposeHandler: false)
+    {
+        Timeout = timeout,
+    };
 }

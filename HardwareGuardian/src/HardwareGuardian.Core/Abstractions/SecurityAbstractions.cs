@@ -62,10 +62,18 @@ public sealed record DownloadRequest
 
     public string? ExpectedSha256 { get; init; }
 
-    /// <summary>When true, a missing expected hash does not block the download but is reported.</summary>
-    public bool RequireHashVerification { get; init; }
+    /// <summary>
+    /// When true, an artefact whose hash could not be compared with a published value is not
+    /// released for approval. Default: true (fail closed). A source that publishes no hash must be
+    /// handled explicitly, not by a default that happens to be permissive.
+    /// </summary>
+    public bool RequireHashVerification { get; init; } = true;
 
-    public bool RequireSignatureVerification { get; init; }
+    /// <summary>
+    /// When true, an artefact without a verified signature is not released for approval.
+    /// Default: true (fail closed, spec sections 30 and 60).
+    /// </summary>
+    public bool RequireSignatureVerification { get; init; } = true;
 
     public long MaxSizeBytes { get; init; } = 4L * 1024 * 1024 * 1024;
 
