@@ -1,4 +1,5 @@
 using WindowsMaintenanceCenter.Core;
+using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Services;
 using Xunit;
@@ -237,6 +238,32 @@ public sealed class RecoveryEngineTests
         // turn an unverified rollback into a success (chapter 86).
         Assert.Equal("Rollback_Summary_Partial", result.Summary.Key);
         Assert.Single(rollback.Requests);
+    }
+
+    /// <summary>
+    /// SEC-12: a state journal that was changed after the fact stays readable, but the assessment
+    /// carries the finding. A recovery that is planned on a manipulated record has to be recognisable
+    /// as such.
+    /// </summary>
+    [Fact]
+    public async Task A_changed_journal_is_reported_with_the_assessment()
+    {
+        using var paths = new TempPathProvider();
+        var journal = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths);
+        var machine = new SystemStateMachine(_clock, events: null, logger: null, journal: journal);
+        machine.TryTransitionTo(SystemState.Discovery, "start");
+        machine.TryTransitionTo(SystemState.Diagnostic, "assess");
+        machine.TryTransitionTo(SystemState.PlanGenerated, "plan");
+
+        var lines = File.ReadAllLines(journal.Location);
+        File.WriteAllLines(journal.Location, lines.Where((_, index) => index != 1));
+
+        var engine = Engine(new RecordingBackupService(_clock), new RecordingRollbackService(), new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths));
+        var assessment = await engine.AssessAsync(CancellationToken.None);
+
+        Assert.False(assessment.JournalIntact);
+        Assert.NotNull(assessment.JournalFinding);
+        Assert.Contains(assessment.JournalEvidence, line => line.Contains("chain broken", StringComparison.Ordinal));
     }
 
     private RecoveryEngine Engine(RecordingBackupService backups, RecordingRollbackService rollback, IStateJournal? journal = null) =>

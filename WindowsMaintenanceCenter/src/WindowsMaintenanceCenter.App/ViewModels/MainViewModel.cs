@@ -221,6 +221,18 @@ public sealed class MainViewModel : ViewModelBase
         try
         {
             var assessment = await _recovery.AssessAsync(CancellationToken.None).ConfigureAwait(true);
+
+            // SEC-12: a state journal that was changed after the fact is reported right away. The run
+            // continues, but it is not presented as healthy (chapter 96 - a finding is not a detail).
+            if (!assessment.JournalIntact && assessment.JournalFinding is not null)
+            {
+                _protocol.Publish(
+                    "JRN",
+                    assessment.JournalFinding,
+                    Severity.Error,
+                    string.Join(" | ", assessment.JournalEvidence));
+            }
+
             if (assessment.RecoveryAvailable)
             {
                 _protocol.Publish(

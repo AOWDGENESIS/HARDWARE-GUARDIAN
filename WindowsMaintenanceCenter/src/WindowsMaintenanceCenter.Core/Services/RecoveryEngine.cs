@@ -73,6 +73,14 @@ public sealed class RecoveryEngine : IRecoveryEngine
     public async Task<RecoveryAssessment> AssessAsync(CancellationToken cancellationToken)
     {
         var entries = _journal.Read();
+
+        // SEC-12: the record has to be checkable. A journal whose chain does not close is still read -
+        // the run continues - but the finding travels with every answer instead of being dropped.
+        var verification = _journal.Verify();
+        var chainLine = verification.IsIntact
+            ? $"journal chain intact over {verification.Checked} entry/entries"
+            : $"journal chain broken: {verification.Summary.Key} ({string.Join(", ", verification.Evidence)})";
+
         if (entries.Count == 0)
         {
             return new RecoveryAssessment
@@ -80,6 +88,9 @@ public sealed class RecoveryEngine : IRecoveryEngine
                 RecoveryAvailable = false,
                 Summary = LocalizedText.Of("Recovery_Reason_NothingRecorded"),
                 Evidence = new[] { $"journal={_journal.Location}, entries=0" },
+                JournalIntact = verification.IsIntact,
+                JournalFinding = verification.IsIntact ? null : verification.Summary,
+                JournalEvidence = new[] { chainLine },
             };
         }
 
@@ -88,6 +99,7 @@ public sealed class RecoveryEngine : IRecoveryEngine
         {
             $"journal={_journal.Location}, entries={entries.Count}",
             $"last change {last.From} -> {last.To} at {last.At:u}",
+            chainLine,
         };
 
         if (!StateJournalEntry.IsInterruptible(last.To))
@@ -101,6 +113,9 @@ public sealed class RecoveryEngine : IRecoveryEngine
                 LastChangeAt = last.At,
                 Summary = LocalizedText.Of("Recovery_Reason_NoInterruption", last.To.ToString()),
                 Evidence = evidence,
+                JournalIntact = verification.IsIntact,
+                JournalFinding = verification.IsIntact ? null : verification.Summary,
+                JournalEvidence = new[] { chainLine },
             };
         }
 
@@ -146,6 +161,9 @@ public sealed class RecoveryEngine : IRecoveryEngine
                 RollbackPossible = false,
                 Summary = LocalizedText.Of("Recovery_Reason_BackupMissing"),
                 Evidence = evidence,
+                JournalIntact = verification.IsIntact,
+                JournalFinding = verification.IsIntact ? null : verification.Summary,
+                JournalEvidence = new[] { chainLine },
             };
         }
 
@@ -168,6 +186,9 @@ public sealed class RecoveryEngine : IRecoveryEngine
             RollbackPossible = rollbackPossible,
             Summary = LocalizedText.Of(rollbackPossible ? "Recovery_Reason_Ready" : "Recovery_Reason_RollbackNotPossible"),
             Evidence = evidence,
+            JournalIntact = verification.IsIntact,
+            JournalFinding = verification.IsIntact ? null : verification.Summary,
+            JournalEvidence = new[] { chainLine },
         };
     }
 

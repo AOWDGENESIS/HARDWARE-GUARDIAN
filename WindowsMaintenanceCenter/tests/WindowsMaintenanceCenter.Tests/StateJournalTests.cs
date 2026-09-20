@@ -89,6 +89,98 @@ public sealed class StateJournalTests
     }
 
     [Fact]
+    public void The_memory_journal_chains_its_entries()
+    {
+        var journal = new InMemoryStateJournal();
+        var machine = new SystemStateMachine(new FakeClock(), events: null, logger: null, journal: journal);
+
+        machine.TryTransitionTo(SystemState.Discovery, "a");
+        machine.TryTransitionTo(SystemState.Diagnostic, "b");
+
+        var entries = journal.Read();
+        var verification = journal.Verify();
+
+        Assert.True(verification.IsIntact);
+        Assert.Equal(2, verification.Checked);
+        Assert.Equal(1, entries[0].Sequence);
+        Assert.Null(entries[0].PreviousHash);
+        Assert.False(string.IsNullOrWhiteSpace(entries[0].Hash));
+        Assert.Equal(entries[0].Hash, entries[1].PreviousHash);
+        Assert.Equal(2, entries[1].Sequence);
+    }
+
+    /// <summary>
+    /// SEC-12: a line taken out of the journal has to be recognisable. Without the chain this line
+    /// would simply be missing and the recovery would work with fewer entries - and nobody would
+    /// know that the record was changed.
+    /// </summary>
+    [Fact]
+    public void A_deleted_line_breaks_the_chain()
+    {
+        using var paths = new TempPathProvider();
+        var journal = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths);
+        var machine = new SystemStateMachine(new FakeClock(), events: null, logger: null, journal: journal);
+
+        machine.TryTransitionTo(SystemState.Discovery, "a");
+        machine.TryTransitionTo(SystemState.Diagnostic, "b");
+        machine.TryTransitionTo(SystemState.PlanGenerated, "c");
+
+        Assert.True(journal.Verify().IsIntact);
+
+        var lines = File.ReadAllLines(journal.Location);
+        File.WriteAllLines(journal.Location, lines.Where((_, index) => index != 1));
+
+        var reloaded = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths);
+        var verification = reloaded.Verify();
+
+        Assert.False(verification.IsIntact);
+        Assert.Equal("StateJournal_Chain_SequenceGap", verification.Summary.Key);
+        Assert.Equal(1, verification.FirstBrokenIndex);
+
+        // The run continues: the entries that are there stay readable, only the verdict changes.
+        Assert.Equal(2, reloaded.Read().Count);
+    }
+
+    /// <summary>SEC-12: a changed entry has to be recognisable.</summary>
+    [Fact]
+    public void A_changed_entry_is_recognised()
+    {
+        using var paths = new TempPathProvider();
+        var journal = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths);
+        var machine = new SystemStateMachine(new FakeClock(), events: null, logger: null, journal: journal);
+
+        machine.TryTransitionTo(SystemState.Discovery, "a");
+        machine.TryTransitionTo(SystemState.Diagnostic, "b");
+
+        var lines = File.ReadAllLines(journal.Location);
+        lines[0] = lines[0].Replace("\"Discovery\"", "\"Executing\"", StringComparison.Ordinal);
+        File.WriteAllLines(journal.Location, lines);
+
+        var verification = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths).Verify();
+
+        Assert.False(verification.IsIntact);
+        Assert.Equal("StateJournal_Chain_HashMismatch", verification.Summary.Key);
+        Assert.Equal(0, verification.FirstBrokenIndex);
+    }
+
+    /// <summary>SEC-13/REC-03: a half written last line is a crash, not manipulation - it cannot break the chain.</summary>
+    [Fact]
+    public void A_truncated_last_line_leaves_the_chain_intact()
+    {
+        using var paths = new TempPathProvider();
+        var journal = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths);
+        var machine = new SystemStateMachine(new FakeClock(), events: null, logger: null, journal: journal);
+
+        machine.TryTransitionTo(SystemState.Discovery, "a");
+        File.AppendAllText(journal.Location, "{ \"from\": \"Discovery\", \"to\": \"Diagn");
+
+        var verification = new WindowsMaintenanceCenter.Infrastructure.Persistence.FileStateJournal(paths).Verify();
+
+        Assert.True(verification.IsIntact);
+        Assert.Equal(1, verification.Checked);
+    }
+
+    [Fact]
     public void The_file_journal_survives_a_new_instance_and_tolerates_a_truncated_last_line()
     {
         using var paths = new TempPathProvider();

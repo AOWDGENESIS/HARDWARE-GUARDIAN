@@ -40,6 +40,18 @@ public sealed record RecoveryAssessment
     /// </summary>
     public bool RequiresApproval { get; init; } = true;
 
+    /// <summary>
+    /// False when the chain of the state journal does not close (SEC-12). The assessment is still
+    /// computed from what is there, but a reader is told that the record itself was changed.
+    /// </summary>
+    public bool JournalIntact { get; init; } = true;
+
+    /// <summary>Finding of the chain check, null while the journal is intact.</summary>
+    public LocalizedText? JournalFinding { get; init; }
+
+    /// <summary>Lines of the chain check, for the protocol and the report.</summary>
+    public IReadOnlyList<string> JournalEvidence { get; init; } = Array.Empty<string>();
+
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Recovery_Reason_NothingRecorded");
 
     public IReadOnlyList<string> Evidence { get; init; } = Array.Empty<string>();
