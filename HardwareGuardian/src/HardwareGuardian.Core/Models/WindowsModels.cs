@@ -175,6 +175,44 @@ public sealed record UpdateAvailability
     public string? ErrorDetail { get; init; }
 }
 
+/// <summary>
+/// Result of a download or an installation of one offered Windows update (rule 90). Every field is
+/// the agent's own statement: a missing code stays missing, and the state after the action is the
+/// measured state, never the expected one (UPDATE-E-001, UPDATE-R-001).
+/// </summary>
+public sealed record UpdateActionReport
+{
+    /// <summary>Position of the update in the offer list that the caller acted on.</summary>
+    public int Index { get; init; } = -1;
+
+    public TextInfo Title { get; init; }
+
+    public StageOutcome Outcome { get; init; } = StageOutcome.NotRun;
+
+    public bool Succeeded { get; init; }
+
+    /// <summary>True for "succeeded with errors": installed, but the agent reported problems.</summary>
+    public bool Partial { get; init; }
+
+    public bool RequiresAdministrator { get; init; }
+
+    public bool RebootRequired { get; init; }
+
+    public TextInfo ResultCode { get; init; }
+
+    /// <summary>How many updates the agent still offered after the action finished.</summary>
+    public int? PendingCountAfter { get; init; }
+
+    /// <summary>The agent's restart statement after the action.</summary>
+    public bool? PendingRebootAfter { get; init; }
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("WindowsUpdate_NotChecked");
+
+    public string? ErrorDetail { get; init; }
+
+    public IReadOnlyList<string> Evidence { get; init; } = Array.Empty<string>();
+}
+
 /// <summary>Service or autostart entry, read only (spec section 54: never changed silently).</summary>
 public sealed record ServiceStartupInfo
 {

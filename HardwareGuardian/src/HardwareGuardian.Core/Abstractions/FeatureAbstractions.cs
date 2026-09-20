@@ -178,6 +178,19 @@ public interface IWindowsHealthService
 
     Task<UpdateAvailability> CheckUpdateAvailabilityAsync(bool queryOnline, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Downloads one offered update. It is addressed by its position in the offer list, so the
+    /// update identity never travels as text into a command (rule 115, EXEC-S-002).
+    /// </summary>
+    Task<UpdateActionReport> DownloadUpdateAsync(int index, IProgressReporter progress, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Installs one offered update. Without the approval record of the confirmed operation the call
+    /// answers BLOCKED and changes nothing (rule 90, UPDATE-S-001) - the service does not trust the
+    /// caller.
+    /// </summary>
+    Task<UpdateActionReport> InstallUpdateAsync(int index, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken);
+
     IReadOnlyList<DetectedWorkloadSnapshot> DetectWorkloads(IEnumerable<ServiceStartupInfo> startup);
 
     Task<IReadOnlyList<ServiceStartupInfo>> GetStartupAsync(CancellationToken cancellationToken);

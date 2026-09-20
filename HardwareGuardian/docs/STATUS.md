@@ -46,7 +46,7 @@ Therefore, for the current revision:
 | `HardwareGuardian.Reporting` | 1 | 939 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
 | `HardwareGuardian.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
 | `HardwareGuardian.App` | 17 | 2 701 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
-| `tests/HardwareGuardian.Tests` | 18 | 2 914 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting | Written; contract-checked; **NOT EXECUTED** |
+| `tests/HardwareGuardian.Tests` | 19 | 3 035 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting, Windows update result codes and command-line safety | Written; contract-checked; **NOT EXECUTED** |
 
 Total: **131 C# files, 26 647 lines (18 of them test files) + 10 XAML files** in 15 projects, all
 listed in `HardwareGuardian.sln`.
@@ -127,9 +127,18 @@ the two criteria that were missing inside rule 87 and completed the update metad
 | **The localisation checker reported a false alarm and could not see built keys.** The new WMI property names (`IsEnabled_InitialValue`) were read as missing translation keys, and a key assembled at runtime (`"Safety_" + item.SafetyClass`) counted as a dead string - the first would have pushed someone into adding dummy keys to both language files. | `tools/check-localization.py` | Arguments of the WMI accessors are blanked before the key search, and concatenated prefixes are collected and reported as "reachable through a built prefix" instead of dead |
 | **The window between "recorded" and "reported" was untested for both readers.** The verdict logic is the part a user reads as a statement about their machine's security, and there was no test for it. | new `tests/HardwareGuardian.Tests/PlatformReaderTests.cs` | Sixteen new cases: unreadable versus absent TPM, all four verdicts, a partially reported state staying unknown, the specification generation parsing, unreadable versus empty firewall profile list, a disabled profile winning over an unreported one, the pinned WMI class and namespace names, the size formatter (units, culture, not measured, negative), and the enum/localisation coupling |
 
-Tool numbers after this session: 131 files / 403 declared types, **726 localisation keys per
-language**, 10 XAML files with 151 bindings, 15 projects, and **13/13** deliberate defects reported by
-the mutation self-test. What did **not** change: nothing here was compiled, no test was executed, and
+The update chain was continued in the same session (UPDATE-F-005 ... F-008): the service downloads
+and installs one offered update, addressed **only by its position in the offer list**, so no title,
+URL or knowledge base number ever becomes part of a command. An installation without the approval
+record of the confirmed operation, without an elevated process or with an impossible position is
+BLOCKED before the update agent is contacted. The numeric result code of the agent is mapped by a
+pure function in Core (0-5 documented; anything else is unknown and never a success), and the state
+after the action is measured again by a new search instead of being assumed (UPDATE-R-001). The user
+interface for selection and installation is **not built yet**.
+
+Tool numbers after this session: 133 C# files (19 of them test files) / 413 declared types,
+**742 localisation keys per language**, 10 XAML files with 151 bindings, 15 projects, and **13/13**
+deliberate defects reported by the mutation self-test. What did **not** change: nothing here was compiled, no test was executed, and
 no machine was measured - the new readers have never seen a real TPM or a real firewall.
 
 ### Fourth session - safety review of the delivery level

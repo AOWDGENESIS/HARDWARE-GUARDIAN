@@ -727,6 +727,22 @@
     "Section_AvailableUpdates": "Available updates",
     "Column_Kb": "KB",
     "Column_Reboot": "Restart",
-    "Update_NoneAvailable": "Windows Update reports no pending updates."
+    "Update_NoneAvailable": "Windows Update reports no pending updates.",
+    "WindowsUpdate_Blocked_NoApproval": "The installation was not started: there is no approval for exactly this operation.",
+    "WindowsUpdate_Blocked_NotElevated": "Windows updates can only be installed with administrator rights.",
+    "WindowsUpdate_Blocked_NoWindows": "Windows update actions are only possible on Windows.",
+    "WindowsUpdate_Blocked_InvalidIndex": "The requested position in the update list is invalid; nothing was performed.",
+    "WindowsUpdate_Action_Error": "The update action failed: {0}",
+    "WindowsUpdate_Action_IndexOutOfRange": "The update agent now reports only {0} offered updates; nothing was performed.",
+    "WindowsUpdate_Action_NoResultCode": "The update agent reported no result code; the outcome is unknown and does not count as success.",
+    "WindowsUpdate_Action_UnknownResultCode": "The update agent reported the undocumented result code {0}; that does not count as success.",
+    "WindowsUpdate_Download_Succeeded": "The update was downloaded (result code {0}).",
+    "WindowsUpdate_Download_SucceededWithErrors": "The update was downloaded with errors (result code {0}).",
+    "WindowsUpdate_Download_Failed": "The update could not be downloaded (result code {0}).",
+    "WindowsUpdate_Install_Succeeded": "The update was installed (result code {0}).",
+    "WindowsUpdate_Install_SucceededWithErrors": "The update was installed with errors (result code {0}); the state has to be verified.",
+    "WindowsUpdate_Install_Failed": "The installation failed (result code {0}).",
+    "Progress_Update_Download": "Downloading the update",
+    "Progress_Update_Install": "Installing the update"
   }
 }

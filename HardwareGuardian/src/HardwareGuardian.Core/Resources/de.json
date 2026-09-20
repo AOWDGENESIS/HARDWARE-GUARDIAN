@@ -727,6 +727,22 @@
     "Section_AvailableUpdates": "Verfügbare Updates",
     "Column_Kb": "KB",
     "Column_Reboot": "Neustart",
-    "Update_NoneAvailable": "Windows Update meldet keine ausstehenden Updates."
+    "Update_NoneAvailable": "Windows Update meldet keine ausstehenden Updates.",
+    "WindowsUpdate_Blocked_NoApproval": "Die Installation wurde nicht gestartet: Es liegt keine Freigabe für genau diesen Vorgang vor.",
+    "WindowsUpdate_Blocked_NotElevated": "Windows-Updates können nur mit Administratorrechten installiert werden.",
+    "WindowsUpdate_Blocked_NoWindows": "Windows-Update-Aktionen sind nur unter Windows möglich.",
+    "WindowsUpdate_Blocked_InvalidIndex": "Die angeforderte Position in der Update-Liste ist ungültig; es wurde nichts ausgeführt.",
+    "WindowsUpdate_Action_Error": "Die Update-Aktion ist fehlgeschlagen: {0}",
+    "WindowsUpdate_Action_IndexOutOfRange": "Der Update-Agent meldet inzwischen nur {0} angebotene Updates; es wurde nichts ausgeführt.",
+    "WindowsUpdate_Action_NoResultCode": "Der Update-Agent hat keinen Ergebniscode gemeldet; das Ergebnis ist unbekannt und gilt nicht als Erfolg.",
+    "WindowsUpdate_Action_UnknownResultCode": "Der Update-Agent hat den nicht dokumentierten Ergebniscode {0} gemeldet; das gilt nicht als Erfolg.",
+    "WindowsUpdate_Download_Succeeded": "Das Update wurde geladen (Ergebniscode {0}).",
+    "WindowsUpdate_Download_SucceededWithErrors": "Das Update wurde mit Fehlern geladen (Ergebniscode {0}).",
+    "WindowsUpdate_Download_Failed": "Das Update konnte nicht geladen werden (Ergebniscode {0}).",
+    "WindowsUpdate_Install_Succeeded": "Das Update wurde installiert (Ergebniscode {0}).",
+    "WindowsUpdate_Install_SucceededWithErrors": "Das Update wurde mit Fehlern installiert (Ergebniscode {0}); der Zustand ist nachzuprüfen.",
+    "WindowsUpdate_Install_Failed": "Die Installation ist fehlgeschlagen (Ergebniscode {0}).",
+    "Progress_Update_Download": "Update wird geladen",
+    "Progress_Update_Install": "Update wird installiert"
   }
 }

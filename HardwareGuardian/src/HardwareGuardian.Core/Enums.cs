@@ -364,4 +364,7 @@ public static class BlockReasons
     /// backup record for exactly these locations exists.
     /// </summary>
     public const string BackupRequired = "BACKUP_REQUIRED";
+
+    /// <summary>The caller handed in something that cannot be acted on (for example a negative index).</summary>
+    public const string InvalidRequest = "INVALID_REQUEST";
 }

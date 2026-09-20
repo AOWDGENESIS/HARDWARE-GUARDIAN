@@ -582,6 +582,204 @@ public sealed class WindowsHealthService : IWindowsHealthService
         };
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Windows updates: download and install one offered update (rule 90, UPDATE-F-005 ... F-008)
+    // ---------------------------------------------------------------------------------------------
+    public Task<UpdateActionReport> DownloadUpdateAsync(int index, IProgressReporter progress, CancellationToken cancellationToken) =>
+        RunUpdateActionAsync(PowerShellCommandCatalog.WindowsUpdateDownload, index, "Progress_Update_Download", install: false, approval: null, progress, cancellationToken);
+
+    public Task<UpdateActionReport> InstallUpdateAsync(int index, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken) =>
+        RunUpdateActionAsync(PowerShellCommandCatalog.WindowsUpdateInstall, index, "Progress_Update_Install", install: true, approval, progress, cancellationToken);
+
+    private async Task<UpdateActionReport> RunUpdateActionAsync(
+        string template,
+        int index,
+        string progressKey,
+        bool install,
+        ApprovalRecord? approval,
+        IProgressReporter progress,
+        CancellationToken cancellationToken)
+    {
+        var origin = ValueOrigin.WindowsApi(_clock.Now, "Microsoft.Update.Session (COM) via allow listed PowerShell template");
+
+        // Fail closed before anything runs: no approval for an installation, no elevated process,
+        // no impossible position in the list.
+        if (install && approval is null)
+        {
+            return await BlockUpdateAsync(index, BlockReasons.ApprovalMissing, "WindowsUpdate_Blocked_NoApproval", origin, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!_environment.IsWindows)
+        {
+            return await BlockUpdateAsync(index, BlockReasons.UnsupportedPlatform, "WindowsUpdate_Blocked_NoWindows", origin, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (install && !_environment.IsElevated)
+        {
+            return await BlockUpdateAsync(index, BlockReasons.NotElevated, "WindowsUpdate_Blocked_NotElevated", origin, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (index < 0)
+        {
+            return await BlockUpdateAsync(index, BlockReasons.InvalidRequest, "WindowsUpdate_Blocked_InvalidIndex", origin, cancellationToken).ConfigureAwait(false);
+        }
+
+        progress.Start(progressKey, ModuleKey, 1);
+
+        var result = await _powershell.RunAsync(
+            template,
+            new Dictionary<string, string> { ["INDEX"] = index.ToString(CultureInfo.InvariantCulture) },
+            new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(install ? 90 : 60) },
+            cancellationToken).ConfigureAwait(false);
+
+        var report = ParseUpdateAction(result, index, origin, install);
+
+        // UPDATE-R-001: the real state after the action is measured, not assumed. A successful
+        // installation whose offer is still pending stays visible as exactly that.
+        if (report.Outcome is StageOutcome.Succeeded or StageOutcome.Failed)
+        {
+            var after = await CheckUpdateAvailabilityAsync(queryOnline: true, cancellationToken).ConfigureAwait(false);
+            report = report with
+            {
+                PendingCountAfter = after.PendingCount,
+                PendingRebootAfter = after.PendingReboot,
+                Evidence = report.Evidence.Concat(new[]
+                {
+                    $"re-check after the action: pendingUpdates={after.PendingCount}; pendingReboot={after.PendingReboot}",
+                    "re-check source: Microsoft.Update.Session search, the same agent that offered the update",
+                }).ToArray(),
+            };
+        }
+
+        await _audit.RecordAsync(
+            install ? OperationKind.Execute : OperationKind.Download,
+            install ? "windows-update-install" : "windows-update-download",
+            ComponentCategory.Windows,
+            report.Outcome,
+            componentId: index.ToString(CultureInfo.InvariantCulture),
+            newState: report.Summary.Key,
+            approval: approval,
+            error: report.ErrorDetail,
+            evidence: report.Evidence,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        progress.Complete(report.Succeeded);
+        return report;
+    }
+
+    private async Task<UpdateActionReport> BlockUpdateAsync(int index, string reasonCode, string reasonKey, ValueOrigin origin, CancellationToken cancellationToken)
+    {
+        var report = new UpdateActionReport
+        {
+            Index = index,
+            Outcome = StageOutcome.Blocked,
+            RequiresAdministrator = true,
+            Summary = LocalizedText.Of(reasonKey),
+            ErrorDetail = reasonCode,
+            Title = TextInfo.Unknown(origin, "the offer list was not queried because the action was blocked before it started"),
+            ResultCode = TextInfo.Unknown(origin, "no action was started, so the agent reported no result code"),
+            Evidence = new[] { $"blocked={reasonCode}", $"origin={origin.Token()}", "the update agent was not contacted" },
+        };
+
+        await _audit.RecordAsync(
+            OperationKind.Execute,
+            "windows-update-blocked",
+            ComponentCategory.Windows,
+            StageOutcome.Blocked,
+            componentId: index.ToString(CultureInfo.InvariantCulture),
+            newState: reasonKey,
+            error: reasonCode,
+            evidence: report.Evidence,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return report;
+    }
+
+    /// <summary>
+    /// Reads what the agent reported. A missing result code is not success, and a position outside
+    /// the offer list is a statement about the list, not about the update (UPDATE-E-001).
+    /// </summary>
+    private UpdateActionReport ParseUpdateAction(ProcessResult result, int index, ValueOrigin origin, bool install)
+    {
+        string? Field(string key)
+        {
+            var line = result.StandardOutput.Split('\n')
+                .Select(l => l.Trim())
+                .FirstOrDefault(l => l.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase));
+            return line?[(key.Length + 1)..];
+        }
+
+        var title = Field("TITLE");
+        var error = Field("WU_ERROR");
+        var outOfRange = Field("WU_INDEX_OUT_OF_RANGE");
+        var codeText = Field(install ? "INSTALL_RESULTCODE" : "DOWNLOAD_RESULTCODE");
+        var hresult = Field(install ? "INSTALL_HRESULT" : "DOWNLOAD_HRESULT");
+        var rebootReported = string.Equals(Field("INSTALL_REBOOT") ?? Field("REBOOT_REQUIRED"), "True", StringComparison.OrdinalIgnoreCase);
+        var downloaded = string.Equals(Field("IS_DOWNLOADED"), "True", StringComparison.OrdinalIgnoreCase);
+        var installed = string.Equals(Field("IS_INSTALLED"), "True", StringComparison.OrdinalIgnoreCase);
+
+        var evidence = new List<string>
+        {
+            $"template={(install ? PowerShellCommandCatalog.WindowsUpdateInstall : PowerShellCommandCatalog.WindowsUpdateDownload)}; index={index}",
+            $"resultCode={codeText ?? "not reported"}; hresult={hresult ?? "not reported"}",
+            $"rebootRequiredByAgent={rebootReported}; downloaded={downloaded}; installed={installed}",
+            $"origin={origin.Token()}",
+            install
+                ? "the installer ran through the official Windows Update agent; Hardware Guardian itself replaced no file"
+                : "the downloader ran through the official Windows Update agent",
+        };
+
+        UpdateActionReport Report(StageOutcome outcome, bool succeeded, bool partial, string summaryKey, params object?[] arguments) => new()
+        {
+            Index = index,
+            Title = title is null ? TextInfo.Unknown(origin, "the agent did not report a title for this position") : TextInfo.Known(title, origin),
+            Outcome = outcome,
+            Succeeded = succeeded,
+            Partial = partial,
+            RebootRequired = rebootReported,
+            RequiresAdministrator = true,
+            ResultCode = codeText is null ? TextInfo.Unknown(origin, "the agent did not report a result code") : TextInfo.Known(codeText, origin),
+            ErrorDetail = outcome == StageOutcome.Failed ? error ?? hresult ?? codeText : null,
+            Summary = LocalizedText.Of(summaryKey, arguments),
+            Evidence = evidence,
+        };
+
+        if (error is not null)
+        {
+            return Report(StageOutcome.Failed, false, false, "WindowsUpdate_Action_Error", error);
+        }
+
+        if (outOfRange is not null)
+        {
+            // The offer list changed between the search the user saw and this call: nothing was done.
+            return Report(StageOutcome.Blocked, false, false, "WindowsUpdate_Action_IndexOutOfRange", outOfRange);
+        }
+
+        if (!int.TryParse(codeText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code))
+        {
+            return Report(StageOutcome.Failed, false, false, "WindowsUpdate_Action_NoResultCode");
+        }
+
+        var verdict = WindowsUpdateResultCodes.Interpret(code);
+
+        if (verdict == WindowsUpdateResultVerdict.Unknown)
+        {
+            return Report(StageOutcome.Failed, false, false, "WindowsUpdate_Action_UnknownResultCode", code);
+        }
+
+        if (!WindowsUpdateResultCodes.IsSuccess(verdict))
+        {
+            return Report(StageOutcome.Failed, false, false, install ? "WindowsUpdate_Install_Failed" : "WindowsUpdate_Download_Failed", code);
+        }
+
+        var partial = verdict == WindowsUpdateResultVerdict.SucceededWithErrors;
+        var key = install
+            ? partial ? "WindowsUpdate_Install_SucceededWithErrors" : "WindowsUpdate_Install_Succeeded"
+            : partial ? "WindowsUpdate_Download_SucceededWithErrors" : "WindowsUpdate_Download_Succeeded";
+
+        return Report(StageOutcome.Succeeded, true, partial, key, code);
+    }
+
     private async Task<IReadOnlyList<WindowsUpdateInfo>> ReadUpdateHistoryAsync(CancellationToken cancellationToken)
     {
         var origin = ValueOrigin.WindowsApi(_clock.Now, "Win32_QuickFixEngineering");

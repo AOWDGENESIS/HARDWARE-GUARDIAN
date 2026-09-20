@@ -78,6 +78,10 @@ public static class PowerShellCommandCatalog
     public const string DeliveryOptimizationCacheClear = "deliveryoptimization.cache.clear";
     public const string DefenderStatus = "defender.status";
     public const string WindowsUpdateSession = "windowsupdate.session.search";
+
+    public const string WindowsUpdateDownload = "windowsupdate.download";
+
+    public const string WindowsUpdateInstall = "windowsupdate.install";
     public const string RestorePointCreate = "restorepoint.create";
     public const string RestorePointList = "restorepoint.list";
     public const string SystemRestoreStatus = "restorepoint.status";
@@ -121,6 +125,40 @@ public static class PowerShellCommandCatalog
             "'REBOOT=' + $i + '|' + $u.RebootRequired; 'MAND=' + $i + '|' + $u.IsMandatory; " +
             "'DL=' + $i + '|' + $u.IsDownloaded; $i++ }; " +
             "$sys = New-Object -ComObject Microsoft.Update.SystemInfo; 'SYSTEM_REBOOT=' + $sys.RebootRequired } " +
+            "catch { 'WU_ERROR=' + $_.Exception.Message }",
+
+        // UPDATE-F-005/F-006: the update is addressed by its position in the offer list; the only
+        // parameter this template takes is that number. The search runs again inside the script, so
+        // the position always refers to the current offer list, not to a stale one.
+        [WindowsUpdateDownload] =
+            "try { $session = New-Object -ComObject Microsoft.Update.Session; " +
+            "$session.ClientApplicationID = 'HardwareGuardian'; " +
+            "$searcher = $session.CreateUpdateSearcher(); $result = $searcher.Search('IsInstalled=0'); " +
+            "$index = [int]{INDEX}; " +
+            "if ($index -lt 0 -or $index -ge $result.Updates.Count) { 'WU_INDEX_OUT_OF_RANGE=' + $result.Updates.Count } " +
+            "else { $update = $result.Updates.Item($index); 'TITLE=' + $update.Title; " +
+            "$collection = New-Object -ComObject Microsoft.Update.UpdateColl; [void]$collection.Add($update); " +
+            "if (-not $update.EulaAccepted) { $update.AcceptEula() | Out-Null }; " +
+            "$downloader = $session.CreateUpdateDownloader(); $downloader.Updates = $collection; " +
+            "$actionResult = $downloader.Download(); " +
+            "'DOWNLOAD_RESULTCODE=' + $actionResult.ResultCode; 'DOWNLOAD_HRESULT=' + $actionResult.HResult; " +
+            "'IS_DOWNLOADED=' + $update.IsDownloaded } } " +
+            "catch { 'WU_ERROR=' + $_.Exception.Message }",
+
+        [WindowsUpdateInstall] =
+            "try { $session = New-Object -ComObject Microsoft.Update.Session; " +
+            "$session.ClientApplicationID = 'HardwareGuardian'; " +
+            "$searcher = $session.CreateUpdateSearcher(); $result = $searcher.Search('IsInstalled=0'); " +
+            "$index = [int]{INDEX}; " +
+            "if ($index -lt 0 -or $index -ge $result.Updates.Count) { 'WU_INDEX_OUT_OF_RANGE=' + $result.Updates.Count } " +
+            "else { $update = $result.Updates.Item($index); 'TITLE=' + $update.Title; " +
+            "$collection = New-Object -ComObject Microsoft.Update.UpdateColl; [void]$collection.Add($update); " +
+            "if (-not $update.EulaAccepted) { $update.AcceptEula() | Out-Null }; " +
+            "$installer = $session.CreateUpdateInstaller(); $installer.Updates = $collection; " +
+            "$actionResult = $installer.Install(); " +
+            "'INSTALL_RESULTCODE=' + $actionResult.ResultCode; 'INSTALL_HRESULT=' + $actionResult.HResult; " +
+            "'INSTALL_REBOOT=' + $actionResult.RebootRequired; 'REBOOT_REQUIRED=' + $update.RebootRequired; " +
+            "'IS_INSTALLED=' + $update.IsInstalled } } " +
             "catch { 'WU_ERROR=' + $_.Exception.Message }",
 
         [RestorePointStatus] =
