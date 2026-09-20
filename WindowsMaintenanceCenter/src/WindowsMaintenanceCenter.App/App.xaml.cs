@@ -140,10 +140,15 @@ public partial class App : Application
         services.AddSingleton<ISnapshotStore>(_ => new FileSnapshotStore(paths));
         services.AddSingleton<IHistoryStore>(_ => new FileHistoryStore(paths));
         services.AddSingleton<ISourceCacheStore>(_ => new FileSourceCacheStore(paths));
+        // The state journal turns the state machine from a counter in memory into a record that
+        // survives the process: every change is written down before it is published, and after a
+        // restart the recovery reads it back (chapters 40/41, M34-F-001/M35-F-001).
+        services.AddSingleton<IStateJournal>(_ => new FileStateJournal(paths));
         services.AddSingleton<ISystemStateMachine>(sp => new SystemStateMachine(
             sp.GetRequiredService<IClock>(),
             sp.GetRequiredService<IEventBus>(),
-            sp.GetRequiredService<ILogger<SystemStateMachine>>()));
+            sp.GetRequiredService<ILogger<SystemStateMachine>>(),
+            sp.GetRequiredService<IStateJournal>()));
         services.AddSingleton<IApprovalService>(sp => new ApprovalService(
             sp.GetRequiredService<IClock>(),
             sp.GetRequiredService<ISettingsService>(),
@@ -195,6 +200,14 @@ public partial class App : Application
             sp.GetRequiredService<ILiveProtocol>(),
             sp.GetRequiredService<IClock>(),
             sp.GetRequiredService<ILogger<RollbackService>>()));
+
+        // Recovery engine (chapter 41): reads the journal after a restart, names the interrupted
+        // operation and its backup, and restores nothing without an approval of its own (M35-S-001).
+        services.AddSingleton<IRecoveryEngine>(sp => new RecoveryEngine(
+            sp.GetRequiredService<IStateJournal>(),
+            sp.GetRequiredService<IBackupService>(),
+            sp.GetRequiredService<IRollbackService>(),
+            sp.GetRequiredService<IAuditLog>()));
 
         // Hardware: exactly one provider, chosen explicitly. Simulation is never the default on Windows.
         services.AddSingleton<WmiReader>();

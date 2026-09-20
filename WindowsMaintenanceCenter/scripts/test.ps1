@@ -45,10 +45,11 @@ param(
     [string]$Filter = '',
 
     # The suite had 315 cases when they were first counted on 2026-09-20 (run 35505322775 executed
-    # 315, 0 failed). A lower number means tests were skipped or not discovered, which must fail the
+    # 315, 0 failed). The journal and the recovery engine (M34/M35) added 14 cases on top, so the
+    # floor is 329. A lower number means tests were skipped or not discovered, which must fail the
     # run instead of looking like a green suite (specification chapters 61 and 87). Raise this number
     # whenever cases are added; never lower it.
-    [int]$MinimumTests = 315
+    [int]$MinimumTests = 329
 )
 
 Set-StrictMode -Version Latest

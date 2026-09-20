@@ -37,6 +37,16 @@ public interface ISystemStateMachine
 
     /// <summary>Performs the transition only when it is allowed; returns false otherwise.</summary>
     bool TryTransitionTo(SystemState next, string? reason = null);
+
+    /// <summary>
+    /// Names the operation whose changes follow, so that every journal entry says which job was
+    /// running. Without it a crash leaves "<c>EXECUTING</c> at 14:02" behind, and nobody can tell
+    /// what was being executed (spec section 41, M35-F-001).
+    /// </summary>
+    void BeginOperation(string operationId, string? actionId = null);
+
+    /// <summary>Ends the current operation; further changes are recorded without one.</summary>
+    void EndOperation();
 }
 
 /// <summary>
@@ -48,16 +58,28 @@ public sealed class SystemStateMachine : ISystemStateMachine
     private readonly IClock _clock;
     private readonly IEventBus? _events;
     private readonly ILogger<SystemStateMachine>? _logger;
+    private readonly IStateJournal? _journal;
     private readonly object _gate = new();
     private readonly List<StateChangedEvent> _history = new();
     private SystemState _current = SystemState.Initializing;
     private DateTimeOffset _since;
+    private string? _operationId;
+    private string? _actionId;
 
-    public SystemStateMachine(IClock clock, IEventBus? events = null, ILogger<SystemStateMachine>? logger = null)
+    /// <param name="journal">
+    /// Where every change is written down (M34-F-001). Optional so that a test or a simulated run can
+    /// work without a file; when it is missing, nothing claims that a state was stored.
+    /// </param>
+    public SystemStateMachine(
+        IClock clock,
+        IEventBus? events = null,
+        ILogger<SystemStateMachine>? logger = null,
+        IStateJournal? journal = null)
     {
         _clock = clock;
         _events = events;
         _logger = logger;
+        _journal = journal;
         _since = clock.Now;
     }
 
@@ -212,6 +234,32 @@ public sealed class SystemStateMachine : ISystemStateMachine
             {
                 _history.RemoveAt(0);
             }
+
+            // Written under the same lock as the change itself: when the process dies, the journal
+            // must not be behind the state or ahead of it (spec section 40, M34-F-001/M34-F-002).
+            if (_journal is not null)
+            {
+                try
+                {
+                    _journal.Record(new StateJournalEntry
+                    {
+                        From = change.Previous,
+                        To = change.Current,
+                        At = now,
+                        Reason = reason,
+                        OperationId = _operationId,
+                        ActionId = _actionId,
+                    });
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A state that could not be stored is a finding, not a reason to kill the running
+                    // operation. It is logged loudly, because an unstored change is exactly the defect
+                    // M34-F-001 names.
+                    _logger?.LogError(ex, "The state change {Previous} -> {Current} could not be written to the journal.",
+                        change.Previous, change.Current);
+                }
+            }
         }
 
         _logger?.LogInformation("State changed {Previous} -> {Current} ({Reason})", change.Previous, change.Current, change.Reason ?? "-");
@@ -229,6 +277,25 @@ public sealed class SystemStateMachine : ISystemStateMachine
 
         TransitionTo(next, reason);
         return true;
+    }
+
+    public void BeginOperation(string operationId, string? actionId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+        lock (_gate)
+        {
+            _operationId = operationId;
+            _actionId = actionId;
+        }
+    }
+
+    public void EndOperation()
+    {
+        lock (_gate)
+        {
+            _operationId = null;
+            _actionId = null;
+        }
     }
 
     private void Raise(StateChangedEvent change)

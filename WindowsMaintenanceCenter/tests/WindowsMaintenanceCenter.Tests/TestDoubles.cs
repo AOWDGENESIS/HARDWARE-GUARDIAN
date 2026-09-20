@@ -504,6 +504,52 @@ internal sealed class StubHttpClientProvider : IHttpClientProvider
 }
 
 /// <summary>
+/// Rollback service for tests. It answers the two questions the recovery engine asks - whether a
+/// backup can be restored, and what the rollback did - and it records every request, so a test can
+/// prove that nothing was attempted when no approval was given (M35-S-001).
+/// </summary>
+internal sealed class RecordingRollbackService : IRollbackService
+{
+    private readonly List<RollbackRequest> _requests = new();
+
+    /// <summary>What <see cref="CanRollbackAsync"/> answers.</summary>
+    public bool CanRollback { get; init; }
+
+    /// <summary>What the rollback reports as attempted.</summary>
+    public bool Attempted { get; init; } = true;
+
+    /// <summary>Whether the rollback confirmed the restored state (chapter 86).</summary>
+    public bool Verified { get; init; } = true;
+
+    /// <summary>Every request the engine handed in.</summary>
+    public IReadOnlyList<RollbackRequest> Requests => _requests;
+
+    public IReadOnlyList<BackupRecord> Available => Array.Empty<BackupRecord>();
+
+    public Task<bool> CanRollbackAsync(string backupRecordId, CancellationToken cancellationToken) =>
+        Task.FromResult(CanRollback);
+
+    public Task<RollbackResult> RollbackAsync(
+        RollbackRequest request,
+        IProgress<ProgressSnapshot>? progress,
+        CancellationToken cancellationToken)
+    {
+        _requests.Add(request);
+        return Task.FromResult(new RollbackResult
+        {
+            BackupRecordId = request.BackupRecordId,
+            Attempted = Attempted,
+            Verified = Verified,
+            Outcome = !Attempted ? StageOutcome.NotRun : (Verified ? StageOutcome.Succeeded : StageOutcome.Failed),
+            Summary = Verified
+                ? LocalizedText.Of("Rollback_Summary_Completed", 2)
+                : LocalizedText.Of("Rollback_Summary_Partial", 2, 1),
+            Steps = new[] { "test: restore files", "test: restore registry" },
+        });
+    }
+}
+
+/// <summary>
 /// Backup service for tests: reports a sufficient backup and hands out a record for every request.
 /// It records what it was asked to secure, so a test can prove that the backup step ran before the
 /// execution and covered the right operation.

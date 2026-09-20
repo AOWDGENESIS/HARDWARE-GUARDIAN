@@ -21,6 +21,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly IProgressReporter _progress;
     private readonly IProblemRegistry _problems;
     private readonly ISystemStateMachine _state;
+    private readonly IRecoveryEngine _recovery;
     private readonly INotificationService _notifications;
     private readonly ISettingsService _settings;
     private readonly IEnvironmentProbe _environment;
@@ -44,6 +45,7 @@ public sealed class MainViewModel : ViewModelBase
         IProgressReporter progress,
         IProblemRegistry problems,
         ISystemStateMachine state,
+        IRecoveryEngine recovery,
         INotificationService notifications,
         ISettingsService settings,
         IEnvironmentProbe environment,
@@ -61,6 +63,7 @@ public sealed class MainViewModel : ViewModelBase
         _progress = progress;
         _problems = problems;
         _state = state;
+        _recovery = recovery;
         _notifications = notifications;
         _settings = settings;
         _environment = environment;
@@ -210,6 +213,27 @@ public sealed class MainViewModel : ViewModelBase
     public async Task InitialiseAsync()
     {
         _protocol.Info("SYS", LocalizedText.Of("Protocol_ScanStarted", _orchestrator.Modules.Count));
+
+        // Chapter 41 (M35): a run that was cut off has to be recognisable at the next start, and the
+        // application has to say RECOVERY AVAILABLE instead of starting as if nothing had happened.
+        // Reading the journal changes nothing; the recovery itself needs an approval of its own
+        // (M35-S-001), so this only reports what it found.
+        try
+        {
+            var assessment = await _recovery.AssessAsync(CancellationToken.None).ConfigureAwait(true);
+            if (assessment.RecoveryAvailable)
+            {
+                _protocol.Publish(
+                    "REC",
+                    LocalizedText.Of("Recovery_Available"),
+                    Severity.Warning,
+                    string.Join(" | ", assessment.Evidence));
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LastError = $"{ex.GetType().Name}: {ex.Message}";
+        }
 
         // Startup inventory: local only, no network, no analysis modules.
         try
