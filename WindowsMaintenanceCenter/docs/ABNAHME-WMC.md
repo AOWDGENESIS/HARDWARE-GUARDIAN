@@ -142,6 +142,22 @@ verlangt „jeder Zustand wird gespeichert") und das Wiedererkennen unterbrochen
 SQLite-Spiegel. Ebenso offen: das Freigabe- und Backup-Tor vor den Reparaturwerkzeugen (Kapitel 30/44)
 und die Messung ihrer Exit-Codes auf einer echten Maschine - deshalb bleiben sie `Allowed = false`.
 
+## 2b. Windows-Bauumgebung und der erste echte Kompilierungslauf (2026-09-20)
+
+Es gibt jetzt einen Windows-Rechner, auf dem gebaut, getestet und paketiert wird: die gehostete
+Windows-VM der CI (`.github/workflows/windowsmaintenancecenter.yml`, `windows-latest`, Windows Server
+2025, .NET 10.0.401, Inno Setup). Die Einzelheiten und die Grenzen stehen in `docs/VM-CI.md`.
+
+Ergebnis der ersten zwölf Läufe: **der Bau ist noch nicht bestanden.** Die Fehlerzahl je Lauf ging von
+386 auf zuletzt 13 zurück; die dreizehn verbliebenen Fehler (fehlende Namensräume in Oberflächen- und
+Testprojekt, `ValueOrigin.Manufacturer` statt `OfficialManufacturer`) sind für Commit `8315c29` behoben,
+aber **das Ergebnis dieses Laufs ist nicht abrufbar** - der GitHub-Zugang dieses Arbeitsplatzes wurde
+während des Laufs ungültig. Kein Gate ist damit bestanden; Gate 1 (Build) bleibt `BLOCKED`.
+
+Was in diesen Läufen gefunden wurde, ist im Abnahmedokument in `docs/VM-CI.md` Abschnitt 3a/3b
+verzeichnet, darunter mehrere echte Anzeigefehler (`Display` als Methodengruppe, `Info()` mit vier
+Argumenten, Vergleich von `UpdateStatus` mit `StageOutcome`, `InMemoryStores` mit null-Zugriff).
+
 ## 3. Reihenfolge bis zur ersten belastbaren Abnahme
 
 Ohne Windows-Maschine ist kein Gate zu bestehen. Was hier trotzdem sinnvoll ist, in dieser

@@ -16,7 +16,7 @@ COMMIT:  siehe git log -1
 DATE:    2026-09-20
 ENVIRONMENT: Linux-Sandbox ohne .NET SDK, ohne Windows, ohne VM
 
-TESTS:   0 ausgeführt (314 geschrieben, 0 kompiliert)
+TESTS:   0 ausgeführt (314 geschrieben, Kompilierung noch nicht bestanden - 13 Restfehler behoben, Lauf nicht ablesbar)
 PASSED:  0
 FAILED:  0
 BLOCKED: 314
@@ -36,8 +36,8 @@ BLOCKED
 
 | BLOCKING TEST | MODULE | REASON | EVIDENCE | REQUIRED FIX |
 | --- | --- | --- | --- | --- |
-| Gate 1 Build | alle | Kein .NET SDK in dieser Umgebung; kein Projekt wurde je kompiliert | `docs/STATUS.md` Abschnitt 1 | Windows-Rechner mit .NET 10 SDK: `scripts/build.ps1`, Ergebnisse nach `test-results/release/` |
-| Gate 2 Unit | M00-M48 | 314 Testfälle geschrieben, nie ausgeführt | `tests/WindowsMaintenanceCenter.Tests`, TRX fehlt | `scripts/test.ps1` (verlangt TRX und mindestens 120 Fälle), Ergebnis nach `test-results/unit/` |
+| Gate 1 Build (siehe docs/VM-CI.md) | alle | **Windows-Bauumgebung steht** (CI-VM: Windows Server 2025, .NET 10.0.401). Der erste echte Kompilierungslauf deckte 386 Fehler auf; sie gingen über zwölf Läufe auf 13 zurück, diese 13 sind behoben - **das Ergebnis des letzten Laufs ist nicht abrufbar**, weil der GitHub-Zugang abriss. Der Bau gilt daher weiter als nicht bestanden | `.github/workflows/windowsmaintenancecenter.yml`, `test-results/ci/run-*/build.log` | Lauf auf grün bringen und den Bau-Log aus `test-results/ci/` ablesen; erst dann darf Gate 1 als bestanden gelten |
+| Gate 2 Unit | M00-M48 | 314 Testfälle geschrieben, **keiner ausgeführt**: die Testausführung braucht einen bestandenen Bau | `tests/WindowsMaintenanceCenter.Tests`, TRX fehlt | `scripts/test.ps1` (verlangt TRX und jetzt mindestens 300 Fälle), Ergebnis nach `test-results/unit/` |
 | Gate 4 Security | M32, M33, M44 | Keiner der 14 Pflichtangriffe (Command Injection, Path Traversal, Argument Injection, Privilege Escalation, Tampered Config, Tampered Update, Invalid Signature, Corrupt Backup, No Admin, UAC Cancel, Process Abort, Log Manipulation, Database Corruption, Report Injection) wurde ausgeführt | `test-results/security/` ist leer | Angriffe auf isolierter Windows-VM ausführen und belegen |
 | Gate 5 Safety | M04, M24, M25, M27, M31, M34 | Approval-, Backup-, Rollback- und Admin-Grenze sind implementiert, aber nicht geprüft | `test-results/safety/` ist leer | Testmatrix Kapitel 76/77 durchlaufen |
 | Gate 6 Offline | M29 | Offline-Betrieb aller lokalen Module nie gemessen | `test-results/offline/` ist leer | VM ohne Netz, Kapitel 61 |

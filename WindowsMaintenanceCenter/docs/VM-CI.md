@@ -61,6 +61,48 @@ Alles, was der CI belegt, wird im Abnahmedokument als „auf der CI-VM gelaufen"
 `PASSED` eines Moduls, solange die MUSS-Kriterien der Spezifikation den Nachweis auf der Zielmaschine
 verlangen (Kapitel 93/94).
 
+## 3a. Die Läufe vom 2026-09-20 im Einzelnen
+
+Jeder Lauf hat genau das gefunden, was auf diesem Rechner niemand finden konnte. Die Zahlen sind die
+Fehler des jeweiligen Bau-Schritts:
+
+| Lauf | Commit | Was der Lauf aufgedeckt hat | Ergebnis |
+| --- | --- | --- | --- |
+| 1 | `52a0a7c` | Solution baute nichts (Build.0 nur fuer x64), Restore fand kein Projekt, dotnet test lehnte den VSTest-Pfad ab | kein echter Build |
+| 2 | `f58b8c2` | Umgebungsabfrage abgestuerzt; Logs im Zweig als Nachweis eingefuehrt | kein echter Build |
+| 3 | `1aeb12c` | Solution/Testpfad korrigiert | 2 Fehler |
+| 4 | `657229e` | ScanOrchestrator ReadInventoryAsync doppelt, Events.cs ohne using | 5 Fehler |
+| 5 | `23aceb6` | Pc() lieferte ValueOrigin statt TextInfo (Ursache von ~300 Fehlern), ProgressReporter, PathGuard, IsKnown, InMemoryStores | 1 Fehler |
+| 6 | `080b15e` | Wertetupel-Fehler, letzte Warnungen | 386 Fehler in 10 Dateien |
+| 7 | `b07fc0b` | Hardware-, Windows- und Wartungsschicht bereinigt (Defender-Zustaende, Update-Ausgang, Environment.SpecialFolder, Using-Fehler, Iterator-Zaehler) | 22 Fehler |
+| 8 | `953a0c5` | Methodengruppen statt Aufrufe (Display), nullable Lesungen, Vorlagenschluessel, JSON-Werte | 10 Fehler |
+| 9 | `dee9711` | CultureInfo, blocked-Reihenfolge, out-Parameter im Lambda, WriteStringValue | 7 Fehler |
+| 10 | `e06f84e` | TextInfo-Mehrdeutigkeit, generische Einschraenkung, Bedingungsausdruck in der Zeichenkette | 5 Fehler |
+| 11 | `b88952c` | Alias, struct-Einschraenkung, Core-Namensraum; unnoetige using-Zeilen zurueckgenommen | 13 Fehler (Oberflaechen- und Testprojekt wurden erst jetzt sichtbar) |
+| 12 | `a07550b` | PendingReboot als Wahrheitswert, Storage statt StorageDevices, Testdoppel-Namensraum | 13 Fehler |
+| 13 | `8315c29` | ThemePreference, ISystemStateMachine/StateChangedEvent, App.Services-Verdeckung, ValueOrigin.Manufacturer - **Ergebnis unbekannt: der GitHub-Zugang ist waehrend dieses Laufs ungueltig geworden** | **nicht ablesbar (Zugang abgerissen)** |
+
+Zur letzten Zeile: der Lauf `35501975574` wurde noch gestartet, aber sein Ergebnis ist nicht mehr
+abrufbar, weil der GitHub-Zugang dieses Arbeitsplatzes während des Laufs ungültig wurde. Was für den
+Commit `8315c29` behoben wurde, ist im nächsten Abschnitt festgehalten; **der Bau gilt bis zum
+Gegenbeweis als nicht bestanden.**
+
+## 3b. Wichtigste echte Fehler, die nur eine echte Kompilierung zeigt
+
+Nicht alles war Formalismus. Diese Funde hätten in der Anwendung zu falschen Aussagen geführt:
+
+| Fund | Warum das gefährlich war |
+| --- | --- |
+| `Measured<T>.Display` als Methodengruppe statt `Display()` in fünf Aufrufen (`MaintenanceService`) | Plan, Trockenlauf und Zusammenfassung hätten statt der Zahl eine Beschleuniger-Beschreibung angezeigt - eine Aussage ohne Wert. |
+| `ScanOrchestrator` rief `Info(...)` mit vier Argumenten; die Schwere gehörte zu `Publish(...)` | Ein Scan mit kritischen Befunden wäre als gewöhnliche Meldung protokolliert worden. |
+| `ProgressReporter.Start` meldete `Raise()` ohne Stand | Die Oberfläche hätte für den Start keinen Stand bekommen. |
+| `WindowsHealthModule` verglich den Laufausgang der Update-Prüfung mit `UpdateStatus` | „Updates verfügbar" wäre aus dem Ausgang der Abfrage abgeleitet worden, nicht aus einer Zählung. |
+| `DefenderStatus` hatte kein `IsEnabled`/`IsSignatureOutdated` | Die Entscheidung „Schutz in Ordnung?" stand auf Eigenschaften, die es nicht gab; jetzt dreiwertig, unbekannt wird als unbekannt gemeldet. |
+| `HashService`-Prüfung akzeptierte SHA-1 | Bleibt bewusst (nur zum Prüfen fremd veröffentlichter Hashes); Artefakte werden mit SHA-256 gehasht und gegengeprüft. |
+| `PowerShellRunner`: Vorlagenschlüssel `RestorePointStatus` gegen Konstante `SystemRestoreStatus` | Die Vorlage war nicht erreichbar - ein Aufruf wäre mit „unbekannte Vorlage" gescheitert. |
+| `InMemoryStores.LoadAsync` las `.Snapshot` von einem `FirstOrDefault`, das null sein kann | Ein nicht gefundener Pfad hätte eine Ausnahme geworfen statt `null` zu liefern. |
+| `WindowsHardwareProvider.Pc()` lieferte `ValueOrigin` unter dem Rückgabetyp `TextInfo` | Rund 300 Folgefehler; jede gelesene Herkunft war für den Übersetzer unbrauchbar. |
+
 ## 4. Grenzen des Zugangs
 
 Der Workflow ist der einzige Weg, auf dem hier ein Windows-Rechner benutzt werden kann. Daraus folgt:
