@@ -65,6 +65,12 @@ Delivery layer:
 Not present: the release artefacts themselves, the build/test evidence and the verification on real
 hardware. PDF export is intentionally not implemented (see section 4).
 
+**`docs/ABNAHME.md`** was added on 2026-09-20: the module-by-module gap list against the acceptance
+rules 83-133 (status per module, the missing MUSS criteria with file names, the four MUSS conflicts
+that need an owner decision - PDF report, AI module, self-update, winget - and what can only be
+proven on a Windows machine). It supersedes any optimistic reading of this document: no module is
+`PASSED`, every acceptance is `BLOCKED`, and a release is therefore blocked under rule 129.
+
 ### Fifth session - logic review of the core and the check runner
 
 The review of `ScanOrchestrator`, `ProblemRegistry` and the report writer found one defect of the
