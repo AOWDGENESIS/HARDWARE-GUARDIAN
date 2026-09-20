@@ -283,6 +283,7 @@
     "Overall_Unknown": "Gesamtzustand unbekannt.",
     "Overall_Warning": "Warnung: {0} Befund(e) sollten geprüft werden.",
     "PathGuard_Reason_Allowed": "Innerhalb des erlaubten Wurzelverzeichnisses {0}.",
+    "PathGuard_Reason_AmbiguousSegment": "Der Pfad enthält ein Segment, das mit einem Punkt oder Leerzeichen endet. Windows entfernt solche Zeichen beim Zugriff, daher wird der Pfad nicht angetastet.",
     "PathGuard_Reason_Empty": "Der Pfad ist leer.",
     "PathGuard_Reason_Invalid": "Der Pfad ist kein gültiger Pfad.",
     "PathGuard_Reason_IsAllowedRoot": "Der Pfad ist selbst das erlaubte Wurzelverzeichnis und wird nicht gelöscht.",

@@ -11,6 +11,19 @@ namespace HardwareGuardian.Core.Services;
 public sealed class PathGuard : IPathGuard
 {
     private static readonly char[] Separators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+    private readonly Func<string, string>? _resolveRealPath;
+
+    /// <summary>Uses the real file system to resolve links.</summary>
+    public PathGuard()
+    {
+    }
+
+    /// <summary>
+    /// Test seam: replaces the resolution of links and junctions. The production behaviour is in
+    /// <see cref="TryResolveRealPath"/>; this constructor lets a test state "this path resolves to
+    /// that location" without needing the privileges to create a link.
+    /// </summary>
+    public PathGuard(Func<string, string> resolveRealPath) => _resolveRealPath = resolveRealPath;
 
     public PathGuardDecision Evaluate(string path, PathGuardIntent intent, IEnumerable<string> allowedRoots)
     {
@@ -44,12 +57,67 @@ public sealed class PathGuard : IPathGuard
             return Deny(normalised, "PathGuard_Reason_NoAllowedRoot", "allow list is empty", notes);
         }
 
+        // A segment that ends in a dot or a space is ambiguous: Windows strips such characters when
+        // the path is handed to the file system, so the string the user sees and the file that is
+        // deleted can differ. Fail closed instead of guessing (spec section 77).
+        if (HasAmbiguousSegment(normalised))
+        {
+            return Deny(normalised, "PathGuard_Reason_AmbiguousSegment", "a path segment ends with a dot or a space", notes);
+        }
+
+        // A link or junction inside the allowed root can point anywhere. Both the path as written
+        // and the location it really resolves to must be inside an allowed root and unprotected;
+        // otherwise deleting through the link would touch files the allow list never covered.
+        var realPath = normalised;
+        if (_resolveRealPath is not null)
+        {
+            realPath = _resolveRealPath(normalised);
+        }
+        else if (!TryResolveRealPath(normalised, out realPath, out var resolveNote))
+        {
+            notes.Add(resolveNote ?? "link resolution failed");
+            return Deny(normalised, "PathGuard_Reason_Invalid", "the location of the path could not be resolved", notes);
+        }
+
+        var realNormalised = realPath;
+        if (!string.Equals(realPath, normalised, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryNormalise(realPath, out realNormalised, out var realReason))
+            {
+                notes.Add($"resolved path is not usable: {realReason}");
+                return Deny(normalised, "PathGuard_Reason_Invalid", "the resolved location is not a valid path", notes);
+            }
+
+            notes.Add($"path resolves to {realNormalised}");
+        }
+
         var containingRoot = roots.FirstOrDefault(root => IsStrictlyInside(normalised, root));
         if (containingRoot is null)
         {
             notes.Add($"candidate={normalised}");
             notes.Add("allowed roots=" + string.Join(", ", roots));
             return Deny(normalised, "PathGuard_Reason_OutsideAllowedRoots", "path is outside every allowed root", notes);
+        }
+
+        var realContainingRoot = roots.FirstOrDefault(root => IsStrictlyInside(realNormalised, root));
+        if (realContainingRoot is null)
+        {
+            notes.Add($"resolved={realNormalised}");
+            notes.Add("allowed roots=" + string.Join(", ", roots));
+            return Deny(normalised, "PathGuard_Reason_OutsideAllowedRoots", "the location the path points to is outside every allowed root", notes);
+        }
+
+        if (IsProtected(realNormalised, out var realProtectedReason))
+        {
+            return new PathGuardDecision
+            {
+                Allowed = false,
+                IsProtected = true,
+                Path = normalised,
+                ReasonCode = "PathGuard_Reason_Protected",
+                Reason = LocalizedText.Of("PathGuard_Reason_Protected", realProtectedReason ?? "protected location"),
+                Notes = notes,
+            };
         }
 
         if (IsProtected(normalised, out var protectedReason))
@@ -66,7 +134,8 @@ public sealed class PathGuard : IPathGuard
         }
 
         // Never operate on the allow list root itself: only on its contents.
-        if (roots.Any(root => string.Equals(root, normalised, StringComparison.OrdinalIgnoreCase)))
+        if (roots.Any(root => string.Equals(root, normalised, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(root, realNormalised, StringComparison.OrdinalIgnoreCase)))
         {
             return Deny(normalised, "PathGuard_Reason_IsAllowedRoot", "operation on an allow list root itself is refused", notes);
         }
@@ -125,6 +194,83 @@ public sealed class PathGuard : IPathGuard
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or System.Security.SecurityException)
         {
             reason = ex.Message;
+            return false;
+        }
+    }
+
+    /// <summary>True when a path segment ends with a dot or a space.</summary>
+    public static bool HasAmbiguousSegment(string normalisedPath)
+    {
+        foreach (var segment in normalisedPath.Split(Separators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment is "." or "..")
+            {
+                continue;
+            }
+
+            if (segment.EndsWith('.') || segment.EndsWith(' '))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Follows links and junctions segment by segment and returns the location the path really
+    /// points to. Path.GetFullPath only cleans the text up; it does not touch the file system, so a
+    /// junction inside an allowed root would otherwise smuggle in a protected location. A segment
+    /// that does not exist yet cannot be a link and is kept as it is.
+    /// </summary>
+    public static bool TryResolveRealPath(string normalisedPath, out string realPath, out string? note)
+    {
+        realPath = normalisedPath;
+        note = null;
+
+        try
+        {
+            var current = Path.GetPathRoot(normalisedPath) ?? string.Empty;
+            if (string.IsNullOrEmpty(current) || current.StartsWith(@"\\", StringComparison.Ordinal))
+            {
+                // Drive relative paths and UNC shares cannot be resolved segment by segment here;
+                // the caller keeps the text form, which the containment checks already cover.
+                return true;
+            }
+
+            var rest = normalisedPath[current.Length..];
+            foreach (var segment in rest.Split(Separators, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var next = Path.Combine(current, segment);
+
+                FileSystemInfo info = Directory.Exists(next) ? new DirectoryInfo(next) : new FileInfo(next);
+                if (!info.Exists)
+                {
+                    current = next;
+                    continue;
+                }
+
+                if (info.LinkTarget is not null)
+                {
+                    var target = info.ResolveLinkTarget(returnFinalTarget: true);
+                    if (target is null)
+                    {
+                        note = $"link at {next} could not be resolved";
+                        return false;
+                    }
+
+                    next = target.FullName;
+                }
+
+                current = next;
+            }
+
+            realPath = current;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
+        {
+            note = $"link resolution failed: {ex.GetType().Name}";
             return false;
         }
     }

@@ -283,6 +283,7 @@
     "Overall_Unknown": "Overall state unknown.",
     "Overall_Warning": "Warning: {0} finding(s) should be reviewed.",
     "PathGuard_Reason_Allowed": "Inside the allowed root {0}.",
+    "PathGuard_Reason_AmbiguousSegment": "A path segment ends with a dot or a space. Windows strips those characters on access, so the path is not touched.",
     "PathGuard_Reason_Empty": "The path is empty.",
     "PathGuard_Reason_Invalid": "The path is not a valid path.",
     "PathGuard_Reason_IsAllowedRoot": "The path is the allowed root itself and is not deleted.",
