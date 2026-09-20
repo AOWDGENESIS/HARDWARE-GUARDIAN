@@ -1,0 +1,11 @@
+errors=4 warnings=50
+
+errors by code:
+  4  CS1955
+
+distinct error messages:
+  4x .Tests\SimulationFixtureTests.cs(95): Non-invocable member 'TextInfo.Display' cannot be used like a method.
+
+warnings by code:
+  28  CA1826
+  22  CA1861
