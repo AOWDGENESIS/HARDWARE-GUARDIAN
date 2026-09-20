@@ -4,7 +4,7 @@ name: Windows Maintenance Center
 # available, so the build, the tests and the packaging run on a GitHub hosted Windows runner. That
 # machine is a virtual machine: it has a real Windows kernel, a real .NET SDK, real WMI and real
 # PowerShell, but no physical sensors, no battery, no discrete GPU and no interactive UAC prompt.
-# What that means for the module status is written into the run summary and into
+# What that means for the module status is written into the environment record and into
 # docs/ABNAHME-WMC.md - a result from here is never a substitute for the run on the target machine.
 #
 # Two independent jobs:
@@ -13,6 +13,10 @@ name: Windows Maintenance Center
 #               immediately.
 #   windows   - the real build, the real tests and the release artefacts. This is the job that
 #               produces the evidence the project is missing.
+#
+# Every step writes its output into a log file, and the last step copies those logs and the test
+# results into test-results/ci/<run>/ on this branch. Without that, a failing run would leave nothing
+# behind that can be read from outside the runner.
 #
 # Nothing in this workflow is allowed to report success without having run. A skipped or failed step
 # fails the job; there is no "continue on error" for build and test.
@@ -30,7 +34,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Write is needed for exactly one thing: putting the run logs and the test results back into the
+  # branch so that they can be read. The application code is never changed by this workflow.
+  contents: write
 
 env:
   # The application ships no telemetry (spec section 28) and the build sends none either.
@@ -47,6 +53,8 @@ jobs:
   checks:
     name: Checks without SDK (contracts, localisation, XAML, projects, syntax)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -71,34 +79,45 @@ jobs:
       - name: Record what this machine is (evidence, not a claim)
         shell: pwsh
         run: |
-          $out = 'artifacts/ci-environment.txt'
+          $out = 'artifacts/ci/environment.txt'
           New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
           $lines = New-Object System.Collections.Generic.List[string]
+          function Probe([string]$name, [scriptblock]$body) {
+            try { $lines.Add("$name=$(& $body)") }
+            catch { $lines.Add("$name=not readable ($($_.Exception.GetType().Name): $($_.Exception.Message))") }
+          }
           $lines.Add("run=$env:GITHUB_RUN_ID attempt=$env:GITHUB_RUN_ATTEMPT")
-          $lines.Add("ref=$env:GITHUB_REF commit=$env:GITHUB_SHA")
+          $lines.Add("ref=$env:GITHUB_REF commit=$env:GITHUB_SHA actor=$env:GITHUB_ACTOR")
           $lines.Add("runner=$env:RUNNER_NAME image=$env:ImageOS os=$env:RUNNER_OS arch=$env:RUNNER_ARCH")
-          $lines.Add((Get-CimInstance Win32_OperatingSystem |
-            ForEach-Object { "os=$($_.Caption) version=$($_.Version) build=$($_.BuildNumber) arch=$($_.OSArchitecture)" }))
-          $lines.Add((Get-CimInstance Win32_ComputerSystem |
-            ForEach-Object { "model=$($_.Manufacturer) $($_.Model) hypervisorPresent=$($_.HypervisorPresent)" }))
-          $lines.Add((Get-CimInstance Win32_Processor |
-            Select-Object -First 1 | ForEach-Object { "cpu=$($_.Name) cores=$($_.NumberOfCores) logical=$($_.NumberOfLogicalProcessors)" }))
-          $lines.Add("memory_gb=" + [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1))
-          $lines.Add("dotnet=" + ((dotnet --version) -join ' '))
-          $lines.Add("sdks=" + (((dotnet --list-sdks) -join ' | ')))
-          $lines.Add("runtimes=" + (((dotnet --list-runtimes | Select-String 'WindowsDesktop|Microsoft.NETCore.App') -join ' | ')))
-          # What this machine does not have. Naming it here is cheaper than discovering it later in a
+          Probe 'os' { Get-CimInstance Win32_OperatingSystem | ForEach-Object { "$($_.Caption) version=$($_.Version) build=$($_.BuildNumber) arch=$($_.OSArchitecture)" } }
+          Probe 'model' { Get-CimInstance Win32_ComputerSystem | ForEach-Object { "$($_.Manufacturer) $($_.Model) hypervisorPresent=$($_.HypervisorPresent)" } }
+          Probe 'cpu' { Get-CimInstance Win32_Processor | Select-Object -First 1 | ForEach-Object { "$($_.Name) cores=$($_.NumberOfCores) logical=$($_.NumberOfLogicalProcessors)" } }
+          Probe 'memory_gb' { [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1) }
+          Probe 'disk_gb' { [math]::Round((Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'").Size / 1GB, 1) }
+          Probe 'psversion' { $PSVersionTable.PSVersion.ToString() }
+          Probe 'dotnet' { (dotnet --version) }
+          Probe 'sdks' { (dotnet --list-sdks) -join ' | ' }
+          Probe 'runtimes' { (dotnet --list-runtimes | Select-String 'WindowsDesktop|Microsoft.NETCore.App') -join ' | ' }
+          Probe 'msbuild' { (& dotnet msbuild -version -nologo | Select-Object -Last 1) }
+          Probe 'iscc' { if (Get-Command iscc.exe -ErrorAction SilentlyContinue) { (Get-Command iscc.exe).Source } else { 'not installed yet' } }
+          # What this machine does not have. Saying it here is cheaper than finding it out later in a
           # module that claims to have measured something.
-          $lines.Add("thermal_zones=" + ((Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue | Measure-Object).Count)
-          $lines.Add("battery=" + ((Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Measure-Object).Count))
-          $lines.Add("gpu=" + (((Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', ')))
-          $lines.Add("smart=" + ([bool](Get-CimInstance -Namespace root/wmi -ClassName MSStorageDriver_FailurePredictStatus -ErrorAction SilentlyContinue)))
-          $lines.Add("physical_machine=false (hosted runner is a virtual machine; hardware, sensor, UAC and reboot tests stay BLOCKED here)")
+          Probe 'thermal_zones' { (Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Measure-Object).Count }
+          Probe 'battery' { (Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Measure-Object).Count }
+          Probe 'gpu' { (Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', ' }
+          Probe 'smart_status' { (Get-CimInstance -Namespace root/wmi -ClassName MSStorageDriver_FailurePredictStatus -ErrorAction Stop | Measure-Object).Count }
+          Probe 'tpm' { (Get-CimInstance -Namespace root/cimv2/security/microsofttpm -ClassName Win32_Tpm -ErrorAction Stop | ForEach-Object { "present spec=$($_.SpecVersion) enabled=$($_.IsEnabled_InitialValue)" }) }
+          $lines.Add('physical_machine=false (a hosted runner is a virtual machine; hardware, sensor, UAC and reboot tests stay BLOCKED here)')
           $lines | Set-Content -Encoding utf8 $out
           $lines | ForEach-Object { Write-Host $_ }
 
       - name: Restore
-        run: dotnet restore WindowsMaintenanceCenter.sln -p:RestoreLockedMode=false --use-lock-file
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/restore.log'
+          New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
+          dotnet restore WindowsMaintenanceCenter.sln -p:RestoreLockedMode=false --use-lock-file *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed with exit code $LASTEXITCODE (see artifacts/ci/restore.log)" }
 
       - name: Report the lock files (a restore that creates them is not a restore that verified them)
         shell: pwsh
@@ -112,19 +131,39 @@ jobs:
           }
 
       - name: Build
-        run: dotnet build WindowsMaintenanceCenter.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/build.log'
+          dotnet build WindowsMaintenanceCenter.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "dotnet build failed with exit code $LASTEXITCODE (see artifacts/ci/build.log)" }
 
       - name: Tests
-        run: pwsh ./scripts/test.ps1 -Configuration Release
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/test.log'
+          pwsh ./scripts/test.ps1 -Configuration Release *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the test run failed with exit code $LASTEXITCODE (see artifacts/ci/test.log)" }
 
       - name: Publish the portable executable
-        run: pwsh ./scripts/build.ps1 -Configuration Release -RuntimeIdentifier win-x64 -OutputDirectory artifacts/portable
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/publish.log'
+          pwsh ./scripts/build.ps1 -Configuration Release -RuntimeIdentifier win-x64 -OutputDirectory artifacts/portable *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the publish failed with exit code $LASTEXITCODE (see artifacts/ci/publish.log)" }
 
       - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/innosetup.log'
+          choco install innosetup --no-progress -y *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the installer build could not be set up (exit code $LASTEXITCODE)" }
 
       - name: Build installer, checksums and release notes
-        run: pwsh ./scripts/release.ps1
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/release.log'
+          pwsh ./scripts/release.ps1 *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the release build failed with exit code $LASTEXITCODE (see artifacts/ci/release.log)" }
 
       - name: Check that the release really produced the four required artefacts
         shell: pwsh
@@ -157,6 +196,40 @@ jobs:
           }
           Write-Host 'all checksums match the artefacts'
 
+      # The runner is the only machine that can see the build output, and its own log download is not
+      # reachable from where this project is developed. So the run writes its logs and its test results
+      # into the branch: that is the evidence, and it stays readable after the runner is gone.
+      - name: Keep the run record in the branch
+        if: always()
+        shell: pwsh
+        run: |
+          $run = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $target = "test-results/ci/run-$run"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          if (Test-Path 'artifacts/ci') { Copy-Item 'artifacts/ci/*' -Destination $target -Force }
+          if (Test-Path 'artifacts/test-results') { Copy-Item 'artifacts/test-results/*' -Destination $target -Force }
+          Copy-Item 'artifacts/portable/*' -Destination $target -Force -ErrorAction SilentlyContinue | Out-Null
+          Get-ChildItem -Path $target -Recurse -File | Where-Object { $_.Length -gt 2MB } | ForEach-Object {
+            Write-Host "not keeping $($_.Name): $($_.Length) bytes"
+            Remove-Item $_.FullName
+          }
+          $summary = @(
+            "run=$env:GITHUB_RUN_ID attempt=$env:GITHUB_RUN_ATTEMPT",
+            "ref=$env:GITHUB_REF commit=$env:GITHUB_SHA",
+            "job_status=$env:JOB_STATUS"
+          )
+          $summary | Set-Content -Encoding utf8 (Join-Path $target 'run.txt')
+          git config user.name 'Windows Maintenance Center CI'
+          git config user.email 'ci@users.noreply.github.com'
+          git add --force $target
+          $staged = git status --porcelain $target
+          if (-not $staged) { Write-Host 'nothing new to record'; exit 0 }
+          git commit -m "CI-Lauf $run aufzeichnen [skip ci]" | Write-Host
+          git push origin "HEAD:$env:GITHUB_REF_NAME"
+          if ($LASTEXITCODE -ne 0) { throw "the run record could not be pushed" }
+        env:
+          JOB_STATUS: ${{ job.status }}
+
       - name: Upload the artefacts, the test results, the lock files and the environment record
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,7 +238,7 @@ jobs:
           path: |
             WindowsMaintenanceCenter/artifacts/release/*
             WindowsMaintenanceCenter/artifacts/test-results/*
-            WindowsMaintenanceCenter/artifacts/ci-environment.txt
+            WindowsMaintenanceCenter/artifacts/ci/*
             WindowsMaintenanceCenter/**/packages.lock.json
           if-no-files-found: warn
           retention-days: 30
