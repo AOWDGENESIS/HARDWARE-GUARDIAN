@@ -36,7 +36,7 @@ public sealed class PathGuard : IPathGuard
 
         if (!TryNormalise(path, out var normalised, out var normaliseReason))
         {
-            return Deny(null, "PathGuard_Reason_Invalid", normaliseReason);
+            return Deny(null, "PathGuard_Reason_Invalid", normaliseReason ?? "path could not be normalised");
         }
 
         var roots = new List<string>();

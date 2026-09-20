@@ -38,6 +38,7 @@ public sealed class ProgressReporter : IProgressReporter
 
     public void Start(string operationKey, string module, int? totalSteps)
     {
+        ProgressSnapshot snapshot;
         lock (_gate)
         {
             _startedAt = _clock.Now;
@@ -55,9 +56,10 @@ public sealed class ProgressReporter : IProgressReporter
                 UpdatedAt = _startedAt,
                 Elapsed = TimeSpan.Zero,
             };
+            snapshot = _current;
         }
 
-        Raise();
+        Raise(snapshot);
     }
 
     public void ReportStep(string stepKey, string? detail = null)

@@ -124,7 +124,10 @@ public sealed class InMemorySnapshotStore : ISnapshotStore
     {
         lock (_gate)
         {
-            return Task.FromResult(_snapshots.FirstOrDefault(s => s.Path == path).Snapshot);
+            // FirstOrDefault answers null when nothing matches; reading .Snapshot from it threw
+            // before the nullability warning was ever looked at.
+            var match = _snapshots.FirstOrDefault(s => s.Path == path);
+            return Task.FromResult(match?.Snapshot);
         }
     }
 

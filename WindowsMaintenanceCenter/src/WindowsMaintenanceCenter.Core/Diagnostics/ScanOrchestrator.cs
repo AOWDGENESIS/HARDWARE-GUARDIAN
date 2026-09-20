@@ -331,7 +331,9 @@ public sealed class ScanOrchestrator : IScanOrchestrator
 
         _state.TryTransitionTo(SystemState.Diagnostic, "snapshot-built");
         _state.TryTransitionTo(StateFromHealth(status), "scan-result");
-        _protocol.Info("SYS", summary, status switch
+        // The severity belongs to Publish; Info() always writes Severity.Info and would have shown a
+        // scan with critical findings as an ordinary message.
+        _protocol.Publish("SYS", summary, status switch
         {
             HealthStatus.Critical => Severity.Critical,
             HealthStatus.Warning => Severity.Error,

@@ -27,7 +27,7 @@ public sealed record AppSettings
     /// <summary>Allows the application to contact official sources at all.</summary>
     public bool UpdateCheckEnabled { get; init; } = true;
 
-    public bool UpdateCheckOnStartup { get; init; } = false;
+    public bool UpdateCheckOnStartup { get; init; }
 
     /// <summary>Telemetry is off and cannot be enabled: the application has no telemetry endpoint (spec section 28).</summary>
     public bool TelemetryEnabled { get; init; }

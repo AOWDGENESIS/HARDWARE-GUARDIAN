@@ -124,6 +124,15 @@ public sealed record ManufacturerSourceRef
 
     public string? Note { get; init; }
 
+    /// <summary>
+    /// True when this reference names a real source. The placeholder from <see cref="Unknown"/> is not
+    /// a source: nothing may be decided, downloaded or verified on the basis of it.
+    /// </summary>
+    public bool IsKnown =>
+        Trust != SourceTrust.Unknown
+        && !string.IsNullOrWhiteSpace(AdapterId)
+        && !string.Equals(AdapterId, "unknown", StringComparison.OrdinalIgnoreCase);
+
     public static ManufacturerSourceRef Unknown(string? note = null) => new()
     {
         AdapterId = "unknown",

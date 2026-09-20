@@ -260,11 +260,18 @@ public sealed class ActionRegistry : IActionRegistry
     }
 
     /// <summary>
+    /// The characters of chapter 78, prepared once: they are refused in every argument that is not a
+    /// number or a choice, whichever position they appear in.
+    /// </summary>
+    private static readonly System.Buffers.SearchValues<char> ShellMetacharacters =
+        System.Buffers.SearchValues.Create("\"';&|><$`(){}%^");
+
+    /// <summary>
     /// The characters of chapter 78. They are refused in every argument that is not a number or a
     /// choice, whichever position they appear in.
     /// </summary>
     private static bool ContainsShellMetacharacter(string value) =>
-        value.IndexOfAny(new[] { '"', '\'', ';', '&', '|', '>', '<', '$', '`', '(', ')', '{', '}', '%', '^' }) >= 0;
+        value.AsSpan().IndexOfAny(ShellMetacharacters) >= 0;
 
     /// <summary>
     /// Replaces <c>{Name}</c> in a template part with the validated value. A placeholder without a
