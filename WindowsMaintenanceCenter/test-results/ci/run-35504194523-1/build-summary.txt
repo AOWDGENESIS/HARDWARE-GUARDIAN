@@ -1,0 +1,16 @@
+errors=6 warnings=718
+
+errors by code:
+  6  CS0234
+
+distinct error messages:
+  6x .App\App.xaml.cs(207): The type or namespace name 'WindowsHardwareProvider' does not exist in the namespace 'WindowsMaintenanceCenter.Hardware' (are you missing an assembly reference?)
+
+warnings by code:
+  416  CA1707
+  140  CA1305
+  78  CA1861
+  44  xUnit1051
+  26  CA1826
+  12  CA1846
+  2  xUnit2000
