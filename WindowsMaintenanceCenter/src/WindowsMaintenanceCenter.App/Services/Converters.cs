@@ -1,4 +1,6 @@
 using System.Globalization;
+// System.Globalization has a TextInfo as well; the alias names the intended type.
+using TextInfo = WindowsMaintenanceCenter.Core.Values.TextInfo;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;

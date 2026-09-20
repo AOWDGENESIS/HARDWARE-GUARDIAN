@@ -1,4 +1,6 @@
 using System.Globalization;
+// System.Globalization has a TextInfo as well; the alias names the intended type.
+using TextInfo = WindowsMaintenanceCenter.Core.Values.TextInfo;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -924,7 +926,8 @@ public sealed class ReportGenerator : IReportGenerator
         info.IsKnown ? info.Value! : $"UNKNOWN: {info.UnknownReason ?? "reason not reported"}";
 
     /// <summary>Text of a measured number, or UNKNOWN with the reason that was recorded.</summary>
-    private static string Show<T>(Measured<T> value, string? format = null) =>
+    private static string Show<T>(Measured<T> value, string? format = null)
+        where T : struct =>
         value.Value.HasValue
             ? value.Display(CultureInfo.InvariantCulture, format)
             : $"UNKNOWN: {value.UnknownReason ?? "reason not reported"}";
