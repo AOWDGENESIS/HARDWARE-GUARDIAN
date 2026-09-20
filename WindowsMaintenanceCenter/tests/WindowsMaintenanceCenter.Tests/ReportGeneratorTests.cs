@@ -53,7 +53,7 @@ public sealed class ReportGeneratorTests
 
         Assert.Equal(ReportFormat.Text, artifact.Format);
         Assert.True(artifact.SizeBytes > 0);
-        Assert.Contains("HW-CPU-001", content, StringComparison.Ordinal);
+        Assert.Contains("WMC-CPU-001", content, StringComparison.Ordinal);
         Assert.Contains("synthetic evidence", content, StringComparison.Ordinal);
         Assert.Contains("WMI", content, StringComparison.Ordinal);
     }
@@ -69,7 +69,7 @@ public sealed class ReportGeneratorTests
 
         Assert.Equal("system", document.RootElement.GetProperty("reportType").GetString());
         Assert.True(document.RootElement.GetProperty("snapshot").GetProperty("isSimulation").GetBoolean());
-        Assert.Equal("HW-CPU-001", document.RootElement.GetProperty("snapshot").GetProperty("problems")[0].GetProperty("id").GetString());
+        Assert.Equal("WMC-CPU-001", document.RootElement.GetProperty("snapshot").GetProperty("problems")[0].GetProperty("id").GetString());
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class ReportGeneratorTests
                 {
                     new Problem
                     {
-                        Id = "HW-CPU-001",
+                        Id = "WMC-CPU-001",
                         Category = ComponentCategory.Cpu,
                         Severity = Severity.Critical,
                         Status = ProblemStatus.Open,

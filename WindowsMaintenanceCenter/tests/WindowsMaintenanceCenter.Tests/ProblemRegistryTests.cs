@@ -6,7 +6,7 @@ using Xunit;
 
 namespace WindowsMaintenanceCenter.Tests;
 
-/// <summary>Problem identifiers and counting (spec section 23, e.g. HW-CPU-001).</summary>
+/// <summary>Error identifiers and counting (WMC-SPEC chapter 85, e.g. WMC-UPDATE-0042).</summary>
 public sealed class ProblemRegistryTests
 {
     [Fact]
@@ -14,13 +14,13 @@ public sealed class ProblemRegistryTests
     {
         var registry = new ProblemRegistry(new FakeClock());
 
-        var first = registry.Add(Draft(ComponentCategory.Cpu, "HW-CPU"));
-        var second = registry.Add(Draft(ComponentCategory.Cpu, "HW-CPU"));
-        var third = registry.Add(Draft(ComponentCategory.Graphics, "HW-GPU"));
+        var first = registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU"));
+        var second = registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU"));
+        var third = registry.Add(Draft(ComponentCategory.Graphics, "WMC-GPU"));
 
-        Assert.Equal("HW-CPU-001", first.Id);
-        Assert.Equal("HW-CPU-002", second.Id);
-        Assert.Equal("HW-GPU-001", third.Id);
+        Assert.Equal("WMC-CPU-001", first.Id);
+        Assert.Equal("WMC-CPU-002", second.Id);
+        Assert.Equal("WMC-GPU-001", third.Id);
     }
 
     [Fact]
@@ -28,14 +28,14 @@ public sealed class ProblemRegistryTests
     {
         var registry = new ProblemRegistry(new FakeClock());
         var problem = registry.Add(Draft(ComponentCategory.Bios, prefix: null));
-        Assert.StartsWith("BIOS-", problem.Id, StringComparison.Ordinal);
+        Assert.StartsWith("WMC-BIOS-", problem.Id, StringComparison.Ordinal);
     }
 
     [Fact]
     public void New_problems_are_open_and_can_be_updated()
     {
         var registry = new ProblemRegistry(new FakeClock());
-        var problem = registry.Add(Draft(ComponentCategory.Storage, "HW-STORAGE"));
+        var problem = registry.Add(Draft(ComponentCategory.Storage, "WMC-STORAGE"));
         Assert.Equal(ProblemStatus.Open, problem.Status);
 
         registry.UpdateStatus(problem.Id, ProblemStatus.Acknowledged, "seen");
@@ -65,15 +65,72 @@ public sealed class ProblemRegistryTests
     public void Counting_matches_the_severities()
     {
         var registry = new ProblemRegistry(new FakeClock());
-        registry.Add(Draft(ComponentCategory.Cpu, "HW-CPU") with { Severity = Severity.Critical });
-        registry.Add(Draft(ComponentCategory.Cpu, "HW-CPU") with { Severity = Severity.Warning });
-        registry.Add(Draft(ComponentCategory.Cpu, "HW-CPU") with { Severity = Severity.Info });
+        registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU") with { Severity = Severity.Critical });
+        registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU") with { Severity = Severity.Warning });
+        registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU") with { Severity = Severity.Info });
 
         var counts = registry.Counts;
         Assert.Equal(1, counts.Critical);
         Assert.Equal(1, counts.Warnings);
         Assert.Equal(1, counts.Information);
         Assert.Equal(3, counts.Total);
+    }
+
+    [Fact]
+    public void The_theme_of_an_error_identifier_comes_from_the_category()
+    {
+        // Kapitel 85: WMC-<Thema>-<Nummer>. Das Thema wird abgeleitet, nicht geraten.
+        Assert.Equal("WMC-CPU", ProblemIdFactory.CategoryPrefix(ComponentCategory.Cpu));
+        Assert.Equal("WMC-UPDATE", ProblemIdFactory.CategoryPrefix(ComponentCategory.Update));
+        Assert.Equal("WMC-GENERAL", ProblemIdFactory.CategoryPrefix(ComponentCategory.Unknown));
+    }
+
+    [Fact]
+    public void An_empty_prefix_is_filled_from_the_category_instead_of_a_placeholder()
+    {
+        // Vorher war der Standard "GEN": ein Fehler ohne eigene Kennung landete unter einem Thema,
+        // das nichts über ihn aussagt.
+        var registry = new ProblemRegistry(new FakeClock());
+        var problem = registry.Add(new ProblemDraft
+        {
+            Category = ComponentCategory.Update,
+            Severity = Severity.Warning,
+            Title = LocalizedText.Of("Problem_Unknown_Title"),
+        });
+
+        Assert.StartsWith("WMC-UPDATE-", problem.Id, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_vendor_specific_driver_keeps_the_vendor_in_the_identifier()
+    {
+        Assert.Equal("WMC-DRIVER-NVIDIA", ProblemIdFactory.VendorPrefix("NVIDIA"));
+        Assert.Equal("WMC-DRIVER", ProblemIdFactory.VendorPrefix("  "));
+    }
+
+    [Fact]
+    public void A_finding_carries_the_fields_of_chapter_85()
+    {
+        var registry = new ProblemRegistry(new FakeClock());
+        var problem = registry.Add(Draft(ComponentCategory.Windows, "WMC-WINDOWS") with
+        {
+            Cause = LocalizedText.Of("Windows_Check_EventLog_Unreadable", "access denied"),
+            LogReference = "logs/2026-09-20.json",
+        });
+
+        Assert.Equal("WMC-WINDOWS-001", problem.Id);
+        Assert.Equal("Windows_Check_EventLog_Unreadable", problem.Cause.Key);
+        Assert.Equal("logs/2026-09-20.json", problem.LogReference);
+    }
+
+    [Fact]
+    public void Without_a_written_log_entry_the_field_stays_empty_instead_of_naming_a_file()
+    {
+        var registry = new ProblemRegistry(new FakeClock());
+        var problem = registry.Add(Draft(ComponentCategory.Cpu, "WMC-CPU"));
+
+        Assert.Null(problem.LogReference);
+        Assert.Equal("Problem_Cause_NotDeterminable", problem.Cause.Key);
     }
 
     private static ProblemDraft Draft(ComponentCategory category, string? prefix) => new()

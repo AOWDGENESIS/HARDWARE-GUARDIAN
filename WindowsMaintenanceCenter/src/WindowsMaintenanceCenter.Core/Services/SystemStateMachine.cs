@@ -50,7 +50,7 @@ public sealed class SystemStateMachine : ISystemStateMachine
     private readonly ILogger<SystemStateMachine>? _logger;
     private readonly object _gate = new();
     private readonly List<StateChangedEvent> _history = new();
-    private SystemState _current = SystemState.Idle;
+    private SystemState _current = SystemState.Initializing;
     private DateTimeOffset _since;
 
     public SystemStateMachine(IClock clock, IEventBus? events = null, ILogger<SystemStateMachine>? logger = null)
@@ -101,58 +101,77 @@ public sealed class SystemStateMachine : ISystemStateMachine
 
     private static IReadOnlyDictionary<SystemState, SystemState[]> BuildTable()
     {
-        var terminal = new[] { SystemState.Idle, SystemState.Scanning, SystemState.Analyzing, SystemState.CheckingUpdates };
+        // "terminal" = a finished run. From there a new run may start (DISCOVERY, DIAGNOSTIC) or
+        // the machine may go back to INITIALIZING, for example when the application is restarted.
+        var terminal = new[] { SystemState.Initializing, SystemState.Discovery, SystemState.Diagnostic };
 
         return new Dictionary<SystemState, SystemState[]>
         {
-            [SystemState.Idle] = new[]
+            [SystemState.Initializing] = new[]
             {
-                SystemState.Scanning, SystemState.Analyzing, SystemState.CheckingUpdates, SystemState.WaitingForApproval,
-                SystemState.BackupRequired, SystemState.Executing, SystemState.Verifying, SystemState.Blocked,
-                SystemState.Error, SystemState.Warning, SystemState.Success, SystemState.Cancelled, SystemState.Rollback,
+                SystemState.Discovery, SystemState.Diagnostic, SystemState.PlanGenerated, SystemState.AwaitingApproval,
+                SystemState.Backup, SystemState.Executing, SystemState.Validating, SystemState.Blocked,
+                SystemState.Error, SystemState.Success, SystemState.Cancelled, SystemState.Rollback, SystemState.Recovering,
             },
-            [SystemState.Scanning] = new[]
+
+            // Reads are read only; the run may move on to the assessment, but never straight into an
+            // execution: that would skip the plan, the approval and the validation (chapter 40, M34-S-001).
+            [SystemState.Discovery] = new[]
             {
-                SystemState.Analyzing, SystemState.Blocked, SystemState.Error, SystemState.Cancelled,
-                SystemState.Warning, SystemState.Success, SystemState.Idle, SystemState.Verifying, SystemState.Rollback,
+                SystemState.Diagnostic, SystemState.PlanGenerated, SystemState.AwaitingApproval, SystemState.Validating,
+                SystemState.Success, SystemState.Blocked, SystemState.Error, SystemState.Cancelled,
+                SystemState.Rollback, SystemState.Recovering, SystemState.Initializing,
             },
-            [SystemState.Analyzing] = new[]
+            [SystemState.Diagnostic] = new[]
             {
-                SystemState.CheckingUpdates, SystemState.WaitingForApproval, SystemState.BackupRequired, SystemState.Executing,
-                SystemState.Blocked, SystemState.Error, SystemState.Warning, SystemState.Success, SystemState.Cancelled,
-                SystemState.Idle, SystemState.Rollback,
+                SystemState.PlanGenerated, SystemState.AwaitingApproval, SystemState.Backup, SystemState.Executing,
+                SystemState.Validating, SystemState.Success, SystemState.Blocked, SystemState.Error,
+                SystemState.Cancelled, SystemState.Rollback, SystemState.Recovering, SystemState.Initializing,
             },
-            [SystemState.CheckingUpdates] = new[]
+            [SystemState.PlanGenerated] = new[]
             {
-                SystemState.Analyzing, SystemState.WaitingForApproval, SystemState.BackupRequired, SystemState.Executing,
-                SystemState.Warning, SystemState.Blocked, SystemState.Error, SystemState.Success, SystemState.Cancelled, SystemState.Idle,
+                SystemState.AwaitingApproval, SystemState.Backup, SystemState.Executing, SystemState.Cancelled,
+                SystemState.Blocked, SystemState.Error, SystemState.Diagnostic, SystemState.Initializing,
             },
-            [SystemState.WaitingForApproval] = new[]
+            [SystemState.AwaitingApproval] = new[]
             {
-                SystemState.Executing, SystemState.BackupRequired, SystemState.Cancelled, SystemState.Blocked,
-                SystemState.Error, SystemState.Idle, SystemState.Analyzing, SystemState.CheckingUpdates,
+                SystemState.Backup, SystemState.Executing, SystemState.PlanGenerated, SystemState.Cancelled,
+                SystemState.Blocked, SystemState.Error, SystemState.Diagnostic, SystemState.Initializing,
             },
-            [SystemState.BackupRequired] = new[]
+            [SystemState.Backup] = new[]
             {
-                SystemState.Executing, SystemState.Cancelled, SystemState.Blocked, SystemState.Error, SystemState.Idle,
+                SystemState.Executing, SystemState.Cancelled, SystemState.Blocked, SystemState.Error,
+                SystemState.Rollback, SystemState.Recovering, SystemState.Initializing,
             },
             [SystemState.Executing] = new[]
             {
-                SystemState.Verifying, SystemState.Error, SystemState.Cancelled, SystemState.Rollback, SystemState.Blocked,
+                SystemState.Validating, SystemState.Blocked, SystemState.Error, SystemState.Cancelled,
+                SystemState.Rollback, SystemState.Recovering, SystemState.Initializing,
             },
-            [SystemState.Verifying] = new[]
+            [SystemState.Validating] = new[]
             {
-                SystemState.Success, SystemState.Warning, SystemState.Error, SystemState.Rollback, SystemState.Blocked, SystemState.Idle,
+                SystemState.Success, SystemState.Blocked, SystemState.Error, SystemState.Rollback,
+                SystemState.Recovering, SystemState.Initializing,
             },
             [SystemState.Success] = terminal,
-            [SystemState.Warning] = terminal,
-            [SystemState.Error] = terminal.Concat(new[] { SystemState.Rollback }).ToArray(),
-            [SystemState.Blocked] = terminal.Concat(new[] { SystemState.WaitingForApproval }).ToArray(),
+            [SystemState.Error] = terminal.Concat(new[] { SystemState.Rollback, SystemState.Recovering }).ToArray(),
+            [SystemState.Blocked] = terminal.Concat(new[] { SystemState.AwaitingApproval, SystemState.Recovering }).ToArray(),
             [SystemState.Rollback] = new[]
             {
-                SystemState.Verifying, SystemState.Success, SystemState.Warning, SystemState.Error, SystemState.Cancelled, SystemState.Idle,
+                SystemState.Validating, SystemState.Success, SystemState.Error, SystemState.Cancelled,
+                SystemState.Recovering, SystemState.Initializing,
             },
-            [SystemState.Cancelled] = terminal.Concat(new[] { SystemState.WaitingForApproval, SystemState.BackupRequired, SystemState.Executing }).ToArray(),
+
+            // RECOVERING is reachable from every state a crash can interrupt, and it leads back into
+            // either a rollback, a validation or a controlled stop - never straight into an execution.
+            [SystemState.Recovering] = new[]
+            {
+                SystemState.Rollback, SystemState.Validating, SystemState.Success, SystemState.Error,
+                SystemState.Blocked, SystemState.Cancelled, SystemState.Diagnostic, SystemState.Initializing,
+            },
+            [SystemState.Cancelled] = terminal
+                .Concat(new[] { SystemState.AwaitingApproval, SystemState.Backup, SystemState.Executing, SystemState.Recovering })
+                .ToArray(),
         };
     }
 

@@ -1,5 +1,6 @@
 using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Models;
+using WindowsMaintenanceCenter.Core.Services;
 using WindowsMaintenanceCenter.Core.Values;
 
 namespace WindowsMaintenanceCenter.Core.Diagnostics;
@@ -171,7 +172,7 @@ public sealed class InventoryReader
 
     private static ProblemDraft ProviderUnavailableDraft(string providerName) => new()
     {
-        IdPrefix = "HW-SYS",
+        IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.System),
         Category = ComponentCategory.System,
         Severity = Severity.Error,
         Title = LocalizedText.Of("Problem_ProviderUnavailable_Title"),
@@ -196,25 +197,12 @@ public sealed class InventoryReader
         References = new[] { source, actionKey },
     };
 
-    private static string ProblemIdPrefixFor(string module) => module switch
-    {
-        "CPU" => "HW-CPU",
-        "BIOS" => "BIOS",
-        "BOARD" => "HW-BOARD",
-        "RAM" => "HW-RAM",
-        "GPU" => "HW-GPU",
-        "STORAGE" => "HW-STORAGE",
-        "NET" => "HW-NET",
-        "AUDIO" => "HW-AUDIO",
-        "MONITOR" => "HW-MON",
-        "PRINT" => "HW-PRINT",
-        "PNP" => "HW-PNP",
-        "DRIVER" => "DRV",
-        "SENSOR" => "SENSOR",
-        "WINDOWS" => "WIN",
-        "BAT" => "HW-BAT",
-        _ => "HW-SYS",
-    };
+    /// <summary>
+    /// The identifier prefix comes from the one factory (chapter 85: WMC-&lt;Thema&gt;-&lt;Nummer&gt;),
+    /// so a new module cannot invent a second naming scheme. The module key decides the category.
+    /// </summary>
+    private static string ProblemIdPrefixFor(string module) =>
+        ProblemIdFactory.CategoryPrefix(CategoryFor(module));
 
     private static ComponentCategory CategoryFor(string module) => module switch
     {

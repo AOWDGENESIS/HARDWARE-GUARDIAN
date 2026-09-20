@@ -93,7 +93,7 @@ public sealed class OverallStatusCalculatorTests
 
     private static Problem Problem(Severity severity) => new()
     {
-        Id = "HW-CPU-001",
+        Id = "WMC-CPU-001",
         Category = ComponentCategory.Cpu,
         Severity = severity,
         Title = LocalizedText.Of("Problem_Unknown_Title"),

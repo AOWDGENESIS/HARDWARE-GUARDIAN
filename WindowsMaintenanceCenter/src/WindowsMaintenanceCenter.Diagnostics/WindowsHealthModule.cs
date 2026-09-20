@@ -3,6 +3,7 @@ using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Diagnostics;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Diagnostics;
 
@@ -63,7 +64,7 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
             {
                 problems.Add(new ProblemDraft
                 {
-                    IdPrefix = "WIN-CHECK",
+                    IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Windows) + "-CHECK",
                     Category = ComponentCategory.Windows,
                     Severity = check.Status switch
                     {
@@ -88,7 +89,7 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "WIN-REBOOT",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Windows) + "-REBOOT",
                 Category = ComponentCategory.Windows,
                 Severity = Severity.Warning,
                 Title = LocalizedText.Of("Problem_PendingReboot_Title"),
@@ -104,7 +105,7 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "SEC",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Security),
                 Category = ComponentCategory.Security,
                 Severity = report.Defender.IsEnabled ? Severity.Warning : Severity.Error,
                 Title = LocalizedText.Of("Problem_DefenderState_Title"),
@@ -121,7 +122,7 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "WIN-UPD",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Update) + "-WINDOWS",
                 Category = ComponentCategory.Windows,
                 Severity = report.Updates.Outcome == UpdateStatus.UpdateAvailable ? Severity.Warning : Severity.Info,
                 Title = LocalizedText.Of("Problem_WindowsUpdates_Title"),

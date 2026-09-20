@@ -3,6 +3,7 @@ using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Diagnostics;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Diagnostics;
 
@@ -52,7 +53,7 @@ public sealed class WorkloadModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "MNT-WORKLOAD",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Maintenance) + "-WORKLOAD",
                 Category = ComponentCategory.Maintenance,
                 Severity = Severity.Warning,
                 Title = LocalizedText.Of("Problem_WorkloadDetected_Title", LocalizedText.Of(protectedWorkloads[0].DisplayNameKey)),

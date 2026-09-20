@@ -3,6 +3,7 @@ using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Diagnostics;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Diagnostics;
 
@@ -70,7 +71,7 @@ public sealed class SensorHealthModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "HW-SENSOR",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Sensor),
                 Category = ComponentCategory.Sensor,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_SensorUnavailable_Title"),
@@ -91,7 +92,7 @@ public sealed class SensorHealthModule : DiagnosticModuleBase
             // Explicit, because the number looks precise while it is not.
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "HW-THERMAL",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Sensor) + "-THERMAL",
                 Category = ComponentCategory.Sensor,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_AcpiTemperature_Title"),
@@ -117,7 +118,7 @@ public sealed class SensorHealthModule : DiagnosticModuleBase
             {
                 problems.Add(new ProblemDraft
                 {
-                    IdPrefix = "HW-THERMAL",
+                    IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Sensor) + "-THERMAL",
                     Category = ComponentCategory.Sensor,
                     Severity = critical ? Severity.Critical : Severity.Warning,
                     Title = LocalizedText.Of(critical ? "Problem_TemperatureCritical_Title" : "Problem_TemperatureHigh_Title", value, hottest.MeasurementPointKey),

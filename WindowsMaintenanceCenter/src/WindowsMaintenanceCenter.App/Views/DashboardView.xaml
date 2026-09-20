@@ -34,10 +34,14 @@
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Findings}" />
                 <DataGrid ItemsSource="{Binding Problems}" MaxHeight="260">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="{services:Loc Column_Id}" Binding="{Binding Id}" Width="120" />
+                        <DataGridTextColumn Header="{services:Loc Column_Id}" Binding="{Binding Id}" Width="150" />
                         <DataGridTextColumn Header="{services:Loc Column_Severity}" Binding="{Binding Severity}" Width="90" />
                         <DataGridTextColumn Header="{services:Loc Column_Status}" Binding="{Binding Status}" Width="90" />
-                        <DataGridTextColumn Header="{services:Loc Column_Title}" Binding="{Binding Title, Converter={StaticResource Text}}" Width="280" />
+                        <DataGridTextColumn Header="{services:Loc Column_Title}" Binding="{Binding Title, Converter={StaticResource Text}}" Width="240" />
+                        <DataGridTextColumn Header="{services:Loc Column_Why}" Binding="{Binding Cause, Converter={StaticResource Text}}" Width="240" />
+                        <DataGridTextColumn Header="{services:Loc Column_Impact}" Binding="{Binding Impact, Converter={StaticResource Text}}" Width="220" />
+                        <DataGridTextColumn Header="{services:Loc Column_NextStep}" Binding="{Binding RecommendedAction, Converter={StaticResource Text}}" Width="220" />
+                        <DataGridTextColumn Header="{services:Loc Column_Log}" Binding="{Binding LogReference}" Width="140" />
                         <DataGridTextColumn Header="{services:Loc Column_Evidence}" Binding="{Binding Evidence}" Width="*" />
                     </DataGrid.Columns>
                 </DataGrid>

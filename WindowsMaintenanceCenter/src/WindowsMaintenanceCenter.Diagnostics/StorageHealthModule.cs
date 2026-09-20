@@ -3,6 +3,7 @@ using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Diagnostics;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Diagnostics;
 
@@ -159,7 +160,7 @@ public sealed class StorageHealthModule : DiagnosticModuleBase
         string actionKey,
         string evidence) => new()
     {
-        IdPrefix = "HW-STORAGE",
+        IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Storage),
         Category = ComponentCategory.Storage,
         Severity = severity,
         Title = LocalizedText.Of(titleKey, name),

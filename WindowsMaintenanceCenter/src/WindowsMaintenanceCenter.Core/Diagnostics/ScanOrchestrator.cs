@@ -82,7 +82,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         var scanId = $"SCAN-{_clock.Now:yyyyMMddHHmmss}";
         _problems.Clear();
         _events.Publish(new ScanStartedEvent(scanId, _modules.Count, _clock.Now));
-        _state.TryTransitionTo(SystemState.Scanning, "full-scan");
+        _state.TryTransitionTo(SystemState.Discovery, "full-scan");
         _protocol.Info("SYS", LocalizedText.Of("Protocol_ScanStarted", _modules.Count));
 
         var totalSteps = _modules.Count + InventoryReader.StepCount; // inventory reads + module runs
@@ -127,7 +127,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         RegisterInventoryProblems(inventory);
 
         _events.Publish(new ScanStartedEvent(moduleId, 1, _clock.Now));
-        _state.TryTransitionTo(SystemState.Scanning, $"module:{moduleId}");
+        _state.TryTransitionTo(SystemState.Discovery, $"module:{moduleId}");
         var stopwatch = Stopwatch.StartNew();
         var result = await RunModuleSafelyAsync(module, inventory, cancellationToken).ConfigureAwait(false);
         stopwatch.Stop();
@@ -324,7 +324,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
             ApplicationVersion = _buildInfo?.Get().Version ?? "unknown",
         };
 
-        _state.TryTransitionTo(SystemState.Analyzing, "snapshot-built");
+        _state.TryTransitionTo(SystemState.Diagnostic, "snapshot-built");
         _state.TryTransitionTo(StateFromHealth(status), "scan-result");
         _protocol.Info("SYS", summary, status switch
         {
@@ -384,13 +384,20 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         }
     }
 
+    /// <summary>
+    /// How a finished run ends. "Warnings" are not a state of the machine (chapter 40 lists the
+    /// allowed states), they are part of the result. What matters here is only: did the run end with
+    /// a finding, did it end clean, or did it produce no definitive answer? The last case is
+    /// BLOCKED, never SUCCESS - a run that learned nothing must not look like a clean run
+    /// (chapters 86, 101).
+    /// </summary>
     private static SystemState StateFromHealth(HealthStatus status) => status switch
     {
         HealthStatus.Critical => SystemState.Error,
-        HealthStatus.Warning => SystemState.Warning,
-        HealthStatus.Attention => SystemState.Warning,
+        HealthStatus.Warning => SystemState.Error,
+        HealthStatus.Attention => SystemState.Error,
         HealthStatus.Healthy => SystemState.Success,
-        _ => SystemState.Warning,
+        _ => SystemState.Blocked,
     };
 
     private static IReadOnlyList<StorageDeviceInfo> ApplyReliability(

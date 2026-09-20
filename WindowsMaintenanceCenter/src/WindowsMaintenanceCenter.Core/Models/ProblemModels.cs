@@ -8,7 +8,7 @@ namespace WindowsMaintenanceCenter.Core.Models;
 /// </summary>
 public sealed record Problem
 {
-    /// <summary>Stable identifier in the form <c>HW-CPU-001</c>, <c>DRV-NVIDIA-001</c>, <c>BIOS-GIGABYTE-001</c>.</summary>
+    /// <summary>Stable error identifier in the form of chapter 85, e.g. <c>WMC-UPDATE-0042</c>.</summary>
     public string Id { get; init; } = string.Empty;
 
     public ComponentCategory Category { get; init; } = ComponentCategory.Unknown;
@@ -24,6 +24,13 @@ public sealed record Problem
     /// <summary>Observed facts only - machine data, counts, codes. No guesses.</summary>
     public string Evidence { get; init; } = string.Empty;
 
+    /// <summary>
+    /// WHY the finding is reported. This is deliberately a text and not a diagnosis: when the data
+    /// does not prove a cause, the default is the wording of chapter 87 - "the available data is not
+    /// enough to determine the cause unambiguously" (WMC-SPEC 20/87).
+    /// </summary>
+    public LocalizedText Cause { get; init; } = LocalizedText.Of("Problem_Cause_NotDeterminable");
+
     public LocalizedText Impact { get; init; } = LocalizedText.Of("Problem_Unknown_Impact");
 
     public LocalizedText RecommendedAction { get; init; } = LocalizedText.Of("Problem_Unknown_Action");
@@ -36,6 +43,12 @@ public sealed record Problem
 
     /// <summary>Identifier of the action that can fix this problem, if one exists.</summary>
     public string? ActionId { get; init; }
+
+    /// <summary>
+    /// Where the LOG entry for this finding lives (chapter 85). Null when nothing was written - that
+    /// is visible, instead of a file name that was made up.
+    /// </summary>
+    public string? LogReference { get; init; }
 
     /// <summary>Blocked operations that were refused because of this problem.</summary>
     public IReadOnlyList<BlockedOperation> BlockedOperations { get; init; } = Array.Empty<BlockedOperation>();
@@ -89,7 +102,11 @@ public sealed record BlockedOperation
 /// <summary>Draft used to register a problem; the registry assigns the identifier and timestamp.</summary>
 public sealed record ProblemDraft
 {
-    public string IdPrefix { get; init; } = "GEN";
+    /// <summary>
+    /// Optional: theme of the error identifier (chapter 85). Left empty the registry derives it from
+    /// <see cref="Category"/>, so a finding cannot end up in a theme that does not fit it.
+    /// </summary>
+    public string IdPrefix { get; init; } = string.Empty;
 
     public ComponentCategory Category { get; init; } = ComponentCategory.Unknown;
 
@@ -101,6 +118,12 @@ public sealed record ProblemDraft
 
     public string Evidence { get; init; } = string.Empty;
 
+    /// <summary>
+    /// WHY the finding is reported (chapter 85). Defaults to the wording of chapter 87: the cause is
+    /// not determinable from the data at hand. A caller that really has a proven cause sets it.
+    /// </summary>
+    public LocalizedText Cause { get; init; } = LocalizedText.Of("Problem_Cause_NotDeterminable");
+
     public LocalizedText Impact { get; init; } = LocalizedText.Of("Problem_Unknown_Impact");
 
     public LocalizedText RecommendedAction { get; init; } = LocalizedText.Of("Problem_Unknown_Action");
@@ -110,6 +133,12 @@ public sealed record ProblemDraft
     public string? ComponentName { get; init; }
 
     public string? ActionId { get; init; }
+
+    /// <summary>
+    /// Where the LOG entry for this finding lives (chapter 85). Null when nothing was written, which
+    /// is visible instead of being replaced by a made up file name.
+    /// </summary>
+    public string? LogReference { get; init; }
 
     public bool RequiresAdministrator { get; init; }
 

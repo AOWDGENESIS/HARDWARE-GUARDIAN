@@ -743,6 +743,14 @@
     "WindowsUpdate_Install_SucceededWithErrors": "Das Update wurde mit Fehlern installiert (Ergebniscode {0}); der Zustand ist nachzuprüfen.",
     "WindowsUpdate_Install_Failed": "Die Installation ist fehlgeschlagen (Ergebniscode {0}).",
     "Progress_Update_Download": "Update wird geladen",
-    "Progress_Update_Install": "Update wird installiert"
+    "Progress_Update_Install": "Update wird installiert",
+    "Problem_Cause_NotDeterminable": "Die vorliegenden Daten reichen nicht aus, um die Ursache eindeutig festzustellen.",
+    "Report_Cause": "Warum",
+    "Report_LogReference": "Protokolleintrag",
+    "Report_LogReference_None": "kein Eintrag geschrieben",
+    "Column_Why": "Warum",
+    "Column_Impact": "Auswirkung",
+    "Column_NextStep": "Nächster Schritt",
+    "Column_Log": "Protokoll"
   }
 }

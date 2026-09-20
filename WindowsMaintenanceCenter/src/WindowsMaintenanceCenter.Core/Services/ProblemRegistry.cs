@@ -7,48 +7,57 @@ using Microsoft.Extensions.Logging;
 namespace WindowsMaintenanceCenter.Core.Services;
 
 /// <summary>
-/// Assigns stable problem identifiers in the documented form (spec section 67):
-/// <c>HW-CPU-001</c>, <c>HW-BOARD-002</c>, <c>DRV-NVIDIA-001</c>, <c>BIOS-GIGABYTE-001</c>.
+/// Assigns stable error identifiers in the form the specification uses for every error entry
+/// (chapter 85): <c>WMC-&lt;Thema&gt;-&lt;Nummer&gt;</c>, for example <c>WMC-UPDATE-0042</c>.
+/// The theme is derived from the component category, so the same kind of finding always carries the
+/// same theme, and the number counts per theme. A vendor specific driver error keeps the vendor:
+/// <c>WMC-DRIVER-NVIDIA-001</c>.
 /// </summary>
 public static class ProblemIdFactory
 {
-    public static string CategoryPrefix(ComponentCategory category) => category switch
+    /// <summary>Prefix every identifier starts with: the product, then the theme.</summary>
+    public const string ProductPrefix = "WMC";
+
+    public static string ThemeToken(ComponentCategory category) => category switch
     {
-        ComponentCategory.Cpu => "HW-CPU",
-        ComponentCategory.Motherboard => "HW-BOARD",
-        ComponentCategory.Chipset => "HW-CHIPSET",
+        ComponentCategory.Cpu => "CPU",
+        ComponentCategory.Motherboard => "BOARD",
+        ComponentCategory.Chipset => "CHIPSET",
         ComponentCategory.Bios => "BIOS",
-        ComponentCategory.Firmware => "FW",
-        ComponentCategory.Memory => "HW-RAM",
-        ComponentCategory.Graphics => "HW-GPU",
-        ComponentCategory.Storage => "HW-STORAGE",
-        ComponentCategory.Network => "HW-NET",
-        ComponentCategory.Audio => "HW-AUDIO",
-        ComponentCategory.Usb => "HW-USB",
-        ComponentCategory.Pci => "HW-PCI",
-        ComponentCategory.Monitor => "HW-MON",
-        ComponentCategory.Printer => "HW-PRINT",
-        ComponentCategory.Battery => "HW-BAT",
+        ComponentCategory.Firmware => "FIRMWARE",
+        ComponentCategory.Memory => "MEMORY",
+        ComponentCategory.Graphics => "GPU",
+        ComponentCategory.Storage => "STORAGE",
+        ComponentCategory.Network => "NETWORK",
+        ComponentCategory.Audio => "AUDIO",
+        ComponentCategory.Usb => "USB",
+        ComponentCategory.Pci => "PCI",
+        ComponentCategory.Monitor => "MONITOR",
+        ComponentCategory.Printer => "PRINTER",
+        ComponentCategory.Battery => "BATTERY",
         ComponentCategory.Sensor => "SENSOR",
-        ComponentCategory.Driver => "DRV",
-        ComponentCategory.Windows => "WIN",
-        ComponentCategory.Update => "UPD",
-        ComponentCategory.Maintenance => "MNT",
-        ComponentCategory.Security => "SEC",
-        ComponentCategory.System => "HW-SYS",
-        _ => "GEN",
+        ComponentCategory.Driver => "DRIVER",
+        ComponentCategory.Windows => "WINDOWS",
+        ComponentCategory.Update => "UPDATE",
+        ComponentCategory.Maintenance => "MAINTENANCE",
+        ComponentCategory.Security => "SECURITY",
+        ComponentCategory.System => "SYSTEM",
+        _ => "GENERAL",
     };
 
-    /// <summary>Manufacturer specific driver prefix, e.g. <c>DRV-NVIDIA</c>.</summary>
+    /// <summary>Identifier prefix for a category, for example <c>WMC-UPDATE</c>.</summary>
+    public static string CategoryPrefix(ComponentCategory category) => $"{ProductPrefix}-{ThemeToken(category)}";
+
+    /// <summary>Manufacturer specific driver prefix, e.g. <c>WMC-DRIVER-NVIDIA</c>.</summary>
     public static string VendorPrefix(string adapterId)
     {
         if (string.IsNullOrWhiteSpace(adapterId))
         {
-            return "DRV";
+            return CategoryPrefix(ComponentCategory.Driver);
         }
 
         var cleaned = new string(adapterId.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
-        return cleaned.Length == 0 ? "DRV" : $"DRV-{cleaned}";
+        return cleaned.Length == 0 ? CategoryPrefix(ComponentCategory.Driver) : $"WMC-DRIVER-{cleaned}";
     }
 }
 
@@ -109,12 +118,14 @@ public sealed class ProblemRegistry : IProblemRegistry
                 Title = draft.Title,
                 Description = draft.Description,
                 Evidence = draft.Evidence,
+                Cause = draft.Cause,
                 Impact = draft.Impact,
                 RecommendedAction = draft.RecommendedAction,
                 DetectedAt = _clock.Now,
                 ComponentId = draft.ComponentId,
                 ComponentName = draft.ComponentName,
                 ActionId = draft.ActionId,
+                LogReference = draft.LogReference,
                 RequiresAdministrator = draft.RequiresAdministrator,
                 References = draft.References,
                 BlockedOperations = draft.BlockedOperation is null

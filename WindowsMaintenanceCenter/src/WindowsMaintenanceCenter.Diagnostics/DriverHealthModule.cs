@@ -76,7 +76,7 @@ public sealed class DriverHealthModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "HW-DRV",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Driver),
                 Category = ComponentCategory.Driver,
                 Severity = Severity.Error,
                 Title = LocalizedText.Of("Problem_DriverUnsigned_Title", unsigned),
@@ -94,7 +94,7 @@ public sealed class DriverHealthModule : DiagnosticModuleBase
             // Fail closed: an unverified signature is not a valid signature.
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "HW-DRV",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Driver),
                 Category = ComponentCategory.Driver,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_DriverSignatureUnknown_Title", signatureUnknown),
@@ -113,7 +113,7 @@ public sealed class DriverHealthModule : DiagnosticModuleBase
             // An empty inventory is a statement about the read operation, not about the machine.
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "HW-DRV",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Driver),
                 Category = ComponentCategory.Driver,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_DriverInventoryEmpty_Title"),

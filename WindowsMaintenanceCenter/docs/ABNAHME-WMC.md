@@ -16,7 +16,7 @@ Damit gilt:
 | Ebene | Zustand |
 | --- | --- |
 | Build (Gate 1) | nie ausgeführt → `BLOCKED` |
-| Unit-Tests (Gate 2) | 206 Testfälle geschrieben, nie ausgeführt → `BLOCKED` |
+| Unit-Tests (Gate 2) | 245 Testfälle in 19 Dateien geschrieben, nie ausgeführt → `BLOCKED` |
 | Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | nie ausgeführt → `BLOCKED` |
 | Installer/Uninstaller (Gate 7) | Definition geschrieben, nie kompiliert → `BLOCKED` |
 | Lokalisierung (Gate 8) | 2 von 4 Sprachen vorhanden; keine Sprachprüfung gelaufen → `BLOCKED` |
@@ -57,16 +57,16 @@ weit die Umsetzung ist - sie ist **kein** Abnahmenachweis.
 | M22 Restore Points | P0 | Erstellung und Nachweis | `M22-F-002` Validierung der Erstellung im Lauf; Bezeichnung je Vorgang statt fester Text |
 | M23 Backup Engine | P0 | Erzeugung, eindeutige ID, Manifest, Gate im Wartungsablauf | Lesbarkeitsprüfung, `M23-S-001` ungültiges Backup nie als gültig, `M23-R-001` Recovery-Verwendung |
 | M24 Rollback Engine | P0 | Dienst vorhanden und registriert | Klassifizierung FULLY/PARTIALLY/NOT_REVERSIBLE, Ausführung, Nachprüfung, Kennzeichnung vor der Aktion, erreichbar aus der Oberfläche |
-| M25 Change Journal | P0 | Audit-Protokoll (JSON + TXT) mit Zeit, Aktion, Ziel, Ergebnis | Felder BEFORE, BACKUP, APPROVAL, ERROR, ROLLBACK je Eintrag; eigene Journal-Sicht |
+| M25 Change Journal | P0 | Audit-Protokoll (JSON + TXT) mit Zeit, Aktion, Ziel, Ergebnis; Fehler tragen jetzt WHY (`Cause`) und LOG (`LogReference`) nach Kapitel 85 | Felder BEFORE, BACKUP, APPROVAL, ERROR, ROLLBACK je Eintrag; eigene Journal-Sicht; SQLite-Spiegel (Entscheid: JSON bleibt Standard, SQLite zusätzlich) |
 | M26 Maintenance Plans | P1 | nichts | erstellen, bearbeiten, aktivieren, deaktivieren, löschen; automatischer Neustart nur mit expliziter Aktivierung |
 | M27 One-Click Maintenance | P0 | nichts | gesamter Ablauf DISCOVERY→…→REPORT inklusive Vorher/Nachher-Messung |
 | M28 Reporting | P1 | HTML, TXT, JSON mit echten Systemdaten und Aktionen | **PDF fehlt** (Auftrag: umsetzen); `M28-F-005` übersprungene Aktionen im Bericht |
 | M29 Offline Engine | P0 | Offline-Erkennung, Sperren für Online-Funktionen | Offline-Lauf über alle lokalen Module als Nachweis |
 | M30 AI | P2 | nichts | Modul „Windows Stalker": strukturierte Daten lesen, Empfehlungen mit Begründung, kein Shell-Zugriff, kein Versand privater Daten |
 | M31 Admin Worker | P0 | Start ohne Adminrechte, Hinweis auf Erfordernis | **`M31-S-001`/`M31-S-002` verletzt**: heute startet die ganze Anwendung erhöht neu, statt eine registrierte Aktion privilegiert auszuführen; UAC-Abbruch behandeln |
-| M32 Action Registry | P0 | Vorlagenkatalog mit Parametermuster, Timeouts | Aktionen mit ID, Risiko, Adminbedarf, Argumenten, Validierung, Rollback, Timeout, Freigabe |
-| M33 Command Execution | P0 | Prozessläufer mit Whitelist, Timeout, Exit-Code, Abbruch | Nachweis der Timeout- und Abbrucherkennung |
-| M34 State Machine | P0 | Zustandsautomat vorhanden | **Zustandsnamen weichen ab**: Spezifikation verlangt INITIALIZING, DISCOVERY, DIAGNOSTIC, PLAN_GENERATED, AWAITING_APPROVAL, BACKUP, EXECUTING, VALIDATING, SUCCESS, ERROR, ROLLBACK, RECOVERING, BLOCKED, CANCELLED; RECOVERING fehlt ganz |
+| M32 Action Registry | P0 | Vorlagenkatalog mit Parametermuster, Timeouts; Fehlerkennungen nach Kapitel 85 (`WMC-<Thema>-<Nr>`) | Aktionen mit ID, Risiko, Adminbedarf, Argumenten, Validierung, Rollback, Timeout, Freigabe |
+| M33 Command Execution | P0 | Prozessläufer mit Whitelist, Timeout, Exit-Code, Abbruch; Fehlerkennungen nach Kapitel 85 (`WMC-<Thema>-<Nr>`, z. B. `WMC-UPDATE-0042`) | Nachweis der Timeout- und Abbrucherkennung |
+| M34 State Machine | P0 | **angeglichen**: genau die vierzehn Zustände des Kapitels 40 (in dieser Runde umbenannt, PLAN_GENERATED und RECOVERING neu). WARNUNG ist kein Zustand mehr - ein Lauf mit Befunden endet in ERROR, ein Lauf ohne eindeutiges Ergebnis in BLOCKED statt SUCCESS; aus EXECUTING führt kein Weg direkt nach SUCCESS | `M34-F-001` jeder Zustand **wird gespeichert** (heute nur im Arbeitsspeicher, keine Persistenz) und `M34-R-001` Wiedererkennen unterbrochener Jobs - beides gehört zu M35 und ist offen |
 | M35 Recovery Engine | P0 | nichts | unterbrochene Jobs erkennen, Backup-/Rollbackstatus, Optionen anzeigen, ohne Freigabe nichts Riskantes tun |
 | M36 Configuration | P0 | Laden, Speichern, Schema-Version, Schutz vor ungültiger Konfiguration | `M36-F-003` Migration inklusive Sicherung vor der Migration |
 | M37 Localization | P1 | Deutsch und Englisch vollständig (742 Schlüssel je Sprache), Prüfwerkzeug sauber | **Japanisch und Russisch fehlen**; Datums-/Zahlenformate belegen; Fallback definieren und prüfen |
@@ -116,6 +116,21 @@ Ordner sind leer, weil kein Test ausgeführt wurde - genau das schreibt die Spez
 (Kapitel 5: ein Test ohne Nachweis gilt als `NOT VERIFIED`).
 
 ---
+
+## 2a. Umgesetzt in der Runde vom 2026-09-20 (zweite Runde nach der Spezifikation)
+
+| Punkt | Was geändert wurde | Fundstelle |
+| --- | --- | --- |
+| M34 Zustandsmodell | Genau die vierzehn Zustände des Kapitels 40; die Übergangstabelle erlaubt aus DISCOVERY keinen Sprung in EXECUTING und aus EXECUTING keinen Sprung nach SUCCESS (Nachweis: 9 Testfälle) | `Core/Enums.cs`, `Core/Services/SystemStateMachine.cs` |
+| Laufausgang | `StateFromHealth` endet bei kritischen oder warnenden Befunden in ERROR und ohne eindeutiges Ergebnis in BLOCKED - nie in SUCCESS (Kapitel 86/101) | `Core/Diagnostics/ScanOrchestrator.cs` |
+| Kapitel 85 Fehlerkennung | Format `WMC-<Thema>-<Nummer>`, z. B. `WMC-UPDATE-0042`, `WMC-DRIVER-NVIDIA-001`; das Thema kommt aus der Kategorie, ein leerer Präfix wird daraus gefüllt statt „GEN" | `Core/Services/ProblemRegistry.cs` |
+| Kapitel 85 Fehlerdarstellung | Jeder Fehler hat WHAT (Titel), WHY (`Cause`, Standard „Ursache nicht eindeutig feststellbar"), IMPACT, ACTION und LOG (`LogReference`, leer wenn nichts geschrieben wurde); sichtbar im Dashboard (neue Spalten) und im TXT-/JSON-Bericht | `Core/Models/ProblemModels.cs`, `App/Views/DashboardView.xaml`, `Reporting/ReportGenerator.cs` |
+| Texte | 8 neue Schlüssel je Sprache (746 → 750 nach der Dashboard-Erweiterung) | `Core/Resources/{de,en}.json` |
+
+Nicht umgesetzt und weiterhin offen: die Persistenz des Zustands über einen Neustart (`M34-F-001`
+verlangt „jeder Zustand wird gespeichert") und das Wiedererkennen unterbrochener Jobs
+(`M34-R-001`/M35). Beides braucht die Recovery-Engine und, nach dem Entscheid zur Datenhaltung, den
+SQLite-Spiegel.
 
 ## 3. Reihenfolge bis zur ersten belastbaren Abnahme
 

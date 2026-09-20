@@ -743,6 +743,14 @@
     "WindowsUpdate_Install_SucceededWithErrors": "The update was installed with errors (result code {0}); the state has to be verified.",
     "WindowsUpdate_Install_Failed": "The installation failed (result code {0}).",
     "Progress_Update_Download": "Downloading the update",
-    "Progress_Update_Install": "Installing the update"
+    "Progress_Update_Install": "Installing the update",
+    "Problem_Cause_NotDeterminable": "The available data is not sufficient to determine the cause unambiguously.",
+    "Report_Cause": "Why",
+    "Report_LogReference": "Log entry",
+    "Report_LogReference_None": "no entry written",
+    "Column_Why": "Why",
+    "Column_Impact": "Impact",
+    "Column_NextStep": "Next step",
+    "Column_Log": "Log"
   }
 }

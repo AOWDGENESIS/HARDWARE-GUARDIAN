@@ -39,7 +39,7 @@ public sealed class InventoryFailureTests
 
         Assert.Equal(2, snapshot.InventoryFailedReads);
         Assert.Equal(2, snapshot.Problems.Count);
-        Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("HW-STORAGE", StringComparison.Ordinal));
+        Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("WMC-STORAGE", StringComparison.Ordinal));
         Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("DRV", StringComparison.Ordinal));
 
         // The evidence has to name the failed call, not just say "empty".

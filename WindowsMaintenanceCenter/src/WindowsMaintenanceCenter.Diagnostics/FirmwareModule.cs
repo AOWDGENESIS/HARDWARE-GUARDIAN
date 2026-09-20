@@ -3,6 +3,7 @@ using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Diagnostics;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Diagnostics;
 
@@ -63,7 +64,7 @@ public sealed class FirmwareModule : DiagnosticModuleBase
         {
             problems.Add(new ProblemDraft
             {
-                IdPrefix = "BIOS-REV",
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Bios) + "-REV",
                 Category = ComponentCategory.Bios,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_BoardRevisionUnverified_Title"),
@@ -80,7 +81,7 @@ public sealed class FirmwareModule : DiagnosticModuleBase
             case UpdateStatus.UpdateAvailable:
                 problems.Add(new ProblemDraft
                 {
-                    IdPrefix = "BIOS-UPD",
+                    IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Bios) + "-UPDATE",
                     Category = ComponentCategory.Bios,
                     Severity = assessment.IsSecurityRelevant ? Severity.Warning : Severity.Info,
                     Title = LocalizedText.Of("Problem_FirmwareUpdate_Title", assessment.Current.Raw.Display, assessment.Latest?.Raw.Display ?? "UNKNOWN"),
@@ -96,7 +97,7 @@ public sealed class FirmwareModule : DiagnosticModuleBase
             case UpdateStatus.Blocked:
                 problems.Add(new ProblemDraft
                 {
-                    IdPrefix = "BIOS-BLOCKED",
+                    IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Bios) + "-BLOCKED",
                     Category = ComponentCategory.Bios,
                     Severity = Severity.Info,
                     Title = LocalizedText.Of("Problem_FirmwareCheckBlocked_Title"),
@@ -112,7 +113,7 @@ public sealed class FirmwareModule : DiagnosticModuleBase
             case UpdateStatus.Warning:
                 problems.Add(new ProblemDraft
                 {
-                    IdPrefix = "BIOS-UNKNOWN",
+                    IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Bios) + "-UNKNOWN",
                     Category = ComponentCategory.Bios,
                     Severity = Severity.Info,
                     Title = LocalizedText.Of("Problem_FirmwareUnknown_Title"),

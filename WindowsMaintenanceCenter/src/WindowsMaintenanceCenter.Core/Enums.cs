@@ -25,21 +25,55 @@ public enum Severity
 }
 
 /// <summary>Central state machine states (spec section 5).</summary>
+/// <summary>
+/// The only states the central state machine may take (WMC specification, chapter 40). The list is
+/// exhaustive on purpose: a state that is not named here does not exist, and "the run ended with
+/// warnings" is not a state of the machine - it is a result. A job that produced no definitive
+/// answer ends in <see cref="Blocked"/> (chapter 101: when in doubt, block) instead of claiming
+/// <see cref="Success"/>.
+/// </summary>
 public enum SystemState
 {
-    Idle,
-    Scanning,
-    Analyzing,
-    CheckingUpdates,
-    WaitingForApproval,
-    BackupRequired,
+    /// <summary>INITIALIZING - the application is starting, nothing has been read yet.</summary>
+    Initializing,
+
+    /// <summary>DISCOVERY - hardware and system data are being read (read only).</summary>
+    Discovery,
+
+    /// <summary>DIAGNOSTIC - the read data is being assessed.</summary>
+    Diagnostic,
+
+    /// <summary>PLAN_GENERATED - a plan exists that names every action it intends to take.</summary>
+    PlanGenerated,
+
+    /// <summary>AWAITING_APPROVAL - the user has been asked and has not answered yet.</summary>
+    AwaitingApproval,
+
+    /// <summary>BACKUP - a backup or restore point is being created before the change.</summary>
+    Backup,
+
+    /// <summary>EXECUTING - an approved action is running.</summary>
     Executing,
-    Verifying,
+
+    /// <summary>VALIDATING - the result of the action is being measured.</summary>
+    Validating,
+
+    /// <summary>SUCCESS - executed and validated.</summary>
     Success,
-    Warning,
+
+    /// <summary>ERROR - the run failed and the failure is recorded.</summary>
     Error,
+
+    /// <summary>BLOCKED - the run stopped for a reason, nothing risky was done.</summary>
     Blocked,
+
+    /// <summary>ROLLBACK - an earlier change is being undone.</summary>
     Rollback,
+
+    /// <summary>RECOVERING - an interrupted job is being examined after a restart.</summary>
+    Recovering,
+
+    /// <summary>CANCELLED - the user stopped the run.</summary>
     Cancelled,
 }
 

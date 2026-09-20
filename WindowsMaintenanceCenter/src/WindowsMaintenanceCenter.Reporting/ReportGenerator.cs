@@ -170,8 +170,13 @@ public sealed class ReportGenerator : IReportGenerator
                     ["status"] = p.Status.ToString(),
                     ["title"] = _localizer.Resolve(p.Title),
                     ["description"] = _localizer.Resolve(p.Description),
+                    // Kapitel 85: jeder Fehler hat WHAT (title), WHY (cause), IMPACT (impact),
+                    // ACTION (recommendedAction) und LOG (logReference). Ein nicht geschriebener
+                    // Logeintrag bleibt null, statt durch einen erfundenen Dateinamen ersetzt zu werden.
+                    ["cause"] = _localizer.Resolve(p.Cause),
                     ["impact"] = _localizer.Resolve(p.Impact),
                     ["recommendedAction"] = _localizer.Resolve(p.RecommendedAction),
+                    ["logReference"] = p.LogReference,
                     ["evidence"] = options.IncludeEvidence ? p.Evidence : "(evidence omitted by settings)",
                     ["detectedAt"] = p.DetectedAt.ToString("o", CultureInfo.InvariantCulture),
                     ["componentId"] = p.ComponentId,
@@ -421,8 +426,10 @@ public sealed class ReportGenerator : IReportGenerator
             {
                 builder.AppendLine($"[{problem.Id}] {problem.Severity} · {problem.Status} · {_localizer.Resolve(problem.Title)}");
                 builder.AppendLine($"    {_localizer.Resolve(problem.Description)}");
+                builder.AppendLine($"    {_localizer["Report_Cause"]}: {_localizer.Resolve(problem.Cause)}");
                 builder.AppendLine($"    {_localizer["Report_Impact"]}: {_localizer.Resolve(problem.Impact)}");
                 builder.AppendLine($"    {_localizer["Report_RecommendedAction"]}: {_localizer.Resolve(problem.RecommendedAction)}");
+                builder.AppendLine($"    {_localizer["Report_LogReference"]}: {problem.LogReference ?? _localizer["Report_LogReference_None"]}");
                 if (options.IncludeEvidence && !string.IsNullOrWhiteSpace(problem.Evidence))
                 {
                     builder.AppendLine($"    {_localizer["Report_Evidence"]}: {problem.Evidence}");
