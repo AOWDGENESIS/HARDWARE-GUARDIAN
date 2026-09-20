@@ -25,6 +25,12 @@
 
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <!--
+      xUnit v3 runs on the Microsoft.Testing.Platform, and the .NET 10 SDK refuses the old VSTest
+      target for it. The TRX report therefore comes from the platform extension that belongs to the
+      same release train as the restored Microsoft.Testing.Platform.MSBuild (2.4.0).
+    -->
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.4.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
   </ItemGroup>

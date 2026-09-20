@@ -90,8 +90,11 @@ def build() -> str:
                 ("Release|Any CPU", "Release|Any CPU"),
             ):
                 lines.append(f"\t\t{guid}.{configuration}.ActiveCfg = {target}")
-                if configuration in ("Debug|x64", "Release|x64"):
-                    lines.append(f"\t\t{guid}.{configuration}.Build.0 = {target}")
+                # Build.0 for every configuration and platform. Without the entry for "Any CPU" a
+                # solution build for the default platform finds nothing to build and reports
+                # "Build succeeded" in a tenth of a second - a success that built nothing. That is
+                # exactly the kind of statement this project is not allowed to make.
+                lines.append(f"\t\t{guid}.{configuration}.Build.0 = {target}")
     lines.append("\tEndGlobalSection")
     lines.append("\tGlobalSection(SolutionProperties) = preSolution")
     lines.append("\t\tHideSolutionNode = FALSE")

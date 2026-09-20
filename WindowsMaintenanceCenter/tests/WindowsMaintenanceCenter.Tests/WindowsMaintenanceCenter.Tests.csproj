@@ -6,12 +6,19 @@
     <IsPackable>false</IsPackable>
     <!-- xUnit v3 test projects are executables; the VSTest adapter runs them as well. -->
     <OutputType>Exe</OutputType>
+    <!--
+      The .NET 10 SDK does not run Microsoft.Testing.Platform projects through the old VSTest target
+      any more ("Testing with VSTest target is no longer supported"). Without this switch `dotnet
+      test` fails, and a failing test run must never be turned into a green one by dropping the tests.
+    -->
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
   </ItemGroup>
 
   <ItemGroup>

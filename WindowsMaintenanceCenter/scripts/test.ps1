@@ -23,9 +23,10 @@ param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [string]$Filter = '',
 
-    # The suite has 16 test classes with 125 test cases. A lower number means tests were skipped or
-    # not discovered, which must fail the run instead of looking like a green suite (spec 61 and 87).
-    [int]$MinimumTests = 120
+    # The suite had 314 cases when they were first counted on 2026-09-20. A lower number means tests
+    # were skipped or not discovered, which must fail the run instead of looking like a green suite
+    # (spec 61 and 87). Raise this number whenever cases are added; never lower it.
+    [int]$MinimumTests = 300
 )
 
 Set-StrictMode -Version Latest
@@ -37,12 +38,15 @@ $results = Join-Path $root 'artifacts/test-results'
 
 New-Item -ItemType Directory -Force -Path $results | Out-Null
 
+# xUnit v3 runs on the Microsoft.Testing.Platform: everything after "--" is read by the test
+# application itself, not by the SDK. The TRX file is produced by the platform's report extension.
 $arguments = @(
     'test', $project,
     '-c', $Configuration,
-    '--results-directory', $results,
-    '--logger', 'trx;LogFileName=windowsmaintenancecenter.trx',
-    '--logger', 'console;verbosity=normal'
+    '--',
+    '--report-trx',
+    '--report-trx-filename', 'windowsmaintenancecenter.trx',
+    '--results-directory', $results
 )
 if (-not [string]::IsNullOrWhiteSpace($Filter)) {
     $arguments += @('--filter', $Filter)
