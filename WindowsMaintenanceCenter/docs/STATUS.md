@@ -3,7 +3,7 @@
 This file is deliberately blunt. It exists so that no reader can mistake the current
 state for a finished product. It is updated after every work session.
 
-Last updated: 2026-09-20 (sixth session)
+Last updated: 2026-09-20 (seventh session)
 
 ---
 
@@ -11,18 +11,18 @@ Last updated: 2026-09-20 (sixth session)
 
 | Capability | State | Consequence |
 | --- | --- | --- |
-| .NET SDK / `dotnet build` | **NOT AVAILABLE** (no SDK, no install path: `dot.net` unreachable, no apt package) | **No project in this repository has ever been compiled.** |
-| NuGet restore (`dotnet restore`) | **NOT AVAILABLE** (api.nuget.org unreachable from the shell) | Package pins were verified against the NuGet flat-container index, but no package has been downloaded. |
+| .NET SDK / `dotnet build` | **NOT AVAILABLE IN THIS CONTAINER** (no SDK, no install path) — but a GitHub hosted Windows runner builds the whole solution: run `35505778032`, 15 projects including WPF, 0 errors | The build is proven **on the CI machine**, never here. What that machine cannot prove (sensors, battery, UAC prompt, reboot) is listed in `docs/VM-CI.md` |
+| NuGet restore (`dotnet restore`) | **NOT AVAILABLE IN THIS CONTAINER**; the CI runner restores every package and the restore log is filed with each run | The pins are exercised for real now; a package that cannot be resolved fails the CI run instead of being discovered later |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
 | Syntax check (tree-sitter C# grammar) | AVAILABLE | All 131 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
-| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/WindowsMaintenanceCenter.Tests` exists (18 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. Nothing in this document claims that a test passed. |
+| Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 315 cases, 0 failed, run `35505778032`; the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260920T104338Z-315-of-315/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
 
 Therefore, for the current revision:
 
-- Build status: **NOT BUILT**
-- Test status: **NOT TESTED**
+- Build status: **BUILT ON THE WINDOWS CI MACHINE** (run `35505778032`, 0 errors, 50 warnings); **never built in this container**
+- Test status: **315 cases executed, 315 passed on the Windows CI machine**; nothing verified on the target machine
 - Type correctness: **NOT VERIFIED** (no compiler available)
 - Runtime behaviour on Windows: **NOT VERIFIED** (no Windows, no hardware)
 
