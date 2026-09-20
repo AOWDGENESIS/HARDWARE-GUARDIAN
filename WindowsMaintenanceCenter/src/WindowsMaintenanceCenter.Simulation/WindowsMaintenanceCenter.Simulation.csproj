@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Simulation</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Simulation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+  </ItemGroup>
+
+</Project>

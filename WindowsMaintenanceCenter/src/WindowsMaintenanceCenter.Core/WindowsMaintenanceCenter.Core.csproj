@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Core</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only logging abstractions: the core layer stays free of Windows APIs so it is unit testable everywhere. -->
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Default localisation is embedded so a portable exe always carries both languages.
+         The resource files stay the only place that holds user visible text. -->
+    <EmbeddedResource Include="Resources\en.json" />
+    <EmbeddedResource Include="Resources\de.json" />
+  </ItemGroup>
+
+</Project>

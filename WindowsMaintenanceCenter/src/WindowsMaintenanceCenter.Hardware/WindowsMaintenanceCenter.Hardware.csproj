@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Hardware</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Hardware</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The only place that talks to WMI. Everything else depends on IHardwareProvider. -->
+    <PackageReference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+  </ItemGroup>
+
+</Project>

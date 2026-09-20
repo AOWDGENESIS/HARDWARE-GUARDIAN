@@ -1,0 +1,115 @@
+name: Windows Maintenance Center
+
+# Two independent jobs:
+#   checks    - the checks that need no Windows and no SDK (contracts, localisation, XAML, projects,
+#               syntax). They run on every push so that an invented member or a missing key is caught
+#               immediately.
+#   windows   - the real build, the real tests and the release artefacts. This is the job that
+#               produces the evidence the project is missing.
+#
+# Nothing in this workflow is allowed to report success without having run. A skipped or failed step
+# fails the job; there is no "continue on error" for build and test.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'WindowsMaintenanceCenter/**'
+      - '.github/workflows/windowsmaintenancecenter.yml'
+  pull_request:
+    paths:
+      - 'WindowsMaintenanceCenter/**'
+      - '.github/workflows/windowsmaintenancecenter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The application ships no telemetry (spec section 28) and the build sends none either.
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  # Fail a restore that would silently ignore a lock file.
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+defaults:
+  run:
+    working-directory: WindowsMaintenanceCenter
+
+jobs:
+  checks:
+    name: Checks without SDK (contracts, localisation, XAML, projects, syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the C# grammar for the syntax check
+        run: |
+          python -m pip install --disable-pip-version-check tree-sitter==0.26.0 tree-sitter-c-sharp
+      - name: Run every available check
+        run: bash tools/verify-all.sh
+
+  windows:
+    name: Build, test and package (Windows, .NET 10)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Show the SDK that is used
+        run: dotnet --info
+      - name: Restore
+        run: dotnet restore WindowsMaintenanceCenter.sln
+      - name: Build (warnings as errors)
+        run: dotnet build WindowsMaintenanceCenter.sln -c Release --no-restore -p:TreatWarningsAsErrors=true
+      - name: Tests
+        run: pwsh ./scripts/test.ps1 -Configuration Release
+      - name: Publish the portable executable
+        run: pwsh ./scripts/build.ps1 -Configuration Release -RuntimeIdentifier win-x64 -OutputDirectory artifacts/portable
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build installer, checksums and release notes
+        run: pwsh ./scripts/release.ps1
+      - name: Check that the release really produced the four required artefacts
+        shell: pwsh
+        run: |
+          $release = 'artifacts/release'
+          $required = @(
+            'WindowsMaintenanceCenter-Portable-x64.exe',
+            'WindowsMaintenanceCenterSetup-x64.exe',
+            'WindowsMaintenanceCenter-Checksums.txt',
+            'WindowsMaintenanceCenter-ReleaseNotes.txt'
+          )
+          foreach ($name in $required) {
+            $path = Join-Path $release $name
+            if (-not (Test-Path $path)) { throw "the release is incomplete: $name is missing" }
+            $size = (Get-Item $path).Length
+            if ($size -le 0) { throw "$name is empty" }
+            Write-Host ("{0,-40} {1,12:N0} bytes" -f $name, $size)
+          }
+      - name: Verify the checksum file against the artefacts
+        shell: pwsh
+        run: |
+          $release = 'artifacts/release'
+          $expected = Get-Content "$release/WindowsMaintenanceCenter-Checksums.txt"
+          foreach ($line in $expected) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $parts = $line -split '\s+', 2
+            $actual = (Get-FileHash -Algorithm SHA256 "$release/$($parts[1])").Hash.ToLowerInvariant()
+            if ($actual -ne $parts[0]) { throw "checksum mismatch for $($parts[1])" }
+          }
+          Write-Host 'all checksums match the artefacts'
+      - name: Upload the artefacts, the test results and the download diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windowsmaintenancecenter-release
+          path: |
+            WindowsMaintenanceCenter/artifacts/release/*
+            WindowsMaintenanceCenter/artifacts/test-results/*
+          if-no-files-found: error
+          retention-days: 30

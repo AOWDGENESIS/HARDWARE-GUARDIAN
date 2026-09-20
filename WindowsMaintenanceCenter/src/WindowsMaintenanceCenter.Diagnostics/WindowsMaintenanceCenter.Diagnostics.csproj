@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Diagnostics</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Diagnostics</AssemblyName>
+    <Description>Diagnostic modules: CPU, memory, board, BIOS, graphics, storage, network, sensors, drivers, Windows health, workload and firmware analysis.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>WindowsMaintenanceCenter.App</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter</AssemblyName>
+    <ApplicationIcon />
+    <Product>Windows Maintenance Center</Product>
+    <AssemblyTitle>Windows Maintenance Center</AssemblyTitle>
+    <Description>Windows hardware diagnostics, maintenance and update centre.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Infrastructure\WindowsMaintenanceCenter.Infrastructure.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Hardware\WindowsMaintenanceCenter.Hardware.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Diagnostics\WindowsMaintenanceCenter.Diagnostics.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Sensors\WindowsMaintenanceCenter.Sensors.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Drivers\WindowsMaintenanceCenter.Drivers.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Bios\WindowsMaintenanceCenter.Bios.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Security\WindowsMaintenanceCenter.Security.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Manufacturer\WindowsMaintenanceCenter.Manufacturer.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Maintenance\WindowsMaintenanceCenter.Maintenance.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Reporting\WindowsMaintenanceCenter.Reporting.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Windows\WindowsMaintenanceCenter.Windows.csproj" />
+    <!-- The simulation fixture is compiled in on purpose: it is the only way to show the UI on a
+         machine without Windows hardware access, and every value it produces is labelled as
+         simulation. It is never selected automatically. -->
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Simulation\WindowsMaintenanceCenter.Simulation.csproj" />
+  </ItemGroup>
+
+</Project>

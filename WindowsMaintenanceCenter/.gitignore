@@ -1,0 +1,58 @@
+# Windows Maintenance Center - build & tooling artefacts
+# Release artefacts are reproducible and must never be committed.
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+release/
+TestResults/
+*.trx
+coverage*.xml
+coverage*.json
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+# Central package management lock file is committed on purpose (reproducible restore)
+# packages.lock.json is NOT ignored.
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# MSBuild
+*.binlog
+*.metaproj
+*.metaproj.tmp
+
+# Inno Setup output
+installer/Output/
+*.iss.bak
+
+# Portable/runtime data (never commit local machine state)
+*.dmp
+*.etl
+*.hglocal
+
+# Python-Werkzeuge: von den Prüfskripten erzeugte Caches
+__pycache__/
+*.pyc

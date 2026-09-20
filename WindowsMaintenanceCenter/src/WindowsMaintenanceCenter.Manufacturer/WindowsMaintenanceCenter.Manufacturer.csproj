@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Manufacturer</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Manufacturer</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Infrastructure\WindowsMaintenanceCenter.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>WindowsMaintenanceCenter.Sensors</RootNamespace>
+    <AssemblyName>WindowsMaintenanceCenter.Sensors</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Core\WindowsMaintenanceCenter.Core.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Hardware\WindowsMaintenanceCenter.Hardware.csproj" />
+    <ProjectReference Include="..\WindowsMaintenanceCenter.Infrastructure\WindowsMaintenanceCenter.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
