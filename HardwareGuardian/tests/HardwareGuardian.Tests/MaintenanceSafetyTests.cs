@@ -66,6 +66,7 @@ public sealed class MaintenanceSafetyTests : IDisposable
     [Fact]
     public async Task Rejected_approval_blocks_the_execution_and_keeps_the_files()
     {
+        await DryRunAsync();
         var plan = await ExecutePlanAsync();
         var rejected = Approval(plan, ApprovalDecision.Rejected);
 
@@ -78,6 +79,7 @@ public sealed class MaintenanceSafetyTests : IDisposable
     [Fact]
     public async Task Approval_for_a_different_plan_blocks_the_execution()
     {
+        await DryRunAsync();
         var plan = await ExecutePlanAsync();
         var mismatched = Approval(plan, ApprovalDecision.Approved) with { OperationId = "PLAN-OTHER" };
 
@@ -124,6 +126,8 @@ public sealed class MaintenanceSafetyTests : IDisposable
     [Fact]
     public async Task An_approved_plan_never_touches_files_outside_the_allow_list()
     {
+        // The documented order: SCAN -> PLAN -> DRY RUN -> APPROVAL -> EXECUTE -> VERIFY.
+        await DryRunAsync();
         var plan = await ExecutePlanAsync();
         var approved = Approval(plan, ApprovalDecision.Approved);
 
@@ -138,6 +142,62 @@ public sealed class MaintenanceSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task Executing_without_a_dry_run_is_blocked_and_deletes_nothing()
+    {
+        // A perfectly valid approval is not enough: the mandatory dry run has to be on record for
+        // exactly these locations. This is the rule a direct caller of the service could otherwise
+        // bypass, and it is why the check lives in the service and not only in the user interface.
+        var plan = await ExecutePlanAsync();
+        var approved = Approval(plan, ApprovalDecision.Approved);
+
+        var result = await _service.ExecuteAsync(plan, approved, CancellationToken.None);
+
+        Assert.Equal(StageOutcome.Blocked, Assert.Single(result.Items).Outcome);
+        Assert.False(result.FreedBytes.HasValue);
+        Assert.All(_files, file => Assert.True(File.Exists(file), $"'{file}' was deleted without a dry run"));
+    }
+
+    [Fact]
+    public async Task A_dry_run_for_other_locations_does_not_authorise_the_execution()
+    {
+        // The dry run must cover what is executed. A dry run for a different folder leaves the
+        // execution blocked, even though a dry run happened at some point.
+        await DryRunAsync();
+
+        var otherRoot = Path.Combine(_paths.DataRoot, "other-target");
+        Directory.CreateDirectory(otherRoot);
+        var otherFile = Path.Combine(otherRoot, "cache-other.tmp");
+        File.WriteAllText(otherFile, new string('y', 1024));
+
+        var scan = new MaintenanceScanResult
+        {
+            ScannedAt = _clock.Now,
+            Items = new[] { Item(MaintenanceCategory.TemporaryFiles, SafetyClass.Safe, otherRoot) },
+            TotalSizeBytes = Measured<long>.Known(1024, ValueOrigin.LocalFile(_clock.Now, otherRoot)),
+        };
+
+        var plan = await _service.BuildPlanAsync(scan, new[] { MaintenanceCategory.TemporaryFiles }, ExecutionMode.Execute, CancellationToken.None);
+        var result = await _service.ExecuteAsync(plan, Approval(plan, ApprovalDecision.Approved), CancellationToken.None);
+
+        Assert.Equal(StageOutcome.Blocked, Assert.Single(result.Items).Outcome);
+        Assert.True(File.Exists(otherFile), "a dry run for another folder authorised a deletion");
+    }
+
+    [Fact]
+    public async Task A_dry_run_makes_the_execution_possible_and_records_the_link()
+    {
+        var dryPlan = await DryRunAsync();
+        var plan = await ExecutePlanAsync();
+
+        Assert.Equal(dryPlan.PlanId, plan.DryRunPlanId);
+
+        var result = await _service.ExecuteAsync(plan, Approval(plan, ApprovalDecision.Approved), CancellationToken.None);
+
+        Assert.Equal(ExecutionMode.Execute, result.Mode);
+        Assert.NotEqual(StageOutcome.Blocked, Assert.Single(result.Items).Outcome);
+    }
+
+    [Fact]
     public async Task Only_selected_categories_are_planned()
     {
         var scan = await ScanAsync();
@@ -146,15 +206,15 @@ public sealed class MaintenanceSafetyTests : IDisposable
         Assert.All(plan.Items, item => Assert.Equal(MaintenanceCategory.TemporaryFiles, item.Category));
     }
 
-    private MaintenanceItem Item(MaintenanceCategory category, SafetyClass safetyClass) => new()
+    private MaintenanceItem Item(MaintenanceCategory category, SafetyClass safetyClass, string? root = null) => new()
     {
         Id = category.ToString(),
         Category = category,
         SafetyClass = safetyClass,
         DisplayNameKey = "Maintenance_TemporaryFiles_Name",
         Description = LocalizedText.Of("Maintenance_TemporaryFiles_Description"),
-        RootPath = _cleanupRoot,
-        SizeBytes = Measured<long>.Known(6144, ValueOrigin.LocalFile(_clock.Now, _cleanupRoot)),
+        RootPath = root ?? _cleanupRoot,
+        SizeBytes = Measured<long>.Known(6144, ValueOrigin.LocalFile(_clock.Now, root ?? _cleanupRoot)),
         FileCount = Measured<int>.Known(_files.Count, ValueOrigin.LocalFile(_clock.Now, _cleanupRoot)),
         IsEnabledByDefault = safetyClass == SafetyClass.Safe,
         Notes = new[] { "synthetic test item" },
@@ -166,6 +226,19 @@ public sealed class MaintenanceSafetyTests : IDisposable
         Items = new[] { Item(MaintenanceCategory.TemporaryFiles, SafetyClass.Safe) },
         TotalSizeBytes = Measured<long>.Known(6144, ValueOrigin.LocalFile(_clock.Now, _cleanupRoot)),
     });
+
+    /// <summary>Runs the dry run of the documented pipeline and returns the plan it covered.</summary>
+    private async Task<MaintenancePlan> DryRunAsync()
+    {
+        var plan = await _service.BuildPlanAsync(
+            await ScanAsync(),
+            new[] { MaintenanceCategory.TemporaryFiles },
+            ExecutionMode.DryRun,
+            CancellationToken.None);
+
+        await _service.ExecuteDryRunAsync(plan, CancellationToken.None);
+        return plan;
+    }
 
     private async Task<MaintenancePlan> ExecutePlanAsync() => await _service.BuildPlanAsync(
         await ScanAsync(),

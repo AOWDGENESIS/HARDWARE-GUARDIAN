@@ -163,6 +163,7 @@
     "Integrity_Summary_ViolationsFound": "SFC found integrity violations. No repair was executed - a repair needs an approved DISM operation.",
     "Integrity_Verifying": "Verifying the new state",
     "Maintenance_Blocked_ApprovalMismatch": "The approval does not match this plan ({0}).",
+    "Maintenance_Blocked_DryRunRequired": "A dry run for exactly these locations is mandatory before anything is deleted. Recorded dry run: {1}, dry run named by this plan: {0}. Nothing was deleted.",
     "Maintenance_Blocked_NoAdmin": "{0} was blocked: administrator rights are required.",
     "Maintenance_Blocked_NoLocation": "{0} was blocked: no usable location was found.",
     "Maintenance_Blocked_NotApproved": "The maintenance run was blocked: {0}.",

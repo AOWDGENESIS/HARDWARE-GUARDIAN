@@ -66,6 +66,13 @@ public sealed record MaintenancePlan
 
     public DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>
+    /// Id of the dry run that covered exactly this set of locations (spec section 78). The service
+    /// fills it when the plan is built and refuses to execute a plan without it, so the mandatory
+    /// dry run cannot be skipped by calling the service directly.
+    /// </summary>
+    public string? DryRunPlanId { get; init; }
+
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Maintenance_Plan_Empty");
 }
 

@@ -354,4 +354,7 @@ public static class BlockReasons
 
     /// <summary>Set for a repair that is deliberately not automated (SFC repair, firmware flash).</summary>
     public const string RepairNotAutomated = "REPAIR_NOT_AUTOMATED";
+
+    /// <summary>Set when a maintenance execution has no dry run on record for the same locations.</summary>
+    public const string DryRunRequired = "DRY_RUN_REQUIRED";
 }

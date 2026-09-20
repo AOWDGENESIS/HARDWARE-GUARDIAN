@@ -24,6 +24,16 @@ public sealed class MaintenanceService : IMaintenanceService
     private readonly ISettingsService _settings;
     private readonly IClock _clock;
 
+    /// <summary>
+    /// Dry runs that were really performed, keyed by the locations they covered. It is the evidence
+    /// that the mandatory dry run happened for exactly this set of locations: a plan is only
+    /// executable when it names a dry run that is still on record. Without this, calling the service
+    /// directly (or a future caller) could delete files without ever having shown the user what would
+    /// happen - which the specification forbids (sections 44 to 46, 78).
+    /// </summary>
+    private readonly Dictionary<string, string> _dryRuns = new(StringComparer.Ordinal);
+    private readonly object _dryRunGate = new();
+
     public MaintenanceService(
         IPathGuard pathGuard,
         IAuditLog audit,
@@ -214,6 +224,10 @@ public sealed class MaintenanceService : IMaintenanceService
         {
             PlanId = $"MNT-{_clock.Now:yyyyMMdd-HHmmss}",
             Mode = mode,
+            // The dry run is looked up by the locations, not by the plan id: the execute plan is a
+            // separate object with a separate id, and without this link the execution would carry no
+            // evidence that a dry run ever covered these folders.
+            DryRunPlanId = mode == ExecutionMode.Execute ? RecordedDryRun(Fingerprint(items)) : null,
             Items = items,
             TotalBytesToFree = planned > 0
                 ? Measured<long>.Known(planned, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
@@ -268,6 +282,7 @@ public sealed class MaintenanceService : IMaintenanceService
             });
         }
 
+        RememberDryRun(plan);
         _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_DryRun_Completed"), $"{results.Count(r => r.Outcome == StageOutcome.Succeeded)} item(s) executable");
 
         await _audit.RecordAsync(
@@ -314,6 +329,51 @@ public sealed class MaintenanceService : IMaintenanceService
 
         var approvalValid = approval.Decision == ApprovalDecision.Approved
             && string.Equals(approval.OperationId, plan.PlanId, StringComparison.Ordinal);
+
+        // The mandatory dry run is enforced here and not only in the user interface: a caller that
+        // skips it must not be able to delete anything, even with a valid approval.
+        var recordedDryRun = RecordedDryRun(Fingerprint(plan.Items));
+        var dryRunValid = plan.DryRunPlanId is not null
+            && recordedDryRun is not null
+            && string.Equals(plan.DryRunPlanId, recordedDryRun, StringComparison.Ordinal);
+
+        if (approvalValid && !dryRunValid)
+        {
+            var reason = LocalizedText.Of(
+                "Maintenance_Blocked_DryRunRequired",
+                plan.DryRunPlanId ?? "none",
+                recordedDryRun ?? "none");
+
+            _protocol.Blocked(ModuleKey, LocalizedText.Of("Maintenance_Blocked_Title", plan.PlanId), reason.Key);
+            await _audit.RecordAsync(
+                OperationKind.Maintenance,
+                plan.PlanId,
+                ComponentCategory.Maintenance,
+                StageOutcome.Blocked,
+                approval: approval,
+                error: BlockReasons.DryRunRequired,
+                evidence: new[] { $"dryRunOnPlan={plan.DryRunPlanId ?? "none"}", $"dryRunOnRecord={recordedDryRun ?? "none"}" },
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            return new MaintenanceResult
+            {
+                PlanId = plan.PlanId,
+                Mode = plan.Mode,
+                StartedAt = started,
+                CompletedAt = _clock.Now,
+                Items = plan.Items.Select(i => new MaintenanceItemResult
+                {
+                    ItemId = i.ItemId,
+                    Category = i.Category,
+                    DisplayNameKey = i.DisplayNameKey,
+                    Outcome = StageOutcome.Blocked,
+                    PlannedBytes = i.SizeBytes,
+                    Message = reason,
+                }).ToList(),
+                FreedBytes = Measured<long>.NotAvailable($"blocked ({BlockReasons.DryRunRequired}): nothing was deleted"),
+                Summary = reason,
+            };
+        }
 
         if (!approvalValid)
         {
@@ -604,6 +664,34 @@ public sealed class MaintenanceService : IMaintenanceService
     /// Resolves the concrete roots of a target, including documented sub-directories such as the
     /// per-profile Firefox cache.
     /// </summary>
+    /// <summary>
+    /// Identifies the set of locations a plan covers (category, root, safety class). Two plans with
+    /// the same fingerprint would touch exactly the same places, so a dry run for one of them covers
+    /// the other. Anything else - another folder, another category, another safety class - does not.
+    /// </summary>
+    private static string Fingerprint(IReadOnlyList<MaintenancePlanItem> items) =>
+        string.Join(
+            "\n",
+            items
+                .Select(item => $"{item.Category}|{item.RootPath ?? "-"}|{item.SafetyClass}")
+                .OrderBy(entry => entry, StringComparer.Ordinal));
+
+    private void RememberDryRun(MaintenancePlan plan)
+    {
+        lock (_dryRunGate)
+        {
+            _dryRuns[Fingerprint(plan.Items)] = plan.PlanId;
+        }
+    }
+
+    private string? RecordedDryRun(string fingerprint)
+    {
+        lock (_dryRunGate)
+        {
+            return _dryRuns.TryGetValue(fingerprint, out var planId) ? planId : null;
+        }
+    }
+
     private static IReadOnlyList<string> ResolveRoots(CleanupTarget target)
     {
         if (string.IsNullOrWhiteSpace(target.Root))

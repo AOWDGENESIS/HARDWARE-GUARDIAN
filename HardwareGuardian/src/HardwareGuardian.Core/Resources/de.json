@@ -163,6 +163,7 @@
     "Integrity_Summary_ViolationsFound": "SFC hat Integritätsverletzungen gefunden. Es wurde nichts repariert - eine Reparatur benötigt eine freigegebene DISM-Aktion.",
     "Integrity_Verifying": "Der neue Zustand wird verifiziert",
     "Maintenance_Blocked_ApprovalMismatch": "Die Freigabe passt nicht zu diesem Plan ({0}).",
+    "Maintenance_Blocked_DryRunRequired": "Vor dem Löschen ist ein Trockenlauf für genau diese Orte Pflicht. Vermerkter Trockenlauf: {1}, vom Plan genannter Trockenlauf: {0}. Es wurde nichts gelöscht.",
     "Maintenance_Blocked_NoAdmin": "{0} wurde blockiert: Administratorrechte sind erforderlich.",
     "Maintenance_Blocked_NoLocation": "{0} wurde blockiert: Es wurde kein nutzbarer Speicherort gefunden.",
     "Maintenance_Blocked_NotApproved": "Der Wartungslauf wurde blockiert: {0}.",
