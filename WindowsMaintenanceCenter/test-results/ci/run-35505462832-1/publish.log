@@ -1,0 +1,5 @@
+Windows Maintenance Center 1.0.0-0.0.0 (8e1069960ba1) - Release win-x64
+dotnet restore D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\WindowsMaintenanceCenter.sln
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+build.ps1: Parameter cannot be processed because the parameter name 'p' is ambiguous. Possible matches include: -ProgressAction -PipelineVariable.

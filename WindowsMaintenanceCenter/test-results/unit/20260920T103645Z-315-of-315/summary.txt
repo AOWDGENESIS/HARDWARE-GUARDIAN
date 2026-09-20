@@ -1,0 +1,12 @@
+timestamp   : 20260920T103645Z
+version     : 1.0.0
+build       : 8e1069960ba1d774c0ada2352c59ec92ba5dccbe
+result      : 315 passed, 0 failed, 0 skipped, 315 executed (exit code 0)
+proof       : TRX
+environment :
+  machine=runnervmvmocb
+  os=Microsoft Windows NT 10.0.26100.0
+  powerShell=7.6.5
+  dotnet=10.0.401
+  configuration=Release
+  filter=none
