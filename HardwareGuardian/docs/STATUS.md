@@ -258,3 +258,21 @@ behaviour. A compiler and the test suite are still mandatory.
 6. Produce the release artefacts (portable exe, installer, checksums, release notes) **by building
    them**, never by hand. The scripts and the installer definition exist; they have never been run,
    because that needs Windows + SDK + Inno Setup.
+
+### Delivery layer: what the pipeline itself now refuses to do
+
+The Windows job is written but has never run (no Windows machine, no .NET SDK in the development
+container). What can be checked without running it is that it cannot report a success it did not
+earn - three holes were closed:
+
+* `scripts/test.ps1` accepted a return code of 0 as "tests passed". A test run that discovers no
+  tests exits with 0. The script now requires the TRX result file to exist and to contain at least
+  120 executed tests (the suite has 16 classes with 125 cases), otherwise it fails.
+* The workflow uploaded `artifacts/release/*` without checking the four required artefacts. It now
+  lists `HardwareGuardian-Portable-x64.exe`, `HardwareGuardianSetup-x64.exe`,
+  `HardwareGuardian-Checksums.txt` and `HardwareGuardian-ReleaseNotes.txt`, requires each to exist
+  with a non-zero size, and verifies the checksums against the files.
+* The upload step ran only after a green job, so a failed build produced no diagnostics at all.
+  It now runs with `if: always()` and keeps the test results and the download diagnostics.
+* The job sets `DOTNET_CLI_TELEMETRY_OPTOUT=1` (the application ships no telemetry, the build sends
+  none either) together with `DOTNET_NOLOGO` and `NUGET_PACKAGES`.

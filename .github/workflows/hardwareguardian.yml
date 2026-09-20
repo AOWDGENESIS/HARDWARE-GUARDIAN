@@ -25,6 +25,14 @@ on:
 permissions:
   contents: read
 
+env:
+  # The application ships no telemetry (spec section 28) and the build sends none either.
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  # Fail a restore that would silently ignore a lock file.
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
 defaults:
   run:
     working-directory: HardwareGuardian
@@ -66,6 +74,23 @@ jobs:
         run: choco install innosetup --no-progress -y
       - name: Build installer, checksums and release notes
         run: pwsh ./scripts/release.ps1
+      - name: Check that the release really produced the four required artefacts
+        shell: pwsh
+        run: |
+          $release = 'artifacts/release'
+          $required = @(
+            'HardwareGuardian-Portable-x64.exe',
+            'HardwareGuardianSetup-x64.exe',
+            'HardwareGuardian-Checksums.txt',
+            'HardwareGuardian-ReleaseNotes.txt'
+          )
+          foreach ($name in $required) {
+            $path = Join-Path $release $name
+            if (-not (Test-Path $path)) { throw "the release is incomplete: $name is missing" }
+            $size = (Get-Item $path).Length
+            if ($size -le 0) { throw "$name is empty" }
+            Write-Host ("{0,-40} {1,12:N0} bytes" -f $name, $size)
+          }
       - name: Verify the checksum file against the artefacts
         shell: pwsh
         run: |
@@ -78,7 +103,8 @@ jobs:
             if ($actual -ne $parts[0]) { throw "checksum mismatch for $($parts[1])" }
           }
           Write-Host 'all checksums match the artefacts'
-      - name: Upload the artefacts
+      - name: Upload the artefacts, the test results and the download diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: hardwareguardian-release
