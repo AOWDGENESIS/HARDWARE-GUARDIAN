@@ -15,6 +15,7 @@ using WindowsMaintenanceCenter.Infrastructure.Http;
 using WindowsMaintenanceCenter.Infrastructure.Localization;
 using WindowsMaintenanceCenter.Infrastructure.Logging;
 using WindowsMaintenanceCenter.Infrastructure.Persistence;
+using WindowsMaintenanceCenter.Hardware.Wmi;
 using WindowsMaintenanceCenter.Infrastructure.Platform;
 using WindowsMaintenanceCenter.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;

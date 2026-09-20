@@ -119,6 +119,24 @@ jobs:
           dotnet restore WindowsMaintenanceCenter.sln -p:RestoreLockedMode=false --use-lock-file *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed with exit code $LASTEXITCODE (see artifacts/ci/restore.log)" }
 
+      - name: Report the lock files (a restore that creates them is not a restore that verified them)
+        shell: pwsh
+        run: |
+          $changed = git status --porcelain -- '*packages.lock.json'
+          if ($changed) {
+            Write-Host 'Lock files were created or changed by this restore. They belong into the repository:'
+            $changed | ForEach-Object { Write-Host "  $_" }
+          } else {
+            Write-Host 'Every lock file was already present and unchanged.'
+          }
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/build.log'
+          dotnet build WindowsMaintenanceCenter.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "dotnet build failed with exit code $LASTEXITCODE (see artifacts/ci/build.log)" }
+
       # Compiler output is long and the run log is not readable from everywhere. This step reduces it
       # to what has to be fixed: how many errors, which codes, and the first line of each distinct
       # message. It writes its result next to the other run logs.
@@ -158,24 +176,6 @@ jobs:
             ForEach-Object { $out.Add("  $($_.Count)  $($_.Name)") }
           $out | Set-Content -Encoding utf8 $summary
           $out | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
-
-      - name: Report the lock files (a restore that creates them is not a restore that verified them)
-        shell: pwsh
-        run: |
-          $changed = git status --porcelain -- '*packages.lock.json'
-          if ($changed) {
-            Write-Host 'Lock files were created or changed by this restore. They belong into the repository:'
-            $changed | ForEach-Object { Write-Host "  $_" }
-          } else {
-            Write-Host 'Every lock file was already present and unchanged.'
-          }
-
-      - name: Build
-        shell: pwsh
-        run: |
-          $log = 'artifacts/ci/build.log'
-          dotnet build WindowsMaintenanceCenter.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true *>&1 | Tee-Object -FilePath $log
-          if ($LASTEXITCODE -ne 0) { throw "dotnet build failed with exit code $LASTEXITCODE (see artifacts/ci/build.log)" }
 
       - name: Tests
         shell: pwsh
