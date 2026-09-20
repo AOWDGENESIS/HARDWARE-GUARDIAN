@@ -43,11 +43,15 @@ public sealed class StateJournalTests
         var journal = new InMemoryStateJournal();
         var machine = new SystemStateMachine(new FakeClock(), events: null, logger: null, journal: journal);
 
-        // INITIALIZING -> EXECUTING is not in the table: an execution without plan, approval and
-        // validation must not become a stored fact (M34-S-001).
-        Assert.False(machine.TryTransitionTo(SystemState.Validating, "not allowed from initializing"));
+        // DISCOVERY -> EXECUTING is not in the table: a read must never run straight into an execution,
+        // because that would skip plan, approval and validation (M34-S-001). The refused attempt must
+        // not become a stored fact either.
+        machine.TryTransitionTo(SystemState.Discovery, "start");
+        var afterDiscovery = journal.Read().Count;
 
-        Assert.Empty(journal.Read());
+        Assert.False(machine.TryTransitionTo(SystemState.Executing, "not allowed from a read"));
+
+        Assert.Equal(afterDiscovery, journal.Read().Count);
     }
 
     [Fact]

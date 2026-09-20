@@ -215,11 +215,17 @@ public sealed class ReportGeneratorTests
         var text = await generator.GenerateAsync(injected, ReportFormat.Text, Options(), CancellationToken.None);
         var content = await File.ReadAllTextAsync(text.FilePath);
 
-        // No escape, no bell, no carriage return: the finding cannot move the cursor or fake a line.
-        Assert.DoesNotContain('\u001b', content);
-        Assert.DoesNotContain('\u0007', content);
-        Assert.DoesNotContain('\r', content);
+        // No escape, no bell, no carriage return *inside* a line: the finding cannot move the cursor.
+        // The line breaks of the document itself are structure and stay, so the check looks at lines.
+        var lines = content.Split('\n');
+        Assert.All(lines, line => Assert.DoesNotContain('\u001b', line));
+        Assert.All(lines, line => Assert.DoesNotContain('\u0007', line));
+        Assert.All(lines, line => Assert.DoesNotContain('\r', line));
         Assert.Contains("\\u001B", content);
+
+        // The injected carriage return must not have started a line of its own: a value cannot add a
+        // record to the report.
+        Assert.DoesNotContain("\nWMC-CPU-999", content);
 
         var html = await generator.GenerateAsync(injected, ReportFormat.Html, Options(), CancellationToken.None);
         var markup = await File.ReadAllTextAsync(html.FilePath);
