@@ -357,4 +357,11 @@ public static class BlockReasons
 
     /// <summary>Set when a maintenance execution has no dry run on record for the same locations.</summary>
     public const string DryRunRequired = "DRY_RUN_REQUIRED";
+
+    /// <summary>
+    /// The plan changes something that has to be secured before the change (spec section 44:
+    /// DETECT - VERIFY - ANALYZE - BACKUP - APPROVAL - EXECUTE - VERIFY - ROLLBACK). Raised when no
+    /// backup record for exactly these locations exists.
+    /// </summary>
+    public const string BackupRequired = "BACKUP_REQUIRED";
 }

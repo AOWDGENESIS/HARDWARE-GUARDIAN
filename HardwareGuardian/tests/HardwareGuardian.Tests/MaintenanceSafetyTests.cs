@@ -158,6 +158,102 @@ public sealed class MaintenanceSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task A_plan_that_needs_a_backup_is_blocked_without_one()
+    {
+        // An optional category is not lost data, but it is also not re-creatable without cost, so
+        // the specification puts BACKUP before APPROVAL and EXECUTE (section 44).
+        var scan = OptionalScan();
+        await DryRunAsync(MaintenanceCategory.WindowsUpdateCache, scan);
+
+        var plan = await _service.BuildPlanAsync(scan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+        Assert.True(plan.BackupRequired);
+
+        var result = await _service.ExecuteAsync(plan, Approval(plan, ApprovalDecision.Approved), CancellationToken.None);
+
+        Assert.Equal(StageOutcome.Blocked, Assert.Single(result.Items).Outcome);
+        Assert.All(_files, file => Assert.True(File.Exists(file), $"'{file}' was deleted without a backup"));
+    }
+
+    [Fact]
+    public async Task A_recorded_backup_makes_the_execution_possible()
+    {
+        var backups = new RecordingBackupService(_clock);
+        var service = ServiceWith(backups);
+
+        var scan = OptionalScan();
+        await DryRunAsync(MaintenanceCategory.WindowsUpdateCache, scan, service);
+
+        var plan = await service.BuildPlanAsync(scan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+        var record = await service.RecordBackupAsync(plan, CancellationToken.None);
+
+        Assert.Contains(plan.PlanId, backups.OperationIds);
+
+        // The plan is rebuilt after the backup, exactly like the view model does it, so the plan
+        // names the record that now exists.
+        plan = await service.BuildPlanAsync(scan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+        Assert.Equal(record.Id, plan.BackupRecordId);
+
+        var result = await service.ExecuteAsync(plan, Approval(plan, ApprovalDecision.Approved), CancellationToken.None);
+
+        Assert.Equal(ExecutionMode.Execute, result.Mode);
+    }
+
+    [Fact]
+    public async Task A_backup_for_other_locations_does_not_authorise_the_execution()
+    {
+        var backups = new RecordingBackupService(_clock);
+        var service = ServiceWith(backups);
+
+        var otherRoot = Path.Combine(_paths.DataRoot, "other-target");
+        Directory.CreateDirectory(otherRoot);
+        File.WriteAllText(Path.Combine(otherRoot, "cache-other.tmp"), new string('y', 512));
+
+        // A backup is on record, but for different locations.
+        var otherScan = new MaintenanceScanResult
+        {
+            ScannedAt = _clock.Now,
+            Items = new[] { Item(MaintenanceCategory.WindowsUpdateCache, SafetyClass.Optional, otherRoot) },
+        };
+        await DryRunAsync(MaintenanceCategory.WindowsUpdateCache, otherScan, service);
+        var otherPlan = await service.BuildPlanAsync(otherScan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+        await service.RecordBackupAsync(otherPlan, CancellationToken.None);
+
+        var scan = OptionalScan();
+        await DryRunAsync(MaintenanceCategory.WindowsUpdateCache, scan, service);
+        var plan = await service.BuildPlanAsync(scan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+
+        var result = await service.ExecuteAsync(plan, Approval(plan, ApprovalDecision.Approved), CancellationToken.None);
+
+        Assert.Equal(StageOutcome.Blocked, Assert.Single(result.Items).Outcome);
+        Assert.All(_files, file => Assert.True(File.Exists(file), $"'{file}' was deleted although the backup covered other locations"));
+    }
+
+    [Fact]
+    public async Task Without_a_backup_service_nothing_that_needs_a_backup_is_executed()
+    {
+        // The default service in the constructor has no backup service at all. Fail closed.
+        var scan = OptionalScan();
+        await DryRunAsync(MaintenanceCategory.WindowsUpdateCache, scan);
+
+        var plan = await _service.BuildPlanAsync(scan, new[] { MaintenanceCategory.WindowsUpdateCache }, ExecutionMode.Execute, CancellationToken.None);
+        await Assert.ThrowsAsync<OperationBlockedException>(
+            () => _service.RecordBackupAsync(plan, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task A_plan_that_needs_no_backup_is_told_so_instead_of_getting_a_record()
+    {
+        var backups = new RecordingBackupService(_clock);
+        var service = ServiceWith(backups);
+        var plan = await service.BuildPlanAsync(await ScanAsync(), new[] { MaintenanceCategory.TemporaryFiles }, ExecutionMode.Execute, CancellationToken.None);
+
+        Assert.False(plan.BackupRequired);
+        await Assert.ThrowsAsync<OperationBlockedException>(
+            () => service.RecordBackupAsync(plan, CancellationToken.None));
+        Assert.Empty(backups.OperationIds);
+    }
+
+    [Fact]
     public async Task A_dry_run_for_other_locations_does_not_authorise_the_execution()
     {
         // The dry run must cover what is executed. A dry run for a different folder leaves the
@@ -239,6 +335,37 @@ public sealed class MaintenanceSafetyTests : IDisposable
         await _service.ExecuteDryRunAsync(plan, CancellationToken.None);
         return plan;
     }
+
+    /// <summary>Runs the dry run for a category of a prepared scan.</summary>
+    private async Task<MaintenancePlan> DryRunAsync(
+        MaintenanceCategory category,
+        MaintenanceScanResult scan,
+        MaintenanceService? service = null)
+    {
+        var target = service ?? _service;
+        var plan = await target.BuildPlanAsync(scan, new[] { category }, ExecutionMode.DryRun, CancellationToken.None);
+        await target.ExecuteDryRunAsync(plan, CancellationToken.None);
+        return plan;
+    }
+
+    /// <summary>Service instance with a backup service, for the backup gate.</summary>
+    private MaintenanceService ServiceWith(IBackupService backups) => new(
+        new PathGuard(),
+        new AuditLogService(new InMemoryAuditSink(), _clock, _environment),
+        new LiveProtocol(_clock),
+        new ProgressReporter(_clock),
+        _environment,
+        _settings,
+        _clock,
+        backups);
+
+    /// <summary>A scan whose single item is an optional category (backup required, not protected).</summary>
+    private MaintenanceScanResult OptionalScan() => new()
+    {
+        ScannedAt = _clock.Now,
+        Items = new[] { Item(MaintenanceCategory.WindowsUpdateCache, SafetyClass.Optional) },
+        TotalSizeBytes = Measured<long>.Known(6144, ValueOrigin.LocalFile(_clock.Now, _cleanupRoot)),
+    };
 
     private async Task<MaintenancePlan> ExecutePlanAsync() => await _service.BuildPlanAsync(
         await ScanAsync(),

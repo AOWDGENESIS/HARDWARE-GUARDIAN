@@ -11,7 +11,7 @@
     from. Nothing here is written by hand.
 
 .PARAMETER Version
-    Overrides the version from build/Version.props.
+    Overrides the version from eng/Version.props.
 
 .PARAMETER InnoSetupPath
     Full path to ISCC.exe when Inno Setup is not installed in a standard location.
@@ -44,7 +44,7 @@ $releaseNotesName = 'HardwareGuardian-ReleaseNotes.txt'
 
 function Get-VersionProperty {
     param([string]$Name)
-    [xml]$props = Get-Content -Raw (Join-Path $root 'build/Version.props')
+    [xml]$props = Get-Content -Raw (Join-Path $root 'eng/Version.props')
     $value = $props.Project.PropertyGroup.$Name
     if ([string]::IsNullOrWhiteSpace($value)) { return '' }
     return $value.Trim()

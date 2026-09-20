@@ -205,7 +205,18 @@ public partial class App : Application
         services.AddSingleton<IUpdateCenter, Manufacturer.UpdateCenterService>();
         services.AddSingleton<IBiosService, Bios.BiosService>();
         services.AddSingleton<Security.SecurityAuditService>();
-        services.AddSingleton<IMaintenanceService, Maintenance.MaintenanceService>();
+        // Explicitly built so the backup gate is wired: the maintenance service refuses to execute
+        // anything that needs securing unless a backup for exactly those locations is on record
+        // (spec section 44: ... BACKUP -> USER APPROVAL -> EXECUTE ...).
+        services.AddSingleton<IMaintenanceService>(sp => new Maintenance.MaintenanceService(
+            sp.GetRequiredService<IPathGuard>(),
+            sp.GetRequiredService<IAuditLog>(),
+            sp.GetRequiredService<ILiveProtocol>(),
+            sp.GetRequiredService<IProgressReporter>(),
+            sp.GetRequiredService<IEnvironmentProbe>(),
+            sp.GetRequiredService<ISettingsService>(),
+            sp.GetRequiredService<IClock>(),
+            sp.GetRequiredService<IBackupService>()));
         services.AddSingleton<ISoftwareInventoryService, Maintenance.SoftwareInventoryService>();
         services.AddSingleton<IProcessInventoryService, Maintenance.ProcessInventoryService>();
         services.AddSingleton<IWorkloadDetector, Maintenance.WorkloadDetector>();

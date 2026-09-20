@@ -34,6 +34,15 @@ public sealed class MaintenanceService : IMaintenanceService
     private readonly Dictionary<string, string> _dryRuns = new(StringComparer.Ordinal);
     private readonly object _dryRunGate = new();
 
+    /// <summary>
+    /// Backups that were really created, keyed by the locations they cover. The specification puts
+    /// BACKUP before USER APPROVAL and EXECUTE (section 44); keeping the record here means a caller
+    /// cannot execute a plan that needs securing without having secured it.
+    /// </summary>
+    private readonly Dictionary<string, string> _backups = new(StringComparer.Ordinal);
+    private readonly object _backupGate = new();
+    private readonly IBackupService? _backupService;
+
     public MaintenanceService(
         IPathGuard pathGuard,
         IAuditLog audit,
@@ -41,7 +50,8 @@ public sealed class MaintenanceService : IMaintenanceService
         IProgressReporter progress,
         IEnvironmentProbe environment,
         ISettingsService settings,
-        IClock clock)
+        IClock clock,
+        IBackupService? backupService = null)
     {
         _pathGuard = pathGuard;
         _audit = audit;
@@ -50,6 +60,7 @@ public sealed class MaintenanceService : IMaintenanceService
         _environment = environment;
         _settings = settings;
         _clock = clock;
+        _backupService = backupService;
     }
 
     public IReadOnlyList<MaintenanceCategoryDescriptor> DescribeCategories() =>
@@ -228,6 +239,10 @@ public sealed class MaintenanceService : IMaintenanceService
             // separate object with a separate id, and without this link the execution would carry no
             // evidence that a dry run ever covered these folders.
             DryRunPlanId = mode == ExecutionMode.Execute ? RecordedDryRun(Fingerprint(items)) : null,
+            BackupRequired = RequiresBackup(items),
+            // Same idea as the dry run: an execution plan carries the record of the backup that
+            // covers these locations, so the audit trail shows what was secured before the change.
+            BackupRecordId = mode == ExecutionMode.Execute && RequiresBackup(items) ? RecordedBackup(Fingerprint(items)) : null,
             Items = items,
             TotalBytesToFree = planned > 0
                 ? Measured<long>.Known(planned, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
@@ -308,6 +323,80 @@ public sealed class MaintenanceService : IMaintenanceService
     }
 
     // -----------------------------------------------------------------------------------------
+    // 3b. Backup: the step the specification puts between ANALYSIS and USER APPROVAL.
+    // -----------------------------------------------------------------------------------------
+    public async Task<BackupRecord> RecordBackupAsync(MaintenancePlan plan, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        if (!plan.BackupRequired)
+        {
+            // Returning a record here would claim that something was secured that never had to be.
+            throw new OperationBlockedException(
+                BlockReasons.BackupRequired,
+                LocalizedText.Of("Maintenance_Backup_NotRequired", plan.PlanId),
+                "the plan only touches re-creatable locations");
+        }
+
+        if (_backupService is null)
+        {
+            throw new OperationBlockedException(
+                BlockReasons.BackupRequired,
+                LocalizedText.Of("Maintenance_Backup_Unavailable", plan.PlanId, "no backup service is configured"),
+                "no backup service is configured");
+        }
+
+        var availability = await _backupService.CheckAvailabilityAsync(plan.Risk, cancellationToken).ConfigureAwait(false);
+        if (!availability.IsSufficientFor(plan.Risk))
+        {
+            throw new OperationBlockedException(
+                BlockReasons.BackupRequired,
+                LocalizedText.Of("Maintenance_Backup_Unavailable", plan.PlanId, availability.Summary.Key),
+                string.Join("; ", availability.Details));
+        }
+
+        _progress.Start("Progress_Backup", ModuleKey, 1);
+        _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_Backup_Started", plan.PlanId), _backupService.Location);
+
+        var record = await _backupService.CreateAsync(
+            new BackupRequest
+            {
+                OperationId = plan.PlanId,
+                Kind = OperationKind.Maintenance,
+                Risk = plan.Risk,
+                Category = ComponentCategory.Maintenance,
+                Reason = LocalizedText.Of("Maintenance_Change_Delete", plan.Items.Count, plan.TotalBytesToFree.Display),
+            },
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(record.Id))
+        {
+            throw new OperationBlockedException(
+                BlockReasons.BackupRequired,
+                LocalizedText.Of("Maintenance_Backup_Unavailable", plan.PlanId, "the backup service returned no record"),
+                "the backup service returned no record");
+        }
+
+        lock (_backupGate)
+        {
+            _backups[Fingerprint(plan.Items)] = record.Id;
+        }
+
+        _protocol.Info(ModuleKey, LocalizedText.Of("Maintenance_Backup_Created", record.Id), record.ArtifactPath ?? _backupService.Location);
+        await _audit.RecordAsync(
+            OperationKind.Backup,
+            plan.PlanId,
+            ComponentCategory.Maintenance,
+            StageOutcome.Succeeded,
+            newState: record.Id,
+            evidence: record.Evidence,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return record;
+    }
+
+    // -----------------------------------------------------------------------------------------
     // 4. Execute: only with an approved plan, only safe items, every file checked individually.
     // -----------------------------------------------------------------------------------------
     public async Task<MaintenanceResult> ExecuteAsync(MaintenancePlan plan, ApprovalRecord approval, CancellationToken cancellationToken)
@@ -371,6 +460,58 @@ public sealed class MaintenanceService : IMaintenanceService
                     Message = reason,
                 }).ToList(),
                 FreedBytes = Measured<long>.NotAvailable($"blocked ({BlockReasons.DryRunRequired}): nothing was deleted"),
+                Summary = reason,
+            };
+        }
+
+        // Backups are enforced in the service as well: without a record that covers exactly these
+        // locations nothing is deleted, whatever the caller believes (spec sections 44 and 78).
+        var recordedBackup = plan.BackupRequired ? RecordedBackup(Fingerprint(plan.Items)) : null;
+        // What counts is a backup on record for exactly these locations. A plan that names a record
+        // must name the recorded one; a plan that was built before its backup carries no id yet.
+        var backupValid = !plan.BackupRequired
+            || (recordedBackup is not null
+                && (plan.BackupRecordId is null || string.Equals(plan.BackupRecordId, recordedBackup, StringComparison.Ordinal)));
+
+        if (approvalValid && dryRunValid && !backupValid)
+        {
+            var reason = plan.BackupRecordId is null
+                ? LocalizedText.Of("Maintenance_Blocked_BackupRequired", plan.PlanId, "none")
+                : LocalizedText.Of("Maintenance_Blocked_BackupRequired", plan.PlanId, recordedBackup ?? "none");
+
+            _protocol.Blocked(ModuleKey, LocalizedText.Of("Maintenance_Blocked_Title", plan.PlanId), reason.Key);
+            await _audit.RecordAsync(
+                OperationKind.Maintenance,
+                plan.PlanId,
+                ComponentCategory.Maintenance,
+                StageOutcome.Blocked,
+                approval: approval,
+                error: BlockReasons.BackupRequired,
+                evidence: new[]
+                {
+                    $"backupRequired=true",
+                    $"backupOnPlan={plan.BackupRecordId ?? "none"}",
+                    $"backupOnRecord={recordedBackup ?? "none"}",
+                    $"risk={plan.Risk}",
+                },
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            return new MaintenanceResult
+            {
+                PlanId = plan.PlanId,
+                Mode = plan.Mode,
+                StartedAt = started,
+                CompletedAt = _clock.Now,
+                Items = plan.Items.Select(i => new MaintenanceItemResult
+                {
+                    ItemId = i.ItemId,
+                    Category = i.Category,
+                    DisplayNameKey = i.DisplayNameKey,
+                    Outcome = StageOutcome.Blocked,
+                    PlannedBytes = i.SizeBytes,
+                    Message = reason,
+                }).ToList(),
+                FreedBytes = Measured<long>.NotAvailable($"blocked ({BlockReasons.BackupRequired}): nothing was deleted"),
                 Summary = reason,
             };
         }
@@ -669,6 +810,23 @@ public sealed class MaintenanceService : IMaintenanceService
     /// the same fingerprint would touch exactly the same places, so a dry run for one of them covers
     /// the other. Anything else - another folder, another category, another safety class - does not.
     /// </summary>
+    /// <summary>Id of the backup that is on record for these locations, or <c>null</c>.</summary>
+    private string? RecordedBackup(string fingerprint)
+    {
+        lock (_backupGate)
+        {
+            return _backups.TryGetValue(fingerprint, out var id) ? id : null;
+        }
+    }
+
+    /// <summary>
+    /// True when the plan touches locations that must be secured first. Cache and other purely
+    /// re-creatable data (SafetyClass.Safe) does not need a backup; optional, protected and unknown
+    /// categories do, and a protected item is refused anyway.
+    /// </summary>
+    private static bool RequiresBackup(IReadOnlyList<MaintenancePlanItem> items) =>
+        items.Any(item => item.SafetyClass is SafetyClass.Optional or SafetyClass.Protected or SafetyClass.Unknown);
+
     private static string Fingerprint(IReadOnlyList<MaintenancePlanItem> items) =>
         string.Join(
             "\n",

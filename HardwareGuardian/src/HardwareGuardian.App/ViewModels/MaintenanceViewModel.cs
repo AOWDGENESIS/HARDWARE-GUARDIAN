@@ -226,6 +226,22 @@ public sealed class MaintenanceViewModel : ViewModelBase
             var selection = SelectedCategories();
             _plan = await _service.BuildPlanAsync(_scan, selection, ExecutionMode.Execute, CancellationToken.None).ConfigureAwait(true);
 
+            // BACKUP comes before the approval (spec section 44). A plan that touches something
+            // worth securing is not even offered for approval without a backup on record.
+            var backupEvidence = new List<string>();
+            if (_plan.BackupRequired)
+            {
+                var backup = await _service.RecordBackupAsync(_plan, CancellationToken.None).ConfigureAwait(true);
+                backupEvidence.Add($"backup={backup.Id}");
+                backupEvidence.Add($"backupLocation={backup.ArtifactPath ?? "not reported"}");
+                ResultLines.Add(L("Maintenance_Backup_Created", backup.Id, backup.ArtifactPath ?? "not reported"));
+
+                // Rebuild the plan so it names the backup that now exists; the approval below is then
+                // requested for a plan whose evidence links the secured locations to the record.
+                _plan = await _service.BuildPlanAsync(_scan, selection, ExecutionMode.Execute, CancellationToken.None).ConfigureAwait(true);
+                backupEvidence.Add($"backupOnPlan={_plan.BackupRecordId ?? "none"}");
+            }
+
             var draft = new ApprovalRequestDraft
             {
                 OperationId = _plan.PlanId,
@@ -246,7 +262,9 @@ public sealed class MaintenanceViewModel : ViewModelBase
                     Reason = i.Reason,
                     Risk = i.Risk,
                 }).ToList(),
-                Evidence = _plan.Items.Select(i => $"item={i.ItemId} root={i.RootPath ?? "n/a"} safety={i.SafetyClass}").ToList(),
+                Evidence = _plan.Items.Select(i => $"item={i.ItemId} root={i.RootPath ?? "n/a"} safety={i.SafetyClass}")
+                    .Concat(backupEvidence)
+                    .ToList(),
             };
 
             _pendingApproval = await _approvals.CreateAsync(draft, CancellationToken.None).ConfigureAwait(true);

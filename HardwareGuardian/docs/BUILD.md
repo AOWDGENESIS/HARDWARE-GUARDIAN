@@ -31,7 +31,7 @@ pwsh ./scripts/release.ps1
 ```
 
 `scripts/build.ps1` injects the commit (`SourceRevisionId`) and the build date (`BuildDate`) from
-`build/Version.props`; the version itself is changed in that single file.
+`eng/Version.props`; the version itself is changed in that single file.
 
 ## Dependency policy
 

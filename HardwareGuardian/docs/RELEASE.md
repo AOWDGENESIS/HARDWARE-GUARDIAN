@@ -14,7 +14,7 @@ by the same script run - `scripts/release.ps1`.
 
 ## Versioning
 
-`build/Version.props` is the single source of truth: `VersionPrefix` and `VersionSuffix` (SemVer).
+`eng/Version.props` is the single source of truth: `VersionPrefix` and `VersionSuffix` (SemVer).
 The commit is injected at build time, never written into a file by hand.
 
 ## Release checklist

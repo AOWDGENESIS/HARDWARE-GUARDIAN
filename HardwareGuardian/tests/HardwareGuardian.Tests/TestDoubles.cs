@@ -381,3 +381,54 @@ internal sealed class StubHttpClientProvider : IHttpClientProvider
         Timeout = timeout,
     };
 }
+
+/// <summary>
+/// Backup service for tests: reports a sufficient backup and hands out a record for every request.
+/// It records what it was asked to secure, so a test can prove that the backup step ran before the
+/// execution and covered the right operation.
+/// </summary>
+internal sealed class RecordingBackupService : IBackupService
+{
+    private readonly IClock _clock;
+    private readonly List<BackupRecord> _records = new();
+
+    public RecordingBackupService(IClock clock) => _clock = clock;
+
+    public string Location => "memory://backups";
+
+    /// <summary>Operations that were handed to <see cref="CreateAsync"/>.</summary>
+    public IReadOnlyList<string> OperationIds => _records.Select(r => r.OperationId).ToList();
+
+    public Task<BackupAvailability> CheckAvailabilityAsync(RiskLevel risk, CancellationToken cancellationToken) =>
+        Task.FromResult(new BackupAvailability
+        {
+            RequiredLevel = risk,
+            RestorePointAvailable = true,
+            ConfigurationBackupAvailable = true,
+            RegistryBackupAvailable = true,
+        });
+
+    public Task<BackupRecord> CreateAsync(BackupRequest request, IProgress<ProgressSnapshot>? progress, CancellationToken cancellationToken)
+    {
+        var record = new BackupRecord
+        {
+            Id = $"BKP-TEST-{_records.Count + 1:D3}",
+            OperationId = request.OperationId,
+            Kind = request.Kind,
+            Risk = request.Risk,
+            CreatedAt = _clock.Now,
+            ArtifactPath = $"memory://backups/{request.OperationId}",
+            RestoreSteps = new[] { "test: nothing to restore" },
+            Evidence = new[] { $"operation={request.OperationId}", "availability=sufficient" },
+        };
+
+        _records.Add(record);
+        return Task.FromResult(record);
+    }
+
+    public Task<BackupRecord?> FindAsync(string recordId, CancellationToken cancellationToken) =>
+        Task.FromResult(_records.FirstOrDefault(r => r.Id == recordId));
+
+    public Task<IReadOnlyList<BackupRecord>> ListAsync(CancellationToken cancellationToken) =>
+        Task.FromResult((IReadOnlyList<BackupRecord>)_records.ToList());
+}

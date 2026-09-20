@@ -38,7 +38,7 @@ class Mutation:
     path: str
     original: str = ""
     broken: str = ""
-    # Some defects are the absence of a file. `Directory.Build.props` imports `build/Version.props`;
+    # Some defects are the absence of a file. `Directory.Build.props` imports `eng/Version.props`;
     # without that file every project fails to load (MSB4019), which is worth a check of its own.
     delete_file: bool = False
     # Tools that need arguments (for example to stay offline) get them here.
@@ -98,7 +98,7 @@ MUTATIONS: tuple[Mutation, ...] = (
     Mutation(
         "build: imported MSBuild file is missing",
         "check-projects",
-        "build/Version.props",
+        "eng/Version.props",
         delete_file=True,
     ),
     Mutation(

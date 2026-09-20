@@ -1,6 +1,12 @@
 <Project>
 
-  <Import Project="$(MSBuildThisFileDirectory)build\Version.props" />
+  <!--
+    The version properties live in eng/ and not in build/: directories called "build" are excluded
+    from the working snapshots used during development, which silently removed the file and broke
+    every project with MSB4019 - twice. "eng" is the usual place for build engineering files in
+    .NET repositories and survives.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)eng\Version.props" />
 
   <PropertyGroup>
     <!--

@@ -237,6 +237,15 @@ public interface IMaintenanceService
     Task<MaintenanceResult> ExecuteAsync(MaintenancePlan plan, ApprovalRecord approval, CancellationToken cancellationToken);
 
     Task<MaintenanceResult> ExecuteDryRunAsync(MaintenancePlan plan, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Creates the backup a plan requires and records it for exactly the locations of that plan.
+    /// The documented order is BACKUP before USER APPROVAL and EXECUTE (spec section 44), so this
+    /// must run before <see cref="ExecuteAsync"/> whenever <c>plan.BackupRequired</c> is true.
+    /// Fails closed: without a backup service, without a sufficient backup, or for a plan that
+    /// needs none, it throws <c>OperationBlockedException</c> instead of pretending a backup exists.
+    /// </summary>
+    Task<BackupRecord> RecordBackupAsync(MaintenancePlan plan, CancellationToken cancellationToken);
 }
 
 /// <summary>Static description of a maintenance category with its safety class.</summary>

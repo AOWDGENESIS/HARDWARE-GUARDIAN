@@ -73,6 +73,15 @@ public sealed record MaintenancePlan
     /// </summary>
     public string? DryRunPlanId { get; init; }
 
+    /// <summary>
+    /// True when this plan touches something that must be secured before execution. Safe cache and
+    /// temporary locations do not need one; optional and protected categories do (spec section 44).
+    /// </summary>
+    public bool BackupRequired { get; init; }
+
+    /// <summary>Id of the backup record that covers this plan, or <c>null</c> when none is on record.</summary>
+    public string? BackupRecordId { get; init; }
+
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Maintenance_Plan_Empty");
 }
 

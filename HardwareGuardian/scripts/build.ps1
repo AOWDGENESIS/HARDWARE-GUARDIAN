@@ -7,7 +7,7 @@
     Every step checks the exit code and stops on the first failure: a build that did not run must
     never look like a successful build.
 
-    The version lives in build/Version.props, the build metadata is injected here so that the
+    The version lives in eng/Version.props, the build metadata is injected here so that the
     resulting binaries can be traced back to a commit.
 
 .PARAMETER Configuration
@@ -57,7 +57,7 @@ function Invoke-DotNet {
 
 function Get-VersionProperty {
     param([string]$Name)
-    [xml]$props = Get-Content -Raw (Join-Path $root 'build/Version.props')
+    [xml]$props = Get-Content -Raw (Join-Path $root 'eng/Version.props')
     $value = $props.Project.PropertyGroup.$Name
     if ([string]::IsNullOrWhiteSpace($value)) { return '0.0.0' }
     return $value.Trim()
