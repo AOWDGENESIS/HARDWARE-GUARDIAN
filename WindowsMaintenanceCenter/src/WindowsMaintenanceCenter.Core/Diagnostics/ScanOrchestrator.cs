@@ -89,7 +89,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         _progress.Start("Progress_FullScan", "SYS", totalSteps);
         var stopwatch = Stopwatch.StartNew();
 
-        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        var inventory = await ReadInventoryDataAsync(cancellationToken).ConfigureAwait(false);
         RegisterInventoryProblems(inventory);
 
         var moduleResults = new List<ModuleResult>();
@@ -123,7 +123,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         // A snapshot describes one pass. Whatever an earlier pass found is dropped, because
         // presenting it as a result of this pass would be a fabricated finding.
         _problems.Clear();
-        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        var inventory = await ReadInventoryDataAsync(cancellationToken).ConfigureAwait(false);
         RegisterInventoryProblems(inventory);
 
         _events.Publish(new ScanStartedEvent(moduleId, 1, _clock.Now));
@@ -146,7 +146,7 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         var stopwatch = Stopwatch.StartNew();
         // Same rule as for a scan: this snapshot contains what this pass found, nothing else.
         _problems.Clear();
-        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        var inventory = await ReadInventoryDataAsync(cancellationToken).ConfigureAwait(false);
         RegisterInventoryProblems(inventory);
         stopwatch.Stop();
 
@@ -163,8 +163,13 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         return snapshot;
     }
 
-    /// <summary>Reads the inventory for this pass. Every pass reads, nothing is carried over.</summary>
-    private async Task<InventoryResult> ReadInventoryAsync(CancellationToken cancellationToken) =>
+    /// <summary>
+    /// Reads the inventory for this pass. Every pass reads, nothing is carried over.
+    ///
+    /// The name differs from the public method on purpose: C# cannot tell two methods apart by their
+    /// return type alone, and a public method that calls itself would recurse until the stack ends.
+    /// </summary>
+    private async Task<InventoryResult> ReadInventoryDataAsync(CancellationToken cancellationToken) =>
         await new InventoryReader(_provider, _protocol, _progress).ReadAsync(cancellationToken).ConfigureAwait(false);
 
     /// <summary>
