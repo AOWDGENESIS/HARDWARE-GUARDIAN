@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\HardwareGuardian.Reporting\HardwareGuardian.Reporting.csproj" />
     <ProjectReference Include="..\..\src\HardwareGuardian.Simulation\HardwareGuardian.Simulation.csproj" />
     <ProjectReference Include="..\..\src\HardwareGuardian.Diagnostics\HardwareGuardian.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\HardwareGuardian.Hardware\HardwareGuardian.Hardware.csproj" />
   </ItemGroup>
 
 </Project>

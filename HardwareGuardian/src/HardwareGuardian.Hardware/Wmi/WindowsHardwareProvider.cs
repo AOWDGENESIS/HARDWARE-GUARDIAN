@@ -165,22 +165,10 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             ? $"revision from Win32_BaseBoard.Version; board={product.Value}"
             : $"revision not unambiguous (Win32_BaseBoard.Version='{revision.Value ?? "empty"}')";
 
-        var secureBoot = Measured<bool>.Missing("Secure Boot state requires the firmware API");
-        if (OperatingSystem.IsWindows())
-        {
-            try
-            {
-                var enabled = ReadSecureBootState();
-                if (enabled.HasValue)
-                {
-                    secureBoot = Measured<bool>.Known(enabled.Value, ValueOrigin.WindowsApi(_clock.Now, "GetFirmwareEnvironmentVariable(UEFI)" ));
-                }
-            }
-            catch (Exception)
-            {
-                secureBoot = Measured<bool>.Missing("Secure Boot state could not be read");
-            }
-        }
+        var secureBootReading = SecureBootReader.Read();
+        var secureBoot = secureBootReading.Value is { } secureBootValue
+            ? Measured<bool>.Known(secureBootValue, ValueOrigin.WindowsApi(_clock.Now, "GetFirmwareEnvironmentVariable(UEFI)"))
+            : Measured<bool>.Missing(secureBootReading.Detail);
 
         return new MotherboardInfo
         {
@@ -245,7 +233,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 : TextInfo.Unknown(origin, "EmbeddedControllerMajorVersion not reported"),
             IsUefi = uefi,
             FirmwareType = firmwareType,
-            SecureBootEnabled = ReadSecureBootState(),
+            SecureBootEnabled = SecureBootReader.Read().Value,
         };
     }
 
@@ -709,9 +697,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 origin with { Quality = SensorQuality.Limited }),
             UptimeHours = uptime,
             IsWindows11 = isWindows11,
-            SecureBootState = ReadSecureBootState() is { } secureBoot
-                ? TextInfo.Known(secureBoot ? "Enabled" : "Disabled", ValueOrigin.WindowsApi(_clock.Now, "GetFirmwareEnvironmentVariable(UEFI)"))
-                : TextInfo.Unknown(ValueOrigin.WindowsApi(_clock.Now, "GetFirmwareEnvironmentVariable(UEFI)"), "Secure Boot state could not be read"),
+            SecureBootState = ReadSecureBootText(origin),
             ActivationState = TextInfo.Unknown(origin, "activation state requires an online licence check and is not reported"),
         };
     }
@@ -769,6 +755,19 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
         return totalWidth > dataWidth;
     }
 
+    /// <summary>
+    /// Secure Boot as text. A state that was not measured becomes UNKNOWN with the reason from
+    /// <see cref="SecureBootReader"/> - "Enabled" is only printed when the firmware said so.
+    /// </summary>
+    private TextInfo ReadSecureBootText(ValueOrigin origin)
+    {
+        var reading = SecureBootReader.Read();
+        var api = origin with { Source = "GetFirmwareEnvironmentVariable(UEFI)" };
+        return reading.Value is { } value
+            ? TextInfo.Known(value ? "Enabled" : "Disabled", api)
+            : TextInfo.Unknown(api, reading.Detail);
+    }
+
     private static TextInfo DecodeArray(WmiObject monitor, string property, ValueOrigin origin)
     {
         var decoded = Decode(monitor.GetStringArray(property));
@@ -784,38 +783,6 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
     }
 
     private Task<TextInfo> ReadDisplayVersionAsync(CancellationToken cancellationToken) => Task.FromResult(ReadDisplayVersion());
-
-    private static bool? ReadSecureBootState()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return null;
-        }
-
-        try
-        {
-            var buffer = new byte[8];
-            uint size = 8;
-            // GetFirmwareEnvironmentVariableW with the SecureBoot variable GUID
-            var result = NativeMethods.GetFirmwareEnvironmentVariable(
-                "SecureBoot",
-                "{8be4df61-93ca-11d2-aa0d-00e098032b8c}",
-                buffer,
-                size);
-
-            if (result == 0 && Marshal.GetLastWin32Error() == 122)
-            {
-                // ERROR_INSUFFICIENT_BUFFER means the variable exists but is larger than 1 byte.
-                return true;
-            }
-
-            return result > 0 ? buffer[0] != 0 : null;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
 
     private static ComponentCategory MapPnpCategory(string? pnpClass) => pnpClass?.ToUpperInvariant() switch
     {
@@ -837,8 +804,3 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
     private static ComponentCategory MapCategoryFromClass(string? deviceClass) => MapPnpCategory(deviceClass);
 }
 
-internal static class NativeMethods
-{
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
-    internal static extern uint GetFirmwareEnvironmentVariable(string name, string guid, byte[] buffer, uint size);
-}
