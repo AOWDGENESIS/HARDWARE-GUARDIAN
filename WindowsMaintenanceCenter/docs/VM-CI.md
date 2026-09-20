@@ -26,7 +26,7 @@ Windows-Umgebung dort, wo sie wirklich existiert: als **Windows-VM eines GitHub-
 | --- | --- | --- |
 | Wiederherstellen | `dotnet restore` | Abhängigkeiten aus NuGet, Lock-Dateien werden erzeugt und mitgeschrieben |
 | Bauen | `dotnet build -c Release` | echte Kompilierung aller 15 Projekte inklusive WPF-XAML |
-| Testen | `scripts/test.ps1` (xUnit) | echte Testausführung, TRX-Datei als Nachweis |
+| Testen | `scripts/test.ps1` (xUnit/MTP) | echte Testausführung; TRX-Datei als Nachweis, sobald die Berichtserweiterung lädt — sonst das Konsolenprotokoll (`test-run.log`) mit ausdrücklichem Vermerk, dass der Nachweis unvollständig ist |
 | Portabel | `scripts/build.ps1` | selbstenthaltene `win-x64`-Ausgabe |
 | Installer | Inno Setup (`iscc`) | `WindowsMaintenanceCenter-Setup-x64.exe` |
 | Prüfsummen | `scripts/release.ps1` | SHA-256 über alle Artefakte, Gegensprüfung durch den Workflow |
@@ -80,12 +80,40 @@ Fehler des jeweiligen Bau-Schritts:
 | 10 | `e06f84e` | TextInfo-Mehrdeutigkeit, generische Einschraenkung, Bedingungsausdruck in der Zeichenkette | 5 Fehler |
 | 11 | `b88952c` | Alias, struct-Einschraenkung, Core-Namensraum; unnoetige using-Zeilen zurueckgenommen | 13 Fehler (Oberflaechen- und Testprojekt wurden erst jetzt sichtbar) |
 | 12 | `a07550b` | PendingReboot als Wahrheitswert, Storage statt StorageDevices, Testdoppel-Namensraum | 13 Fehler |
-| 13 | `8315c29` | ThemePreference, ISystemStateMachine/StateChangedEvent, App.Services-Verdeckung, ValueOrigin.Manufacturer - **Ergebnis unbekannt: der GitHub-Zugang ist waehrend dieses Laufs ungueltig geworden** | **nicht ablesbar (Zugang abgerissen)** |
+| 13 | `8315c29` | ThemePreference, ISystemStateMachine/StateChangedEvent, App.Services-Verdeckung, ValueOrigin.Manufacturer — **der Zugang riss waehrend des Laufs ab** | 2 Fehler (spaeter ablesbar: `ISystemStateMachine` fehlte in `MainViewModel`), behoben in `dd8c551` |
+| 14 | `dd8c551` | `using`-Zeilen fuer Hardware.Wmi und System.IO fehlten jetzt dort, wo die vorige Runde sie entfernt hatte; WmiReader-Zeitstempel | 8 Fehler |
+| 15 | `6f9aa45` | `WindowsHardwareProvider` wurde ueber einen Namensraum angesprochen, den es nicht gibt | 6 Fehler / 718 Warnungen |
+| 16 | `37d34ba` | Berichtskultur, Aliaslisten, Testprojekt-Warnungen — **der Bau ist durch** | **0 Fehler / 50 Warnungen: Bau ✓, Testschritt ✗** |
+| 17 | `1f852a7` | Testschritt startet die Testanwendung statt `dotnet test`; sie laeuft, lehnt aber `--report-trx` ab: die TRX-Erweiterung ist im Lauf nicht registriert | Bau ✓, Testlauf ausgefuehrt, Nachweis unvollstaendig |
 
-Zur letzten Zeile: der Lauf `35501975574` wurde noch gestartet, aber sein Ergebnis ist nicht mehr
-abrufbar, weil der GitHub-Zugang dieses Arbeitsplatzes während des Laufs ungültig wurde. Was für den
-Commit `8315c29` behoben wurde, ist im nächsten Abschnitt festgehalten; **der Bau gilt bis zum
-Gegenbeweis als nicht bestanden.**
+### Der TRX-Befund aus Lauf 17
+
+Der Lauf startet die erzeugte Testanwendung und bekommt von ihr
+
+```
+error: unknown option: --report-trx
+Exception: ... the test run failed with exit code 3.
+```
+
+Das ist **kein** Fehler der Testfaelle: die Anwendung laeuft, sie kennt die Option nur nicht. Die
+Ursache steht in den Quellen der Testplattform selbst (`microsoft/testfx`): Erweiterungspakete
+registrieren sich seit MTP v2 nicht mehr dadurch, dass ihre Datei neben der Anwendung liegt, sondern
+ueber einen Build-Hook — das Paket `Microsoft.Testing.Extensions.TrxReport` liefert dafuer ein
+`TestingPlatformBuilderHook`-Element mit, das die MSBuild-Aufgabe `TestingPlatformEntryPoint` beim
+Erzeugen des Einstiegspunkts einsammelt. Genau diese Einsammlung greift hier nicht, obwohl das Paket
+wiederhergestellt wird: deshalb ist die Option unbekannt, waehrend die Anwendung einwandfrei startet.
+
+`scripts/test.ps1` fragt die Testanwendung deshalb jetzt **vor** dem Lauf, welche Optionen sie
+wirklich kennt (`--help`, abgelegt als `artifacts/test-results/help.log`), listet die
+Testplattform-Dateien im Ausgabeordner mit ihren Versionen auf und benutzt die Berichtsoption, die
+tatsaechlich vorhanden ist. Fehlt sie ganz, laeuft die Suite trotzdem, ihre Ausgabe steht in
+`test-run.log`, und das Skript sagt ausdruecklich, dass der Nachweis allein auf diesem Protokoll
+beruht. Ein Lauf ohne TRX wird **nicht** als bestandene Abnahme gefuehrt.
+
+Waehrend der fruehere Stand dieses Dokuments den Lauf 13 als „nicht ablesbar\" fuehrte: der Lauf
+`35501975574` ist inzwischen aus dem Laufnachweis im Zweig ablesbar (2 Fehler, beide
+`ISystemStateMachine`), und die Reparatur `dd8c551` ist gelaufen.
+
 
 ## 3b. Wichtigste echte Fehler, die nur eine echte Kompilierung zeigt
 
