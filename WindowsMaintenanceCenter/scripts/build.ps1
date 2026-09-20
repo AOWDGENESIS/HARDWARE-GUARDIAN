@@ -94,6 +94,15 @@ try {
 
     if (-not $SkipPublish) {
         New-Item -ItemType Directory -Force -Path $output | Out-Null
+
+        # A restore for the runtime identifier of its own: the solution restore above has no RID, and
+        # "publish --no-restore" then fails with NETSDK1047 ("assets file ... doesn't have a target
+        # for 'net10.0-windows/win-x64'"), which is exactly what run 35505633889 showed. It belongs
+        # here and not in the workflow, because only the publish knows which RID it needs.
+        if (-not $NoRestore) {
+            Invoke-DotNet -Arguments @('restore', $app, '-r', $RuntimeIdentifier)
+        }
+
         $publishArguments = @(
             'publish', $app,
             '-c', $Configuration,

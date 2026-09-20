@@ -92,6 +92,8 @@ Fehler des jeweiligen Bau-Schritts:
 
 | 21 | `8e10699` | Bau ✓, **Tests ✓ (315/0), TRX gelesen**, Nachweis unter `test-results/unit/20260920T103645Z-315-of-315` im Zweig. Der Publish scheiterte an PowerShell selbst: `-p:Version=…` wurde als Parameter `-p` der Skriptfunktion gebunden ("parameter name 'p' is ambiguous") | Bau ✓, Tests ✓, Publish ✗ |
 
+| 22 | `b08aaea` | Bau ✓, Tests ✓, jetzt bis zum Publish: `NETSDK1047` — das Projekt wurde ohne RuntimeIdentifier wiederhergestellt, `publish --no-restore` verlangt aber ein Asset-Ziel fuer `net10.0-windows/win-x64` | Bau ✓, Tests ✓, Publish ✗ (Restore fehlt) |
+
 ### Die elf echten Testfunde aus Lauf 18
 
 Erstmals lief nicht die Umgebung schief, sondern die Suite fand elf Sachen. Neun davon sind jetzt
