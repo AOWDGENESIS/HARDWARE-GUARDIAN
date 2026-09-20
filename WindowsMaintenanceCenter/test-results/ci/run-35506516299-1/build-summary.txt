@@ -1,0 +1,9 @@
+errors=6 warnings=0
+
+errors by code:
+  6  CS0246
+
+distinct error messages:
+  6x .Core\Models\RecoveryModels.cs(42): The type or namespace name 'LocalizedText' could not be found (are you missing a using directive or an assembly reference?)
+
+warnings by code:
