@@ -66,7 +66,22 @@ Not present: the release artefacts themselves, the build/test evidence and the v
 hardware. PDF export is **not implemented**; the owner decided on 2026-09-20 that it is to be built
 (see `docs/ABNAHME.md`, section 4).
 
-**`docs/ABNAHME.md`** was added on 2026-09-20: the module-by-module gap list against the acceptance
+**Die verbindliche Spezifikation liegt jetzt im Repository.** Der Auftraggeber hat am 2026-09-20 die
+Abnahme-, Test-, Sicherheits- und Release-Spezifikation V1.0 des "Windows Maintenance Center"
+vorgegeben. Sie steht wortgleich in `docs/SPEC-WMC-V1.md` (Kapitel 1-103, Module M00-M48, zehn
+Release-Gates, Prioritäten P0-P3). Drei Dokumente gehören dazu:
+
+* `docs/ABNAHME-WMC.md` - Abgleich jedes Moduls M00-M48 gegen die MUSS-Kriterien, mit dem, was
+  fehlt, und den drei Abweichungen, die eine Entscheidung brauchen (Produktname
+  `WindowsMaintenanceCenter` gegen `HardwareGuardian`, SQLite gegen die heutigen JSON-Dateien,
+  Fehler-ID-Schema `WMC-<MODUL>-<Nr>`).
+* `docs/RELEASE_STATUS.md` - der Release-Entscheid, heute `RELEASE_BLOCKED`, mit den blockierenden
+  Tests im Format des Kapitels 94 (BLOCKING TEST, MODULE, REASON, EVIDENCE, REQUIRED FIX).
+* `test-results/` - das Nachweisverzeichnis aus Kapitel 71 mit den zehn Unterordnern. Alle sind
+  leer, weil kein Test ausgeführt wurde; Kapitel 5 macht daraus `NOT VERIFIED`.
+
+**`docs/ABNAHME.md`** wurde am 2026-09-20 angelegt (ältere Zählung der Regeln 83-133, weiterhin
+gültig für die dort genannten Einzelbefunde): the module-by-module gap list against the acceptance
 rules 83-133 (status per module, the missing MUSS criteria with file names, the four MUSS conflicts
 that need an owner decision - PDF report, AI module, self-update, winget - and what can only be
 proven on a Windows machine). It supersedes any optimistic reading of this document: no module is
