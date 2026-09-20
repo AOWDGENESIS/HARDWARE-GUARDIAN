@@ -61,6 +61,32 @@ def looks_like_key(key: str) -> bool:
     return True
 
 
+# WMI property names look like keys ("IsEnabled_InitialValue") but are not: they are the property
+# names that the firmware or the operating system publishes. They only ever appear as the argument
+# of a WMI accessor, so those arguments are blanked before the key search runs.
+WMI_PROPERTY_ARGUMENT = re.compile(
+    r"\.(?:TryGetString|GetString|TryGetBool|TryGetUInt|TryGetULong|TryGetInt|TryGetDateTime|"
+    r"GetUIntArray|GetStringArray)\(\s*\"[^\"]*\""
+)
+
+# Keys that are assembled from a prefix and a value at runtime ("Safety_" + item.SafetyClass).
+# They cannot be found by a static search, so the prefix is collected and the matching keys are
+# reported as dynamic instead of dead.
+DYNAMIC_KEY_PATTERN = re.compile(r'"([A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*_)\"\s*\+')
+
+
+def blank_wmi_property_names(text: str) -> str:
+    """Replaces `GetX("Prop_Name")` arguments so they cannot be mistaken for localisation keys."""
+    return WMI_PROPERTY_ARGUMENT.sub(
+        lambda match: match.group(0).split("(")[0] + "(", text
+    )
+
+
+def dynamic_key_prefixes(text: str) -> set[str]:
+    """Collects prefixes of keys that are concatenated at runtime."""
+    return {match.group(1) for match in DYNAMIC_KEY_PATTERN.finditer(text)}
+
+
 def strip_comments(text: str) -> str:
     """Removes comments, keeps string literals (keys live in strings)."""
     out = []
@@ -97,13 +123,17 @@ def strip_comments(text: str) -> str:
 XAML_LOC = re.compile(r"\{services:Loc\s+([A-Za-z0-9_]+)\s*\}")
 
 
-def used_keys() -> dict[str, set[str]]:
+def used_keys() -> tuple[dict[str, set[str]], set[str]]:
+    """Returns the keys found in the sources and the prefixes of dynamically built keys."""
     result: dict[str, set[str]] = {}
+    dynamic: set[str] = set()
     files = sorted(SRC.rglob("*.cs"))
     if (ROOT / "tests").is_dir():
         files += sorted((ROOT / "tests").rglob("*.cs"))
     for path in files:
         text = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+        dynamic |= dynamic_key_prefixes(text)
+        text = blank_wmi_property_names(text)
         for match in KEY_PATTERN.finditer(text):
             key = match.group(1)
             if not looks_like_key(key):
@@ -120,7 +150,7 @@ def used_keys() -> dict[str, set[str]]:
         text = path.read_text(encoding="utf-8", errors="replace")
         for match in XAML_LOC.finditer(text):
             result.setdefault(match.group(1), set()).add(str(path.relative_to(ROOT)))
-    return result
+    return result, dynamic
 
 
 def load_resources() -> dict[str, dict[str, str]]:
@@ -144,7 +174,7 @@ def main() -> int:
     parser.add_argument("--emit-en", metavar="FILE", help="write a template with only the missing keys")
     args = parser.parse_args()
 
-    used = used_keys()
+    used, dynamic_prefixes = used_keys()
     resources = load_resources()
 
     if not resources:
@@ -178,9 +208,21 @@ def main() -> int:
                 for key in only_other[:40]:
                     print(f"  - only {other}: {key}")
 
-    unused = sorted(set().union(*resources.values()) - set(used))
+    unused = sorted(
+        key for key in set().union(*resources.values()) - set(used)
+        if not key.startswith(tuple(dynamic_prefixes))
+    )
+    dynamic_used = sorted(
+        key for key in set().union(*resources.values()) - set(used)
+        if key.startswith(tuple(dynamic_prefixes))
+    )
+    if dynamic_used:
+        print(f"\n{len(dynamic_used)} key(s) reachable through a built prefix "
+              f"({', '.join(sorted(dynamic_prefixes))}) - not dead:")
+        for key in dynamic_used[:40]:
+            print(f"  - {key}")
     if unused:
-        print(f"\n{len(unused)} defined but not referenced statically (dynamic keys or dead strings):")
+        print(f"\n{len(unused)} defined but not referenced statically (dead strings):")
         for key in unused[:40]:
             print(f"  - {key}")
         if len(unused) > 40:

@@ -1,3 +1,4 @@
+using System.Globalization;
 using HardwareGuardian.App.Mvvm;
 using HardwareGuardian.Core;
 using HardwareGuardian.Core.Abstractions;
@@ -52,6 +53,13 @@ public sealed class WindowsHealthViewModel : ViewModelBase
     }
 
     public BulkObservableCollection<CheckRow> Checks { get; } = new();
+
+    /// <summary>
+    /// What the Windows update agent offers for this machine (rule 90, UPDATE-F-002/F-003). The list
+    /// is display only: nothing is downloaded or installed from this page, and every field shows
+    /// "not reported" when the agent did not report it.
+    /// </summary>
+    public BulkObservableCollection<UpdateRow> AvailableUpdates { get; } = new();
 
     public AsyncRelayCommand AssessCommand { get; }
 
@@ -225,15 +233,24 @@ public sealed class WindowsHealthViewModel : ViewModelBase
             check.Status.ToString(),
             check.Summary,
             check.Detail ?? string.Empty,
-            check.Performed,
-            check.RequiresAdministrator,
+            check.Performed ? L("Value_Yes") : L("Value_No"),
+            check.RequiresAdministrator ? L("Value_Yes") : L("Value_No"),
             string.Join("; ", check.Evidence))));
+
+        AvailableUpdates.Reset(report.Updates.Available.Select(update => new UpdateRow(
+            Show(update.Caption, "Value_NotReported"),
+            Show(update.KnowledgeBaseId, "Value_NotReported"),
+            Show(update.Category, "Value_NotReported"),
+            Show(update.Severity, "Value_NotReported"),
+            update.RebootRequired is { } reboot ? L(reboot ? "Value_Yes" : "Value_No") : L("Value_NotReported"),
+            SizeText.Format(update.DownloadSizeBytes, CultureInfo.CurrentCulture, L("Value_NotAvailable")))));
 
         HasResult = true;
         OnPropertyChanged(nameof(OverallStatus));
         OnPropertyChanged(nameof(PendingRebootText));
         OnPropertyChanged(nameof(DefenderText));
         OnPropertyChanged(nameof(UpdateText));
+        OnPropertyChanged(nameof(NoAvailableUpdates));
     }
 
     private async Task RunAsync(Func<Task> action)
@@ -273,16 +290,43 @@ public sealed class WindowsHealthViewModel : ViewModelBase
         }
     }
 
-    protected override void DisposeCore() => Checks.Clear();
+    protected override void DisposeCore()
+    {
+        Checks.Clear();
+        AvailableUpdates.Clear();
+    }
 
-    /// <summary>One Windows check with its evidence and whether it was really performed.</summary>
+    /// <summary>
+    /// True when the agent offered nothing. The hint is shown from the view model instead of
+    /// inverting the flag in the view, so the view stays free of logic.
+    /// </summary>
+    public bool NoAvailableUpdates => AvailableUpdates.Count == 0;
+
+    /// <summary>Shows a reported value or the caller's wording for "this was not reported".</summary>
+    private string Show(TextInfo text, string notReportedKey) =>
+        text.IsKnown ? text.Value! : L(notReportedKey);
+
+    /// <summary>
+    /// One Windows check with its evidence and whether it was really performed. The two flags are
+    /// pre-rendered as localized words: a DataGrid would otherwise print "True" and "False" in a
+    /// German user interface (rule 119).
+    /// </summary>
     public sealed record CheckRow(
         string Title,
         HealthStatus Status,
         string StatusText,
         LocalizedText Summary,
         string Detail,
-        bool Performed,
-        bool RequiresAdministrator,
+        string PerformedText,
+        string AdminText,
         string Evidence);
+
+    /// <summary>One update the agent offers, with every field as reported.</summary>
+    public sealed record UpdateRow(
+        string Title,
+        string KnowledgeBase,
+        string Category,
+        string Severity,
+        string Reboot,
+        string Size);
 }

@@ -68,8 +68,10 @@ public sealed class WindowsHealthService : IWindowsHealthService
         var updates = await CheckUpdateAvailabilityAsync(includeOnlineChecks, cancellationToken).ConfigureAwait(false);
         var pendingReboot = DetectPendingReboot();
         var storageSpace = await AssessStorageSpaceAsync(snapshot, cancellationToken).ConfigureAwait(false);
+        var tpm = await TpmReader.ReadAsync(_wmi, cancellationToken).ConfigureAwait(false);
+        var firewall = await FirewallReader.ReadAsync(_wmi, cancellationToken).ConfigureAwait(false);
 
-        progress.Start("Progress_Windows_Health", ModuleKey, 6);
+        progress.Start("Progress_Windows_Health", ModuleKey, 8);
 
         checks.Add(RunStatusFromPlatform(snapshot));
         progress.ReportStep("WindowsCheck_DeviceErrors", null);
@@ -81,6 +83,10 @@ public sealed class WindowsHealthService : IWindowsHealthService
         progress.ReportStep("WindowsCheck_UpdateStatus", null);
         checks.Add(SecureBootCheck(identity, pendingReboot));
         progress.ReportStep("WindowsCheck_SecureBoot", null);
+        checks.Add(TpmCheck(tpm));
+        progress.ReportStep("WindowsCheck_Tpm", null);
+        checks.Add(FirewallCheck(firewall));
+        progress.ReportStep("WindowsCheck_Firewall", null);
         checks.Add(storageSpace);
         progress.ReportStep("WindowsCheck_StorageSpace", null);
         checks.Add(StartupCheck(startup));
@@ -450,30 +456,102 @@ public sealed class WindowsHealthService : IWindowsHealthService
             new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(5) },
             cancellationToken).ConfigureAwait(false);
 
-        var available = new List<WindowsUpdateInfo>();
+        var drafts = new Dictionary<int, UpdateDraft>();
         var pendingCount = 0;
+        bool? agentRebootRequired = null;
         string? error = null;
 
         foreach (var line in result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith("PENDING=", StringComparison.OrdinalIgnoreCase)
-                && int.TryParse(trimmed["PENDING=".Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var pending))
+
+            if (trimmed.StartsWith("PENDING=", StringComparison.OrdinalIgnoreCase))
             {
-                pendingCount = pending;
-            }
-            else if (trimmed.StartsWith("UPDATE=", StringComparison.OrdinalIgnoreCase))
-            {
-                available.Add(new WindowsUpdateInfo
+                if (int.TryParse(trimmed["PENDING=".Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var pending))
                 {
-                    Caption = TextInfo.Known(trimmed["UPDATE=".Length..], origin),
-                    Description = TextInfo.Unknown(origin, "the update search reports the title only"),
-                });
+                    pendingCount = pending;
+                }
+
+                continue;
             }
-            else if (trimmed.StartsWith("WU_ERROR=", StringComparison.OrdinalIgnoreCase))
+
+            if (trimmed.StartsWith("WU_ERROR=", StringComparison.OrdinalIgnoreCase))
             {
                 error = trimmed["WU_ERROR=".Length..];
+                continue;
             }
+
+            if (trimmed.StartsWith("SYSTEM_REBOOT=", StringComparison.OrdinalIgnoreCase))
+            {
+                agentRebootRequired = ParseFlag(trimmed["SYSTEM_REBOOT=".Length..]);
+                continue;
+            }
+
+            // Indexed lines have the shape FIELD=<index>|<value>; the value is everything after the
+            // first '|', so a title may contain any character. Unknown fields are ignored on purpose:
+            // a future agent version must not be able to inject a value that is then displayed as
+            // measured.
+            var first = trimmed.IndexOf('=');
+            var pipe = trimmed.IndexOf('|');
+            if (first <= 0 || pipe < first)
+            {
+                continue;
+            }
+
+            var field = trimmed[..first];
+            var indexText = trimmed[(first + 1)..pipe];
+            var value = trimmed[(pipe + 1)..];
+            if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+            {
+                continue;
+            }
+
+            if (!drafts.TryGetValue(index, out var draft))
+            {
+                draft = new UpdateDraft();
+                drafts[index] = draft;
+            }
+
+            switch (field.ToUpperInvariant())
+            {
+                case "UPDATE":
+                    draft.Title = value;
+                    break;
+                case "KB":
+                    draft.KnowledgeBaseId = value;
+                    break;
+                case "CAT":
+                    draft.Category = value;
+                    break;
+                case "SEV":
+                    draft.Severity = value;
+                    break;
+                case "SIZE":
+                    draft.DownloadSize = value;
+                    break;
+                case "REBOOT":
+                    draft.RebootRequired = ParseFlag(value);
+                    break;
+                case "MAND":
+                    draft.IsMandatory = ParseFlag(value);
+                    break;
+                case "DL":
+                    draft.IsDownloaded = ParseFlag(value);
+                    break;
+            }
+        }
+
+        var available = drafts
+            .OrderBy(pair => pair.Key)
+            .Select(pair => pair.Value.ToInfo(origin))
+            .ToList();
+
+        if (agentRebootRequired == true)
+        {
+            // UPDATE-F-008: the agent's own statement about a pending restart is evidence and is
+            // added to what the registry markers say - it never replaces them.
+            const string agentReason = "the update agent reports a pending restart (Microsoft.Update.SystemInfo.RebootRequired)";
+            pendingReboot = pendingReboot is null ? agentReason : $"{pendingReboot}, {agentReason}";
         }
 
         if (error is not null)
@@ -920,6 +998,88 @@ public sealed class WindowsHealthService : IWindowsHealthService
             requiresAdmin: false);
     }
 
+    /// <summary>
+    /// TPM state (rule 87, DIAG-F-011). The verdict comes from the pure function in
+    /// <see cref="TpmReader"/>; this method only turns it into a localized result with evidence.
+    /// Nothing here changes the TPM - no clear, no prepare, no ownership change.
+    /// </summary>
+    private WindowsCheckResult TpmCheck(TpmReading reading)
+    {
+        const string displayKey = "WindowsCheck_Tpm";
+        var origin = ValueOrigin.Wmi(_clock.Now, $"{TpmReader.Scope}:{TpmReader.WmiClass}", SensorQuality.Medium);
+        var specification = TpmReader.SpecificationMajor(reading.SpecificationVersion);
+
+        var evidence = new List<string>
+        {
+            $"enabled={Show(reading.Enabled)}; activated={Show(reading.Activated)}; owned={Show(reading.Owned)}",
+            $"specVersion={reading.SpecificationVersion ?? "not reported"}",
+            $"manufacturer={reading.ManufacturerId ?? "not reported"}; firmware={reading.ManufacturerVersion ?? "not reported"}",
+            $"origin={origin.Token()}",
+            "read-only: the TPM is never cleared, prepared or changed",
+        };
+
+        var result = TpmReader.Judge(reading) switch
+        {
+            TpmVerdict.Ready => Check(WindowsCheckId.Tpm, displayKey, HealthStatus.Healthy, StageOutcome.Succeeded,
+                LocalizedText.Of(specification is null ? "Windows_Check_Tpm_Ready_NoSpec" : "Windows_Check_Tpm_Ready", specification ?? string.Empty),
+                reading.Detail, requiresAdmin: false),
+            TpmVerdict.EnabledNotActivated => Check(WindowsCheckId.Tpm, displayKey, HealthStatus.Attention, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Tpm_EnabledNotActivated"), reading.Detail, requiresAdmin: false),
+            TpmVerdict.Disabled => Check(WindowsCheckId.Tpm, displayKey, HealthStatus.Warning, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Tpm_Disabled"), reading.Detail, requiresAdmin: false),
+            TpmVerdict.NotPresent => Check(WindowsCheckId.Tpm, displayKey, HealthStatus.Attention, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Tpm_NotPresent"), reading.Detail, requiresAdmin: false),
+            _ => Check(WindowsCheckId.Tpm, displayKey, HealthStatus.Unknown, StageOutcome.NotRun,
+                LocalizedText.Of("Windows_Check_Tpm_Unknown", reading.Detail), reading.Detail, requiresAdmin: false),
+        };
+
+        return result with { Evidence = result.Evidence.Concat(evidence).ToArray() };
+    }
+
+    /// <summary>
+    /// Firewall profile state (rule 87, DIAG-F-009). Read only: Hardware Guardian reports a disabled
+    /// profile, it never enables or disables one (spec section 12).
+    /// </summary>
+    private WindowsCheckResult FirewallCheck(FirewallReading reading)
+    {
+        const string displayKey = "WindowsCheck_Firewall";
+        var origin = ValueOrigin.Wmi(_clock.Now, $"{FirewallReader.Scope}:{FirewallReader.WmiClass}", SensorQuality.Medium);
+        var state = FirewallReader.Judge(reading);
+        var disabled = FirewallReader.DisabledProfiles(reading);
+        var unreported = FirewallReader.UnreportedProfiles(reading);
+
+        var evidence = new List<string>
+        {
+            $"profiles={reading.Profiles.Count}; disabled={disabled.Count}; unreportedState={unreported.Count}",
+            $"origin={origin.Token()}",
+            "read-only: no firewall setting is changed by Hardware Guardian",
+        };
+        evidence.AddRange(reading.Profiles.Select(profile =>
+            $"profile={profile.Name}; enabled={Show(profile.Enabled)}; defaultInbound={profile.DefaultInboundAction ?? "not reported"}"));
+
+        var result = state switch
+        {
+            FirewallState.AllProfilesEnabled => Check(WindowsCheckId.Firewall, displayKey, HealthStatus.Healthy, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Firewall_AllEnabled", reading.Profiles.Count), reading.Detail, requiresAdmin: false),
+            FirewallState.SomeProfilesDisabled => Check(WindowsCheckId.Firewall, displayKey, HealthStatus.Warning, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Firewall_SomeDisabled", string.Join(", ", disabled)), reading.Detail, requiresAdmin: false),
+            FirewallState.NotFullyReadable => Check(WindowsCheckId.Firewall, displayKey, HealthStatus.Unknown, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_Firewall_NotFullyReadable", string.Join(", ", unreported)), reading.Detail, requiresAdmin: false),
+            _ => Check(WindowsCheckId.Firewall, displayKey, HealthStatus.Unknown, StageOutcome.NotRun,
+                LocalizedText.Of("Windows_Check_Firewall_Unreadable", reading.Detail), reading.Detail, requiresAdmin: false),
+        };
+
+        return result with { Evidence = result.Evidence.Concat(evidence).ToArray() };
+    }
+
+    /// <summary>Plain text for a measured flag inside an evidence line, never a guessed value.</summary>
+    private static string Show(bool? value) => value switch
+    {
+        true => "True",
+        false => "False",
+        null => "not reported",
+    };
+
     private async Task<WindowsCheckResult> AssessStorageSpaceAsync(SystemSnapshot? snapshot, CancellationToken cancellationToken)
     {
         const string displayKey = "WindowsCheck_StorageSpace";
@@ -1021,6 +1181,58 @@ public sealed class WindowsHealthService : IWindowsHealthService
 
         return reasons.Count == 0 ? null : string.Join(", ", reasons);
     }
+
+    /// <summary>Collects the fields of one offered update while the agent output is parsed.</summary>
+    private sealed class UpdateDraft
+    {
+        public string? Title { get; set; }
+
+        public string? KnowledgeBaseId { get; set; }
+
+        public string? Category { get; set; }
+
+        public string? Severity { get; set; }
+
+        public string? DownloadSize { get; set; }
+
+        public bool? RebootRequired { get; set; }
+
+        public bool? IsMandatory { get; set; }
+
+        public bool? IsDownloaded { get; set; }
+
+        /// <summary>
+        /// Builds the record. Every field the agent did not report becomes an explicit "not reported"
+        /// instead of a default value, so nothing on screen looks measured that was not measured.
+        /// </summary>
+        public WindowsUpdateInfo ToInfo(ValueOrigin origin) => new()
+        {
+            Caption = Optional(Title, origin, "the update agent did not report a title"),
+            Description = TextInfo.Unknown(origin, "this query does not report a description"),
+            KnowledgeBaseId = Optional(KnowledgeBaseId, origin, "the update agent did not report a knowledge base number"),
+            Category = Optional(Category, origin, "the update agent did not report a category"),
+            Severity = Optional(Severity, origin, "the update agent did not report a severity"),
+            DownloadSizeBytes = DownloadSize is { } size
+                && ulong.TryParse(size, NumberStyles.Integer, CultureInfo.InvariantCulture, out var bytes)
+                    ? Measured<ulong>.Known(bytes, origin)
+                    : Measured<ulong>.NotAvailable("the update agent did not report a download size", origin),
+            RebootRequired = RebootRequired,
+            IsMandatory = IsMandatory,
+            IsDownloaded = IsDownloaded,
+        };
+    }
+
+    /// <summary>A reported value becomes known, anything else stays unknown with its reason.</summary>
+    private static TextInfo Optional(string? value, ValueOrigin origin, string reason) =>
+        string.IsNullOrWhiteSpace(value) ? TextInfo.Unknown(origin, reason) : TextInfo.Known(value.Trim(), origin);
+
+    /// <summary>Reads the flags the agent prints. Anything that is not true/false counts as not reported.</summary>
+    private static bool? ParseFlag(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "true" => true,
+        "false" => false,
+        _ => null,
+    };
 
     private WindowsCheckResult Check(WindowsCheckId check, string displayKey, HealthStatus status, StageOutcome outcome, LocalizedText summary, string? detail, bool requiresAdmin) => new()
     {

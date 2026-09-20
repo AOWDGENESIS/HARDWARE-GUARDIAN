@@ -3,7 +3,7 @@
 This file is deliberately blunt. It exists so that no reader can mistake the current
 state for a finished product. It is updated after every work session.
 
-Last updated: 2026-09-20 (fifth session)
+Last updated: 2026-09-20 (sixth session)
 
 ---
 
@@ -15,9 +15,9 @@ Last updated: 2026-09-20 (fifth session)
 | NuGet restore (`dotnet restore`) | **NOT AVAILABLE** (api.nuget.org unreachable from the shell) | Package pins were verified against the NuGet flat-container index, but no package has been downloaded. |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
-| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 119 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
+| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 131 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
-| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/HardwareGuardian.Tests` exists (12 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. Nothing in this document claims that a test passed. |
+| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/HardwareGuardian.Tests` exists (18 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. Nothing in this document claims that a test passed. |
 
 Therefore, for the current revision:
 
@@ -32,24 +32,24 @@ Therefore, for the current revision:
 
 | Project | Files | Lines | Purpose | State |
 | --- | --- | --- | --- | --- |
-| `HardwareGuardian.Core` | 43 | 7 530 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 470/470 keys |
-| `HardwareGuardian.Infrastructure` | 24 | 4 138 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
-| `HardwareGuardian.Hardware` | 2 | 1 130 | WMI provider for real hardware | Written; contract-checked |
+| `HardwareGuardian.Core` | 45 | 7 900 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 726/726 keys |
+| `HardwareGuardian.Infrastructure` | 24 | 4 173 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
+| `HardwareGuardian.Hardware` | 5 | 1 542 | WMI provider for real hardware, Secure Boot variable, TPM state, firewall profiles | Written; contract-checked |
 | `HardwareGuardian.Sensors` | 2 | 524 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
 | `HardwareGuardian.Drivers` | 1 | 277 | Driver inventory + PnP problem-code analysis | Written; contract-checked |
 | `HardwareGuardian.Bios` | 1 | 307 | Firmware assessment (never flashes), firmware file inspection | Written; contract-checked |
 | `HardwareGuardian.Security` | 1 | 95 | Security report aggregation | Written; contract-checked |
-| `HardwareGuardian.Manufacturer` | 3 | 1 023 | Official-source adapters, resolver, update centre (`IUpdateCenter`) | Written; contract-checked |
-| `HardwareGuardian.Maintenance` | 5 | 1 560 | Scan / plan / dry run / execute, software + process inventory, workload detection | Written; contract-checked |
-| `HardwareGuardian.Windows` | 1 | 931 | `IWindowsHealthService`: DISM, event log, Defender (read only), Windows Update, startup/services | Written; contract-checked |
+| `HardwareGuardian.Manufacturer` | 3 | 1 048 | Official-source adapters, resolver, update centre (`IUpdateCenter`) | Written; contract-checked |
+| `HardwareGuardian.Maintenance` | 5 | 1 726 | Scan / plan / dry run / execute, software + process inventory, workload detection | Written; contract-checked |
+| `HardwareGuardian.Windows` | 1 | 1 271 | `IWindowsHealthService`: DISM, event log, Defender (read only), Windows Update with KB/category/severity/restart, TPM, firewall, startup/services | Written; contract-checked |
 | `HardwareGuardian.Simulation` | 1 | 419 | `MockHardwareProvider` fixture, clearly labelled as simulation | Written; contract-checked |
-| `HardwareGuardian.Reporting` | 1 | 620 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
+| `HardwareGuardian.Reporting` | 1 | 939 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
 | `HardwareGuardian.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
-| `HardwareGuardian.App` | 17 | 2 520 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
-| `tests/HardwareGuardian.Tests` | 15 | 3 100 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation | Written; contract-checked; **NOT EXECUTED** |
+| `HardwareGuardian.App` | 17 | 2 701 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
+| `tests/HardwareGuardian.Tests` | 18 | 2 914 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting | Written; contract-checked; **NOT EXECUTED** |
 
-Total: **127 C# files, 26 000 lines + 10 XAML files** in 15 projects, all listed in
-`HardwareGuardian.sln`.
+Total: **131 C# files, 26 647 lines (18 of them test files) + 10 XAML files** in 15 projects, all
+listed in `HardwareGuardian.sln`.
 
 Delivery layer:
 
@@ -63,7 +63,8 @@ Delivery layer:
 | `docs/BUILD.md`, `docs/RELEASE.md`, `docs/SECURITY.md`, `README.md` | Written. |
 
 Not present: the release artefacts themselves, the build/test evidence and the verification on real
-hardware. PDF export is intentionally not implemented (see section 4).
+hardware. PDF export is **not implemented**; the owner decided on 2026-09-20 that it is to be built
+(see `docs/ABNAHME.md`, section 4).
 
 **`docs/ABNAHME.md`** was added on 2026-09-20: the module-by-module gap list against the acceptance
 rules 83-133 (status per module, the missing MUSS criteria with file names, the four MUSS conflicts
@@ -104,6 +105,33 @@ Tool numbers after this session: 127 files / 392 declared types, 702 localisatio
 mutation self-test (new cases: a test double that loses an interface method, a deleted MSBuild
 import target, and a third-party driver portal in the source list).
 
+### Sixth session - acceptance rules 83-133, the two missing Windows checks and the update list
+
+The acceptance rules 83-133 were applied as what they are: a checklist that decides whether anything
+may be called finished. `docs/ABNAHME.md` records the result per module - ten modules do not exist
+yet, several MUSS criteria inside existing modules are missing, and **no module can be `PASSED`**
+while not a single test has been executed here. The owner then answered the four open conflicts: the
+PDF report is to be built, the AI module is to be written as a self-contained "Windows Stalker" that
+may research online but must never send personal data, `winget` programme updates **and** the self
+update are both wanted (winget first), and the work order is diagnostics first. This session closed
+the two criteria that were missing inside rule 87 and completed the update metadata of rule 90.
+
+| Finding | Location | Fix |
+| --- | --- | --- |
+| **DIAG-F-009 was never implemented.** No line of code read the firewall state. The Windows assessment listed seven checks, and the firewall was not one of them - a MUSS criterion of rule 87 that no module covered. | new `Hardware/Wmi/FirewallReader.cs`, `Windows/WindowsHealthService.cs`, `Core/Models/WindowsModels.cs` | The reader asks the same class the operating system cmdlet reads (`MSFT_NetFirewallProfile` in `Root\StandardCimv2`), accepts the numeric and the word form of `Enabled`, and reports a state that was not reported as "not reported". The verdict is a pure function (`FirewallState`), the check appears as `WindowsCheck_Firewall` with one evidence line per profile. Read only: no firewall setting is touched |
+| **DIAG-F-011 was never implemented.** There was no TPM check at all - neither the state nor the absence of a TPM was read or shown. | new `Hardware/Wmi/TpmReader.cs`, `Windows/WindowsHealthService.cs` | `Win32_Tpm` in `Root\CIMV2\Security\MicrosoftTpm` is read through the documented properties (`IsEnabled_InitialValue`, `IsActivated_InitialValue`, `IsOwned_InitialValue`, `SpecVersion`, `ManufacturerIdTxt`, `ManufacturerVersion`). The verdict is a pure function over nullable values, because the firmware values are a snapshot of the instantiation: a provider that does not answer stays `Unknown`, no TPM instance becomes `NotPresent`, and the TPM is never cleared, prepared or changed |
+| **UPDATE-F-003 was satisfied in name only.** The update search printed the title of each offered update and nothing else, so the user could not see which knowledge base number, which classification, which severity, how large or whether a restart is required - despite rule 90 naming exactly those fields. | `Infrastructure/Platform/PowerShellRunner.cs`, `Core/Models/WindowsModels.cs`, `Windows/WindowsHealthService.cs` | The template now emits every field the agent has, tagged with the index of its update (`UPDATE=<i>|<title>`, `KB=`, `CAT=`, `SEV=`, `SIZE=`, `REBOOT=`, `MAND=`, `DL=`) plus `SYSTEM_REBOOT=` from `Microsoft.Update.SystemInfo`; the parser ignores unknown fields so a future agent version cannot inject a value that is shown as measured. `WindowsUpdateInfo` carries the new fields as `TextInfo`/`Measured<ulong>`/`bool?`, and the restart statement of the agent is added to the registry based pending restart detection instead of replacing it |
+| **UPDATE-F-002 was not reachable for the user.** The offered updates existed in the model (`Available`) but no page displayed them; the Windows page showed a single summary line. | `App/ViewModels/WindowsHealthViewModel.cs`, `App/Views/WindowsHealthView.xaml`, `Core/Resources/{de,en}.json` | A new card lists what the agent offers: title, KB number, category, severity, restart and download size, each cell "not reported" when the agent stayed silent; an explicit hint appears when the agent offers nothing. Display only - nothing is downloaded or installed from this page |
+| **Visible values were not localized and not distinguishable from measured ones.** The maintenance table printed the safety class as the raw enum name (`Safe`), the directory size with a hard-coded `MB` suffix, an unmeasured size as the English literal `UNKNOWN`, and the Windows checks printed `True`/`False` for "performed" and "admin" in a German user interface. | new `Core/Values/SizeText.cs`, `App/ViewModels/{MaintenanceViewModel,WindowsHealthViewModel}.cs` | One size formatter renders bytes in the fitting unit with the culture's number format and lets the caller word the "not measured" case; the safety class maps to four new keys (`Safety_*`), yes/no to `Value_Yes`/`Value_No`, the update fields to `Value_NotReported`; 24 new keys in both languages (726 per language) |
+| **Four enum values claimed checks that do not exist.** `WindowsCheckId` declared `ServiceHealth`, `TimeSynchronisation` and `DriverSignatures`, and nothing ever produced them - a reader would assume those checks exist. | `Core/Models/WindowsModels.cs`, new `tests/HardwareGuardian.Tests/PlatformReaderTests.cs` | The three unused values are removed (driver signatures are assessed in the driver module, services in the startup assessment), and a test now walks the enum and requires a localized name for every remaining check, so a new check without a name fails the suite instead of appearing as "unknown check" in the list |
+| **The localisation checker reported a false alarm and could not see built keys.** The new WMI property names (`IsEnabled_InitialValue`) were read as missing translation keys, and a key assembled at runtime (`"Safety_" + item.SafetyClass`) counted as a dead string - the first would have pushed someone into adding dummy keys to both language files. | `tools/check-localization.py` | Arguments of the WMI accessors are blanked before the key search, and concatenated prefixes are collected and reported as "reachable through a built prefix" instead of dead |
+| **The window between "recorded" and "reported" was untested for both readers.** The verdict logic is the part a user reads as a statement about their machine's security, and there was no test for it. | new `tests/HardwareGuardian.Tests/PlatformReaderTests.cs` | Sixteen new cases: unreadable versus absent TPM, all four verdicts, a partially reported state staying unknown, the specification generation parsing, unreadable versus empty firewall profile list, a disabled profile winning over an unreported one, the pinned WMI class and namespace names, the size formatter (units, culture, not measured, negative), and the enum/localisation coupling |
+
+Tool numbers after this session: 131 files / 403 declared types, **726 localisation keys per
+language**, 10 XAML files with 151 bindings, 15 projects, and **13/13** deliberate defects reported by
+the mutation self-test. What did **not** change: nothing here was compiled, no test was executed, and
+no machine was measured - the new readers have never seen a real TPM or a real firewall.
+
 ### Fourth session - safety review of the delivery level
 
 The pass over the shell and the delivery level found more than names this time: the Windows repair
@@ -123,12 +151,12 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 
 | Tool | What it proves | Current result |
 | --- | --- | --- |
-| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 121 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
-| `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 121 files / 380 types, 0 findings |
-| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no unused key; both files symmetric | 702 keys, 0 missing, 0 unused |
+| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 131 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
+| `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 131 files / 403 types, 0 findings |
+| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 726 keys, 0 missing, 0 dead, 4 keys reachable through the prefix `Safety_` |
 | `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 10 files, 0 findings |
-| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 143 bindings, 0 findings |
-| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 121 sources, 0 findings |
+| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 151 bindings, 0 findings |
+| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 131 sources, 0 findings |
 | `tools/generate-solution.py --check` | `HardwareGuardian.sln` matches the projects on disk | up to date |
 | `tools/check-mutation.py` | the checkers above actually fail: thirteen deliberate defects (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a missing MSBuild import target, a third-party driver portal in the source list) are injected into a temporary copy one at a time | 13/13 reported, exit code 0 |
 | `tools/check-source-urls.py` | every manufacturer landing page answers over HTTPS and matches its claim in the source file; policy rules (HTTPS only, no credentials, no IP, no localhost, no third-party portal) hold | **did not run** in this environment: no direct outbound network (exit 3, "this is NOT a pass"). The four sources marked `SourceReachable` were confirmed by fetching them through the sandbox's page fetcher on 2026-09-20; `verify-all.sh` reports the skipped network check without calling the offline run incomplete |

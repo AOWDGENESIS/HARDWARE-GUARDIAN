@@ -104,10 +104,23 @@ public static class PowerShellCommandCatalog
             "'SIGNATURE=' + $s.AntivirusSignatureVersion; 'SIGNATURE_AGE_DAYS=' + $s.AntivirusSignatureAge; " +
             "'TAMPER=' + $s.IsTamperProtected } catch { 'DEFENDER_ERROR=' + $_.Exception.Message }",
 
+        // UPDATE-F-003: the search reports every field the agent actually has, each line tagged with
+        // the index of its update so that a title containing '|' cannot corrupt the record.
+        // ClientApplicationID makes Hardware Guardian identifiable in the Windows Update log - that is
+        // transparency about who asks, and it is the only thing that is written there.
         [WindowsUpdateSession] =
             "try { $session = New-Object -ComObject Microsoft.Update.Session; " +
+            "$session.ClientApplicationID = 'HardwareGuardian'; " +
             "$searcher = $session.CreateUpdateSearcher(); $result = $searcher.Search('IsInstalled=0'); " +
-            "'PENDING=' + $result.Updates.Count; foreach ($u in $result.Updates) { 'UPDATE=' + $u.Title } } " +
+            "'PENDING=' + $result.Updates.Count; $i = 0; foreach ($u in $result.Updates) { " +
+            "'UPDATE=' + $i + '|' + $u.Title; " +
+            "$kb = @($u.KBArticleIDs) | Select-Object -First 1; if ($kb) { 'KB=' + $i + '|KB' + $kb }; " +
+            "$cat = @($u.Categories) | Select-Object -First 1; if ($cat) { 'CAT=' + $i + '|' + $cat.Name }; " +
+            "if ($u.MsrcSeverity) { 'SEV=' + $i + '|' + $u.MsrcSeverity }; " +
+            "if ($u.MaxDownloadSize -ge 0) { 'SIZE=' + $i + '|' + $u.MaxDownloadSize }; " +
+            "'REBOOT=' + $i + '|' + $u.RebootRequired; 'MAND=' + $i + '|' + $u.IsMandatory; " +
+            "'DL=' + $i + '|' + $u.IsDownloaded; $i++ }; " +
+            "$sys = New-Object -ComObject Microsoft.Update.SystemInfo; 'SYSTEM_REBOOT=' + $sys.RebootRequired } " +
             "catch { 'WU_ERROR=' + $_.Exception.Message }",
 
         [RestorePointStatus] =

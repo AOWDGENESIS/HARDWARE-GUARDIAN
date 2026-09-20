@@ -46,13 +46,31 @@
 
         <Border Style="{StaticResource Card}">
             <StackPanel>
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_AvailableUpdates}" />
+                <DataGrid ItemsSource="{Binding AvailableUpdates}" MaxHeight="240">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{services:Loc Column_Title}" Binding="{Binding Title}" Width="320" />
+                        <DataGridTextColumn Header="{services:Loc Column_Kb}" Binding="{Binding KnowledgeBase}" Width="100" />
+                        <DataGridTextColumn Header="{services:Loc Column_Category}" Binding="{Binding Category}" Width="160" />
+                        <DataGridTextColumn Header="{services:Loc Column_Severity}" Binding="{Binding Severity}" Width="110" />
+                        <DataGridTextColumn Header="{services:Loc Column_Reboot}" Binding="{Binding Reboot}" Width="100" />
+                        <DataGridTextColumn Header="{services:Loc Column_Size}" Binding="{Binding Size}" Width="90" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Style="{StaticResource Muted}" Text="{services:Loc Update_NoneAvailable}"
+                           Visibility="{Binding NoAvailableUpdates, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Checks}" />
                 <DataGrid ItemsSource="{Binding Checks}" MaxHeight="380">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{services:Loc Column_Check}" Binding="{Binding Title}" Width="230" />
                         <DataGridTextColumn Header="{services:Loc Column_Status}" Binding="{Binding StatusText}" Width="90" />
-                        <DataGridTextColumn Header="{services:Loc Column_Performed}" Binding="{Binding Performed}" Width="80" />
-                        <DataGridTextColumn Header="{services:Loc Column_Admin}" Binding="{Binding RequiresAdministrator}" Width="70" />
+                        <DataGridTextColumn Header="{services:Loc Column_Performed}" Binding="{Binding PerformedText}" Width="80" />
+                        <DataGridTextColumn Header="{services:Loc Column_Admin}" Binding="{Binding AdminText}" Width="70" />
                         <DataGridTextColumn Header="{services:Loc Column_Summary}" Binding="{Binding Summary, Converter={StaticResource Text}}" Width="340" />
                         <DataGridTextColumn Header="{services:Loc Column_Evidence}" Binding="{Binding Evidence}" Width="*" />
                     </DataGrid.Columns>

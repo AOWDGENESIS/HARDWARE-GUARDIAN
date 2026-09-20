@@ -13,10 +13,18 @@ public enum WindowsCheckId
     DefenderStatus,
     UpdateStatus,
     SecureBoot,
-    ServiceHealth,
     StartupImpact,
-    TimeSynchronisation,
-    DriverSignatures,
+
+    // Drei Werte standen hier, ohne dass sie je erzeugt wurden: ServiceHealth, TimeSynchronisation
+    // und DriverSignatures. Ein Prüfwert, den niemand liefert, behauptet eine Prüfung, die es nicht
+    // gibt - er ist entfernt. Die Treibersignatur prüft das Treibermodul, die Dienste wertet die
+    // Autostart-Prüfung aus.
+
+    /// <summary>Trusted Platform Module state (rule 87, DIAG-F-011).</summary>
+    Tpm,
+
+    /// <summary>Windows Firewall profile state (rule 87, DIAG-F-009).</summary>
+    Firewall,
 }
 
 /// <summary>One executed Windows check with its real outcome.</summary>
@@ -116,6 +124,33 @@ public sealed record WindowsUpdateInfo
     public TextInfo Caption { get; init; }
 
     public TextInfo SupportUrl { get; init; }
+
+    // -----------------------------------------------------------------------------------------
+    // Fields of an update that is offered but not installed yet (rule 90, UPDATE-F-003).
+    // All of them are optional: the update agent reports what it reports, and a value that it does
+    // not report is shown as unknown instead of being filled in.
+    // -----------------------------------------------------------------------------------------
+
+    /// <summary>Knowledge base number as reported by the agent, for example <c>KB5031354</c>.</summary>
+    public TextInfo KnowledgeBaseId { get; init; }
+
+    /// <summary>Classification level as reported by the agent, for example <c>Security Updates</c>.</summary>
+    public TextInfo Category { get; init; }
+
+    /// <summary>MSRC severity rating as reported by the agent, for example <c>Important</c>.</summary>
+    public TextInfo Severity { get; init; }
+
+    /// <summary>Maximum download size in bytes as reported by the agent.</summary>
+    public Measured<ulong> DownloadSizeBytes { get; init; } = Measured<ulong>.NotAvailable("download size not reported");
+
+    /// <summary>True when the agent says that installing this update requires a reboot.</summary>
+    public bool? RebootRequired { get; init; }
+
+    /// <summary>True when the agent flags the update as mandatory for this machine.</summary>
+    public bool? IsMandatory { get; init; }
+
+    /// <summary>True when the update content is already cached locally.</summary>
+    public bool? IsDownloaded { get; init; }
 }
 
 /// <summary>Availability check for Windows updates. Only the real update agent is queried.</summary>

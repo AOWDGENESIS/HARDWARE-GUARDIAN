@@ -7,6 +7,12 @@ Es ist kein Fortschrittsbericht. Es ist eine Mängelliste gegen die Abnahmekrite
 Erinnerung an die Entwicklung). Jede Zeile lässt sich im Code nachprüfen; die Datei- und
 Funktionsnamen stehen dabei.
 
+Nachgeführt am 2026-09-20 (zweite Fassung): Testkatalog mit den MUSS-IDs der Regeln 86–124 (§1a),
+Release-Abnahme der Regeln 125–133, und die vom Eigentümer beantworteten Entscheidungen (§4). Die
+Umsetzung der Regeln 87 (Firewall, TPM) und 90 (Update-Metadaten und Update-Liste) ist in dieser
+Fassung berücksichtigt - sie sind damit **implementiert, aber weiterhin nicht ausgeführt und damit
+nicht abgenommen**.
+
 ---
 
 ## 0. Der Satz, der alles andere bestimmt
@@ -92,6 +98,75 @@ für sie in der Regel 131 Punkt 2 („UI vorhanden“) unerfüllt.
 
 ---
 
+## 1a. Testkatalog nach Regel 85 und Modulstatus nach Regel 84
+
+Testklassen: **F** Functional, **S** Safety, **R** Recovery, **E** Error Handling, **P** Performance,
+**U** UI, **I** Integration, **A** Accessibility, **L** Localization, **O** Offline.
+
+Zulässige Modulstatus: `NOT_STARTED`, `IN_DEVELOPMENT`, `READY_FOR_TEST`, `TESTING`, `PASSED`,
+`FAILED`, `BLOCKED` (Regel 84). Es gibt noch **keinen Testkatalog als Datei** - die ID-Spalte unten
+ist der Inhalt, den ein Generator füllen muss (Regel 130 verlangt daraus die Tabelle
+`Modul | Tests | Bestanden | Fehlgeschlagen | Blockiert | Status` je Version).
+
+**Keine Zeile dieser Tabelle ist ausgeführt.** Nach Regel 83.1 ist der Status jedes Moduls damit
+`BLOCKED`; die Spalte „Stand der Funktion“ sagt nur, wie weit die Implementierung ist.
+
+| Regel | Modul | MUSS-Test-IDs | Stand der Funktion | Was bis `READY_FOR_TEST` fehlt |
+| --- | --- | --- | --- | --- |
+| 86 | Dashboard | DASH-F-001…F-007, E-001, U-001, L-001 | Seite, Live-Protokoll, Fortschritt, Problem-Zentrum vorhanden | DASH-F-007 „tatsächlicher Analysezeitpunkt“ in der Oberfläche prüfen; alle Läufe fehlen |
+| 87 | Systemanalyse | DIAG-F-001…F-011, E-001, E-002, O-001, S-001, R-001 | Inventur, Windows/Build, CPU, RAM, Laufwerke, freier Speicher, Update-Status, Defender; **F-009 Firewall und F-011 TPM in dieser Sitzung gebaut** | keine Funktion mehr offen; Beleg (Lauf) fehlt für alle elf |
+| 88 | Cleanup | CLEAN-F-001…F-009, S-001…S-004, E-001, E-002, R-001 | Analyse, Kandidaten, Trockenlauf, Freigabe, Sicherung, Größenmessung vorhanden | CLEAN-F-004 Abwahl je Kategorie in der Oberfläche prüfen; CLEAN-R-001 Definition „reversibel“ offen (§4) |
+| 89 | Storage Analyzer | STORAGE-F-001…F-008, S-001, S-002, E-001 | nur Ordnergrößenmessung für Cleanup | gesamtes Modul: Ordnergrößen, größte/älteste Dateien, Sortierung, System-/Benutzerkennzeichnung, Zugriffsfehler, Seite |
+| 90 | Windows Update | UPDATE-F-001…F-008, S-001, E-001, R-001 | Suche + **F-002 Liste und F-003 Felder (Titel, KB, Kategorie, Status/Severity, Neustart, Größe) in dieser Sitzung gebaut** | F-004 Einzelauswahl, F-005 Installation, F-006 Installationsstatus, F-007 Fehlerbehandlung, F-008 Neustartanzeige, R-001 Nachprüfung; UPDATE-S-001 Automatikplan fehlt |
+| 91 | Programm-Updates (winget) | APPUPDATE-F-001…F-006, S-001, E-001, O-001 | keine Zeile | gesamtes Modul (Entscheidung §4: bauen, zuerst) |
+| 92 | Softwaremanager | SOFTWARE-F-001…F-006, S-001, E-001 | Installationsinventar (Name, Hersteller, Version) lesend vorhanden | F-003 Suche, F-004 Sortierung, F-005 Deinstallation, F-006 Nachprüfung, Seite |
+| 93 | Autostartmanager | STARTUP-F-001…F-007, S-001, R-001, E-001 | nur eine Dienstliste (Win32_Service) | F-001 Registry-Autostarts, F-002 Startup-Ordner, F-003 geplante Einträge, F-005 Signatur, F-006/F-007 Deaktivieren/Reaktivieren mit Rücknahme, Seite |
+| 94 | Dienste-Manager | SERVICE-F-001…F-007, S-001, S-002, R-001 | Name, Status, Starttyp lesend | F-004 Abhängigkeiten, F-005 Start, F-006 Stopp, F-007 Starttyp ändern, S-002 Kennzeichnung kritischer Dienste, Seite |
+| 95 | Aufgabenplaner | TASK-F-001…F-006, S-001, R-001 | keine Zeile | gesamtes Modul (Anzeige, Trigger, Programm, Hersteller, Deaktivieren/Reaktivieren) |
+| 96 | Reparaturcenter | REPAIR-F-001…F-008, S-001, S-002, E-001, R-001 | DISM CheckHealth/ScanHealth/RestoreHealth, SFC /verifyonly, Exit-Codes, Ausgabe, Freigabe, Neustartankündigung | F-005 CHKDSK; R-001 Wiederherstellungspunkt vor kritischer Reparatur ist nicht verdrahtet; eigene Seite |
+| 97 | Laufwerksoptimierung | DRIVE-F-001…F-005, S-001, E-001 | nur eine ungenutzte PowerShell-Vorlage (trim status) | gesamtes Modul: Laufwerkstyp, SSD/HDD-Unterscheidung, passende Optimierung, Protokoll, Validierung |
+| 98 | Performance Center | PERF-F-001…F-005, S-001…S-003 | CPU- und RAM-Auslastung als Sensoren | F-003 Datenträgeraktivität, F-004 Top-Prozesse, F-005 Bootanalyse, Seite |
+| 99 | Prozessmanager | PROCESS-F-001…F-007, S-001, S-002, E-001 | Prozessliste mit PID, Pfad, Arbeitsspeicher | F-003 CPU je Prozess, F-005 Publisher, F-006 Signaturprüfung, F-007 Details, PROCESS-S-001 Systemkennzeichnung, PROCESS-S-002/E-001 Beenden, Seite |
+| 100 | Netzwerkdiagnose | NETWORK-F-001…F-007, E-001, O-001 | Adapter, IP-Konfiguration, Gateway, DNS lesend | F-005 Internetprüfung, F-006 DNS-Auflösung, F-007 aktive TCP-Verbindungen, Seite |
+| 101 | Security Center | SECURITY-F-001…F-007, S-001, E-001 | Defender-Status, Echtzeitschutz, Signaturstand; Firewallzustand seit dieser Sitzung als Prüfung | F-003 Firewall in einer eigenen Seite, F-005 Quick Scan, F-006 Full Scan, F-007 Scanergebnis |
+| 102 | Event Log Analyzer | EVENT-F-001…F-009, E-001, S-001 | Zählung im Systemprotokoll, 7 Tage, Level 1–2 | F-002 Application-Log, F-003 Update-Events, F-004 WHEA, F-005 Disk-Events, F-006…F-009 Filter und Gruppierung, Seite |
+| 103 | Crash Analyzer | CRASH-F-001…F-005, S-001, E-001 | keine Zeile | gesamtes Modul: BugCheck-Ereignisse, Zeitpunkt, Code, Dumps, WHEA |
+| 104 | Hardware Health | HARDWARE-F-001…F-004, S-001 | Sensoren mit Quelle und Qualitätsstufe, SMART nur wenn gemessen, ACPI nie als Kerntemperatur | keine Funktion offen; Beleg fehlt (Lauf auf echter Hardware) |
+| 105 | Restore Points | RESTORE-F-001…F-003, E-001 | Erstellung und Nachweis vorhanden | F-003 vorgangsbezogene Bezeichnung (heute fest „HardwareGuardian“), E-001 risikogebundener Stopp bei Fehlschlag |
+| 106 | Backup Engine | BACKUP-F-001…F-004, R-001, E-001 | Sicherung, eindeutige ID, Manifest, Verknüpfung im Audit, Gate im Wartungsablauf | F-003 Validierung und E-001 Erkennung beschädigter Sicherungen (Manifest ohne Prüfsummen), R-001 Nachweis der Wiederherstellung |
+| 107 | Rollback Engine | ROLLBACK-F-001…F-004, E-001, S-001 | Dienst vorhanden und registriert | aus der Oberfläche nicht erreichbar; F-003 Statusanzeige, F-004 Validierung nach Rollback, E-001/S-001 Meldungen ungeprüft |
+| 108 | Change Journal | JOURNAL-F-001…F-007, S-001 | Audit-Protokoll (JSON + TXT) vorhanden | F-006 Sicherungs-ID nur mittelbar, F-007 Rollbackstatus als Feld fehlt, eigene Journal-Sicht |
+| 109 | Wartungsplan | PLAN-F-001…F-006, S-001, E-001 | keine Zeile | gesamtes Modul (Scheduler, Jobs, Zeitplan, aktiv/inaktiv, ändern, löschen) |
+| 110 | One-Click-Maintenance | ONECLICK-F-001…F-008, S-001 | keine Zeile | gesamtes Modul |
+| 111 | Reporting | REPORT-F-001…F-006, S-001 | TXT, JSON, HTML mit Hardwareinventar und ausgeführten Aktionen | REPORT-F-002 PDF (Entscheidung §4: bauen) |
+| 112 | Offline-Modus | OFFLINE-F-001…F-006, E-001, S-001 | Offline-Erkennung, Sperren für Online-Funktionen, lokale Diagnose | keine Funktion offen; Beleg fehlt |
+| 113 | KI-Modul | AI-F-001…F-003, S-001, S-002, E-001, O-001 | keine Zeile | gesamtes Modul (Entscheidung §4: „Windows Stalker“, online recherchieren, keine privaten Daten senden) |
+| 114 | Admin Worker | ADMIN-F-001…F-003, S-001, S-002, E-001 | Start ohne Adminrechte, Hinweis auf Erfordernis | **F-003 verletzt:** `ElevationService` startet die ganze Anwendung erhöht neu statt nur die freigegebene Aktion; E-001 UAC-Abbruch ungeprüft |
+| 115 | Command Execution | EXEC-F-001…F-005, S-001, S-002 | Vorlagenkatalog, Parametermuster, Timeouts, Exit-Codes, Abbruch | keine Funktion offen; Beleg fehlt |
+| 116 | State Machine | STATE-F-001…F-004, S-001 | Zustandsautomat mit allen geforderten Zuständen | STATE-F-004 Recovery aus unterbrochenem Zustand (siehe 117) |
+| 117 | Recovery | RECOVERY-F-001…F-005, S-001 | keine Zeile | gesamtes Modul |
+| 118 | Configuration | CONFIG-F-001…F-004, E-001, R-001 | Speichern, Lesen, SchemaVersion, Erkennung ungültiger Konfiguration | CONFIG-R-001 Sicherung vor Migration (Migration existiert nicht) |
+| 119 | Lokalisierung | LANG-F-001…F-005, E-001 | 726/726 Schlüssel je Sprache, Prüfwerkzeug sauber, Größen- und Zahlenformate seit dieser Sitzung über die aktive Kultur | LANG-F-004/F-005 im Lauf belegen; Anzeige der neuen Update-Spalten und der Nicht-gemeldet-Texte |
+| 120 | Installer | INSTALL-F-001…F-007, S-001, S-002, E-001 | Definition geschrieben (Startmenü, Desktop, saubere Deinstallation) | nie kompiliert, nie ausgeführt |
+| 121 | Deinstallation | UNINSTALL-F-001…F-005, S-001, E-001 | im Skript enthalten (Dateien, Startmenü, Desktop, Nachfrage vor Datenlöschung) | nie ausgeführt |
+| 122 | Auto Update | SELFUPDATE-F-001…F-007, R-001, S-001 | keine Zeile | gesamtes Modul (Entscheidung §4: bauen) |
+| 123 | Logging | LOG-F-001…F-004, S-001, S-002 | Dateilog, Audit-Protokoll, Exit-Codes, Problem-IDs | Beleg; Prüfung, dass keine Passwörter und keine persönlichen Inhalte protokolliert werden |
+| 124 | Performance | PERFAPP-F-001…F-004, E-001 | asynchron und abbrechbar gebaut | Startzeitmessung auf Referenzhardware, Speichermessung, Beleg der Responsivität |
+
+### Release-Abnahme (Regeln 125-133)
+
+| Regel | Was verlangt ist | Stand |
+| --- | --- | --- |
+| 125 Stabilität | Referenzinstallation ohne reproduzierbare Abstürze, UI-Freezes, Endlosschleifen, unkontrollierte Hintergrundprozesse; ein reproduzierbarer Crash in einem MUSS-Szenario ist `RELEASE BLOCKED` | nicht prüfbar ohne Windows-Maschine |
+| 126 Sicherheitstests | dreizehn Angriffe: Command Injection, Path Traversal, unvalidierte Argumente, manipulierte Konfiguration, manipulierte Updatepakete, ungültige Signaturen, beschädigte Backups, fehlende Administratorrechte, UAC-Abbruch, Prozessabbruch, manipulierte Logs, ungültige Datenbank, beschädigte Reports | Vorkehrungen vorhanden (Parameter-Whitelist, Pfadprüfer mit Linkauflösung, fail-closed-Download, Quellen-Allowlist), **kein Angriff ausgeführt** |
+| 127 Installer-Abnahme | saubere VM → Setup → Installation → Start → Systemanalyse → Wartung → Update → Neustart → Start → Deinstallation | nie durchlaufen (kein Inno Setup verfügbar) |
+| 128 Release-Abnahme | alle kritischen Module PASSED, Sicherheits-MUSS-Tests PASSED, Installer/Uninstaller/Upgrade/Rollback/Recovery/Offline PASSED, keine offenen kritischen Fehler | kein Punkt erfüllt |
+| 129 Release-Blocker | zwölf Blocker, unter anderem Datenverlust, ungewollte Systemänderung, fehlendes Rollback, Command Injection, falsche Erfolgsmeldungen | formal ausgelöst, sobald ein Status `PASSED` ohne Nachweis behauptet würde |
+| 130 Abnahmeprotokoll | Tabelle `Modul \| Tests \| Bestanden \| Fehlgeschlagen \| Blockiert \| Status` je Release-Version | Generator fehlt; Zahlen können erst nach echten Läufen entstehen |
+| 131 Definition of Done | zwölf Punkte je Modul, ab Punkt 9 („Tests tatsächlich ausgeführt“) | für jedes Modul unerfüllt |
+| 132 Release Candidate | RC-Version, Testinstallation auf sauberem Windows 11, feste Kette bis Deinstallation | nicht vorhanden |
+| 133 Abschlussregel | „fertig“ heißt: existiert, funktioniert tatsächlich, unter realistischen Bedingungen getestet, verhält sich bei Fehlern sicher, dokumentiert, erfüllt alle Abnahmekriterien. Nicht ausgeführter Test = `BLOCKED`, fehlgeschlagener MUSS-Test = `FAILED` | es wird an keiner Stelle etwas anderes behauptet |
+
 ## 2. Querschnittsanforderungen, die noch gar nicht existieren
 
 | Regel | Was fehlt |
@@ -136,10 +211,22 @@ Alle Punkte sind reine Implementierung mit vorhandenen Mitteln; sie machen Modul
 
 ---
 
-## 4. Entscheidungen, die ich nicht selbst treffen darf
+## 4. Entscheidungen des Eigentümers (beantwortet am 2026-09-20)
 
-Diese vier Punkte sind MUSS-Kriterien, die der aktuelle Entwurf bewusst *nicht* erfüllt. Ohne
-Entscheidung bleibt der Release nach Regel 129 gesperrt.
+Der Eigentümer hat die vier offenen MUSS-Konflikte entschieden. Damit sind sie keine Blocker mehr,
+sondern **offene Arbeit**:
+
+| Punkt | Entscheidung | Bedeutung für die Umsetzung |
+| --- | --- | --- |
+| REPORT-F-002 PDF | **PDF wird echt umgesetzt** | Ein PDF-Writer muss ohne Cloud und ohne Telemetrie auskommen; der Bericht erscheint dann in allen vier Formaten |
+| 113 KI-Modul | **Selbst bauen, Name „Windows Stalker“** | Analysiert die strukturierten Diagnosedaten, gibt Empfehlungen mit Begründung, darf online recherchieren, **darf aber niemals private Daten versenden** und niemals selbstständig Systemänderungen ausführen (AI-S-001/AI-S-002). Der Versand muss auf technische Angaben begrenzt und im Code erzwungen werden |
+| 122 Auto Update | **Wird umgesetzt** | Versionserkennung, Download, Signatur- und Hashprüfung, Installation, Rückfallebene |
+| 91 winget | **Wird umgesetzt, zuerst** | Erkennung installierter Programme, verfügbare Updates, Einzelauswahl, Exit-Code-Auswertung, Versionsnachprüfung; weiterhin keine Drittanbieter-Portale |
+| Reihenfolge | **Diagnose zuerst** | Regeln 87 (Firewall/TPM) und 90 (Update-Metadaten) sind in der Sitzung vom 2026-09-20 umgesetzt; als Nächstes folgen die Analyzer- und Verwaltungsmodule |
+
+### Weiterhin offen (keine reine Umsetzungsfrage)
+
+Die verbleibenden Punkte der früheren Fassung dieses Abschnitts:
 
 | Punkt | Widerspruch | Optionen |
 | --- | --- | --- |
@@ -147,7 +234,7 @@ Entscheidung bleibt der Release nach Regel 129 gesperrt.
 | 113 KI-Modul | Es gibt kein KI-Modul; alle AI-*-Tests sind MUSS und können nicht bestanden werden | (a) Modul umsetzen (lokal, ohne Cloud-Zwang, nur Vorschläge), (b) als nicht im Lieferumfang erklären |
 | 122 Auto Update | Kein Selbst-Update vorhanden, SELFUPDATE-F-001…F-007 sind MUSS | (a) umsetzen (Signatur-/Hashprüfung, Rückfallebene), (b) für Version 1.0 streichen |
 | 91 winget | Kein winget-Pfad vorhanden, APPUPDATE-F-001…F-006 sind MUSS | (a) umsetzen, (b) ganz aus dem Lieferumfang nehmen. Nie über Drittanbieter-Portale |
-| CLEAN-R-001 | Löschen in Cache-Ordnern ist endgültig; nur als reversibel bezeichnete Aktionen müssen zurücknehmbar sein | Definition klären: gilt „reversibel“ für Papierkorb-Option und Sicherung, oder muss jeder Löschvorgang in den Papierkorb |
+| CLEAN-R-001 | Löschen in Cache-Ordnern ist endgültig; nur als reversibel bezeichnete Aktionen müssen zurücknehmbar sein | **offen**: gilt „reversibel“ für Papierkorb-Option und Sicherung, oder muss jeder Löschvorgang in den Papierkorb |
 
 ---
 

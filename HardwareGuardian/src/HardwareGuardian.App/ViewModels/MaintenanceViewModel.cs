@@ -141,13 +141,18 @@ public sealed class MaintenanceViewModel : ViewModelBase
 
             _scan = await _service.ScanAsync(options, CancellationToken.None).ConfigureAwait(true);
 
+            // Der sichtbare Text wird vollständig übersetzt: die Sicherheitsklasse kam vorher als
+            // Aufzählungsname ("Safe"), die Größe mit fest angehängtem "MB" und eine nicht gemessene
+            // Größe als englisches "UNKNOWN" auf den Bildschirm (Regel 119).
             Items.Reset(_scan.Items.Select(item => new MaintenanceItemRow(
                 item,
                 L(item.DisplayNameKey),
-                item.SafetyClass.ToString(),
+                L("Safety_" + item.SafetyClass),
                 L(item.Description),
-                item.SizeBytes.HasValue ? $"{item.SizeBytes.Value!.Value / (1024d * 1024d):0.#} MB" : "UNKNOWN",
-                item.FileCount.HasValue ? item.FileCount.Value!.Value.ToString(CultureInfo.CurrentCulture) : "UNKNOWN",
+                SizeText.Format(item.SizeBytes, CultureInfo.CurrentCulture, L("Value_NotAvailable")),
+                item.FileCount.HasValue
+                    ? item.FileCount.Value!.Value.ToString("N0", CultureInfo.CurrentCulture)
+                    : L("Value_NotAvailable"),
                 item.RequiresAdministrator,
                 item.IsEnabledByDefault)));
 
