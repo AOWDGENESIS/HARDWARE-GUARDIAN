@@ -113,7 +113,10 @@ public sealed class HardwareViewModel : ViewModelBase
                 CultureInfo.CurrentCulture,
                 "{0} GB · {1}",
                 snapshot.Memory.TotalPhysicalBytes.HasValue ? (snapshot.Memory.TotalPhysicalBytes.Value!.Value / 1024d / 1024d / 1024d).ToString("0.#", CultureInfo.CurrentCulture) : "UNKNOWN",
-                string.Join(", ", snapshot.Memory.Modules.Select(m => $"{m.CapacityBytes.Display} @ {m.SpeedMhz.Display} MHz"))),
+                string.Join(
+                    ", ",
+                    snapshot.Memory.Modules.Select(m =>
+                        $"{m.CapacityBytes.Display} @ {m.SpeedMhz.Display} MHz · {m.MemoryType.Display} · {m.FormFactor.Display}"))),
             snapshot.Memory.TotalPhysicalBytes.Origin.Token()));
 
         rows.AddRange(snapshot.Graphics.Select(g => new DetailRow(

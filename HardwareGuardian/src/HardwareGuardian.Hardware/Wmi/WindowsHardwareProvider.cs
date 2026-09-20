@@ -35,7 +35,15 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
         var product = await _wmi.QueryFirstAsync("Win32_ComputerSystemProduct", cancellationToken: cancellationToken).ConfigureAwait(false);
         var enclosure = await _wmi.QueryFirstAsync("Win32_SystemEnclosure", cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        var chassisTypes = enclosure?.GetStringArray("ChassisTypes") ?? Array.Empty<string>();
+        // ChassisTypes is an array of SMBIOS codes (uint16[]). Reading it as text produced the
+        // string "System.UInt16[]" as a *known* value - a fabricated reading. The codes are decoded
+        // with the documented table and the code stays part of the text.
+        var chassisTypes = enclosure?.GetUIntArray("ChassisTypes") ?? Array.Empty<uint>();
+        var chassisText = chassisTypes.Count == 0
+            ? TextInfo.Unknown(origin, "Win32_SystemEnclosure.ChassisTypes was not reported")
+            : TextInfo.Known(
+                string.Join(", ", chassisTypes.Select(code => SmbiosCodes.Describe(SmbiosCodes.ChassisType(code), code))),
+                origin);
 
         return new SystemIdentity
         {
@@ -44,8 +52,8 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             SystemType = Text(system, "SystemType", origin),
             SystemFamily = Text(system, "SystemFamily", origin),
             OemString = Text(system, "OEMStringArray", origin),
-            SerialNumber = Text(product, "IdentifyingNumber", origin, "serial number is masked in reports by default"),
-            ChassisType = Text(enclosure, "ChassisTypes", origin),
+            SerialNumber = Text(product, "IdentifyingNumber", origin, "Win32_ComputerSystemProduct.IdentifyingNumber was not reported"),
+            ChassisType = chassisText,
         };
     }
 
@@ -105,8 +113,8 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             Manufacturer = Text(item, "Manufacturer", origin),
             PartNumber = Text(item, "PartNumber", origin),
             SerialNumber = Text(item, "SerialNumber", origin),
-            FormFactor = Text(item, "FormFactor", origin),
-            MemoryType = Text(item, "SMBIOSMemoryType", origin),
+            FormFactor = Code(item, "FormFactor", SmbiosCodes.MemoryFormFactor, origin),
+            MemoryType = Code(item, "SMBIOSMemoryType", SmbiosCodes.MemoryType, origin),
             IsEcc = TryEcc(item),
         }).ToList();
 
@@ -720,6 +728,25 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
         return source.TryGetString(property, out var value)
             ? TextInfo.Known(value, origin)
             : TextInfo.Unknown(origin, unknownReason ?? $"{property} not reported");
+    }
+
+    /// <summary>
+    /// Reads a property that contains a documented code and names it, keeping the code visible:
+    /// <c>DDR4 (SMBIOS code 26)</c>. An unreadable property stays UNKNOWN with the property name as
+    /// the reason; a code outside the documented table is reported as such instead of being guessed.
+    /// </summary>
+    private static TextInfo Code(
+        WmiObject? source,
+        string property,
+        Func<uint, string> nameOf,
+        ValueOrigin origin)
+    {
+        if (source is null || !source.TryGetUInt(property, out var code))
+        {
+            return TextInfo.Unknown(origin, $"{property} was not reported");
+        }
+
+        return TextInfo.Known(SmbiosCodes.Describe(nameOf(code), code), origin);
     }
 
     private static Measured<uint> UInt(WmiObject? source, string property, ValueOrigin origin) =>

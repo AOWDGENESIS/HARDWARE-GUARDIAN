@@ -228,6 +228,29 @@ public sealed class WmiObject
         }
     }
 
+    /// <summary>
+    /// Reads a numeric array property, for example <c>Win32_SystemEnclosure.ChassisTypes</c>.
+    /// No text is parsed and no value is invented: a property that is not a numeric array comes back
+    /// empty, and the caller reports it as unavailable.
+    /// </summary>
+    public IReadOnlyList<uint> GetUIntArray(string name)
+    {
+        if (!_properties.TryGetValue(name, out var raw) || raw is null)
+        {
+            return Array.Empty<uint>();
+        }
+
+        return raw switch
+        {
+            uint[] numbers => numbers,
+            ushort[] numbers => numbers.Select(n => (uint)n).ToArray(),
+            int[] numbers => numbers.Select(n => (uint)n).ToArray(),
+            ushort number => new[] { (uint)number },
+            uint number => new[] { number },
+            _ => Array.Empty<uint>(),
+        };
+    }
+
     public IReadOnlyList<string> GetStringArray(string name)
     {
         if (!_properties.TryGetValue(name, out var raw) || raw is null)
