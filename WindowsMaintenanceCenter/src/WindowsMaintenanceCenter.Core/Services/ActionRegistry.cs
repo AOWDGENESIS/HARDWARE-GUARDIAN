@@ -191,6 +191,21 @@ public sealed class ActionRegistry : IActionRegistry
     /// </summary>
     private static ActionValidationError? CheckArgument(ActionArgumentSpec spec, string value)
     {
+        // A value written as a location stays a location, whatever the argument was declared as. A
+        // value that walks upwards or names a UNC/device location has to be answered by the path
+        // policy of chapter 79, not by the value check: "the value does not match its declaration"
+        // would hide that somebody tried to leave the directory they were given
+        // (test A_volume_argument_of_the_disk_check_is_validated_before_it_could_be_used).
+        //
+        // This runs before the length check on purpose: a drive letter argument declares
+        // MaxLength = 3, so "..\..\Windows" is always "too long" as well - and with the length check
+        // first, every traversal attempt would be reported as a formatting mistake.
+        var locationReason = CheckLocation(value);
+        if (locationReason is not null)
+        {
+            return Refuse(locationReason, spec.Name);
+        }
+
         if (value.Length > spec.MaxLength)
         {
             return Refuse("Action_Argument_TooLong", spec.Name);
@@ -199,17 +214,6 @@ public sealed class ActionRegistry : IActionRegistry
         if (value.Any(char.IsControl))
         {
             return Refuse("Action_Text_Metacharacter", spec.Name);
-        }
-
-        // A value written as a location stays a location, whatever the argument was declared as. A
-        // value that walks upwards or names a UNC/device location has to be answered by the path
-        // policy of chapter 79, not by the value check: "the value does not match its declaration"
-        // would hide that somebody tried to leave the directory they were given
-        // (test A_volume_argument_of_the_disk_check_is_validated_before_it_could_be_used).
-        var locationReason = CheckLocation(value);
-        if (locationReason is not null)
-        {
-            return Refuse(locationReason, spec.Name);
         }
 
         switch (spec.Kind)
