@@ -819,7 +819,7 @@ public sealed class ReportGenerator : IReportGenerator
 
         if (snapshot.Processors.Count == 0)
         {
-            builder.AppendLine("    UNKNOWN: no processor object was reported");
+            builder.AppendLine($"    {_localizer["Report_NoProcessors"]}");
         }
 
         var memory = snapshot.Memory;
@@ -868,8 +868,12 @@ public sealed class ReportGenerator : IReportGenerator
         builder.AppendLine($"{_localizer["Component_Network"]}:");
         foreach (var adapter in snapshot.Network)
         {
-            var kind = adapter.IsVirtual ? "virtual" : adapter.IsWireless ? "wi-fi" : adapter.IsBluetooth ? "bluetooth" : "wired";
-            builder.AppendLine($"    {Show(adapter.Description)} [{kind}] {Show(adapter.ConnectionState)}"
+            // The role is a localisation key, so the report stays in the selected language.
+            var kind = adapter.IsVirtual ? "Report_Adapter_Virtual"
+                : adapter.IsWireless ? "Report_Adapter_Wifi"
+                : adapter.IsBluetooth ? "Report_Adapter_Bluetooth"
+                : "Report_Adapter_Wired";
+            builder.AppendLine($"    {Show(adapter.Description)} [{_localizer[kind]}] {Show(adapter.ConnectionState)}"
                 + $"   {Show(adapter.SpeedBitsPerSecond)} bit/s   {MaskSerial(Show(adapter.MacAddress), options)}");
         }
 
