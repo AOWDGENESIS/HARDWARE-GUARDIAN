@@ -96,6 +96,10 @@ public static class SystemActionCatalog
             Description = LocalizedText.Of("Action_DismRepair"),
             Risk = RiskLevel.High,
             RequiresAdmin = true,
+            // This one changes system files, so it needs a secured state and an approval for this very
+            // action before it may ever run (chapters 30 and 44).
+            RequiresApproval = true,
+            RequiresBackup = true,
             Allowed = false,
             Timeout = TimeSpan.FromMinutes(60),
             Executable = "dism.exe",
@@ -119,6 +123,8 @@ public static class SystemActionCatalog
             Description = LocalizedText.Of("Action_SfcScanNow"),
             Risk = RiskLevel.High,
             RequiresAdmin = true,
+            RequiresApproval = true,
+            RequiresBackup = true,
             Allowed = false,
             Timeout = TimeSpan.FromMinutes(60),
             Executable = "sfc.exe",

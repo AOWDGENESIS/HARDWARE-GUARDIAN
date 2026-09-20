@@ -61,6 +61,19 @@ public sealed record RegisteredAction
     public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// True when the action may only run with an approval record for exactly this action
+    /// (chapter 30, order BACKUP → APPROVAL → EXECUTE of chapter 44).
+    /// </summary>
+    public bool RequiresApproval { get; init; }
+
+    /// <summary>
+    /// True when the action may only run after the locations it touches were secured. The backup
+    /// record has to belong to this action as well - an approval or a backup for something else is
+    /// not a permission for this one.
+    /// </summary>
+    public bool RequiresBackup { get; init; }
+
+    /// <summary>
     /// Identifier of the action that undoes this one, if one exists. Null means: this action cannot
     /// be undone, and that must be visible before it runs (chapter 30, M24-S-001).
     /// </summary>
@@ -108,6 +121,9 @@ public sealed record ActionRequest
 
     /// <summary>The approval this call is based on, if one is required.</summary>
     public ApprovalRecord? Approval { get; init; }
+
+    /// <summary>The backup this call is based on, if one is required.</summary>
+    public BackupRecord? Backup { get; init; }
 }
 
 /// <summary>

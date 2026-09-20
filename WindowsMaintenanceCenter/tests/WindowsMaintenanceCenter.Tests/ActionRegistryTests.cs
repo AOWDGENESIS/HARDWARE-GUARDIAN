@@ -35,6 +35,143 @@ public sealed class ActionRegistryTests
     private static ActionRegistry Registry(params RegisteredAction[] extra) =>
         new(new[] { CleanCache }.Concat(extra));
 
+    private static readonly RegisteredAction Repair = new()
+    {
+        Id = "System.SfcScanNow",
+        Description = LocalizedText.Of("Action_Unknown_Description"),
+        Risk = RiskLevel.High,
+        RequiresAdmin = true,
+        RequiresApproval = true,
+        RequiresBackup = true,
+        Executable = "sfc.exe",
+        Timeout = TimeSpan.FromMinutes(60),
+        ArgumentTemplate = new[] { "/scannow" },
+    };
+
+    private static readonly ApprovalRecord GrantedForRepair = new()
+    {
+        RequestId = "APR-1",
+        OperationId = "System.SfcScanNow",
+        Decision = ApprovalDecision.Approved,
+        DecidedAt = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero),
+        Risk = RiskLevel.High,
+    };
+
+    private static readonly BackupRecord SecuredForRepair = new()
+    {
+        Id = "BKP-1",
+        OperationId = "System.SfcScanNow",
+        CreatedAt = new DateTimeOffset(2026, 3, 4, 5, 0, 0, TimeSpan.Zero),
+        ArtifactPath = @"C:\Backup\wmc-1.zip",
+    };
+
+    [Fact]
+    public void An_action_that_changes_system_files_does_not_run_without_a_backup()
+    {
+        // Chapter 44 orders BACKUP before APPROVAL before EXECUTE, so the missing backup is the first
+        // reason named - even when the approval is missing as well.
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest { ActionId = Repair.Id });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.BackupRequired, result.ReasonCode);
+        Assert.Equal("Action_Blocked_BackupRequired", Assert.Single(result.Errors).Key);
+    }
+
+    [Fact]
+    public void A_backup_record_without_an_artifact_is_not_a_secured_state()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest
+        {
+            ActionId = Repair.Id,
+            Approval = GrantedForRepair,
+            Backup = new BackupRecord { Id = "BKP-2", OperationId = Repair.Id },
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.BackupRequired, result.ReasonCode);
+    }
+
+    [Fact]
+    public void A_backup_for_another_operation_does_not_cover_this_action()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest
+        {
+            ActionId = Repair.Id,
+            Approval = GrantedForRepair,
+            Backup = SecuredForRepair with { OperationId = "System.DismRestoreHealth" },
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.BackupRequired, result.ReasonCode);
+    }
+
+    [Fact]
+    public void With_a_secured_state_but_without_an_approval_the_action_is_refused()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest { ActionId = Repair.Id, Backup = SecuredForRepair });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.ApprovalMissing, result.ReasonCode);
+        Assert.Equal("Action_Blocked_ApprovalMissing", Assert.Single(result.Errors).Key);
+    }
+
+    [Fact]
+    public void A_rejected_approval_does_not_authorise_anything()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest
+        {
+            ActionId = Repair.Id,
+            Backup = SecuredForRepair,
+            Approval = GrantedForRepair with { Decision = ApprovalDecision.Rejected },
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.ApprovalMissing, result.ReasonCode);
+    }
+
+    [Fact]
+    public void An_approval_for_a_different_action_does_not_authorise_this_one()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest
+        {
+            ActionId = Repair.Id,
+            Backup = SecuredForRepair,
+            Approval = GrantedForRepair with { OperationId = "Cleanup.WindowsUpdateCache" },
+        });
+
+        Assert.False(result.IsValid);
+        Assert.Equal(BlockReasons.ApprovalMissing, result.ReasonCode);
+        Assert.Equal("Action_Blocked_ApprovalMismatch", Assert.Single(result.Errors).Key);
+    }
+
+    [Fact]
+    public void A_secured_state_and_an_approval_for_this_action_let_it_through()
+    {
+        var registry = Registry(Repair);
+
+        var result = registry.Validate(new ActionRequest
+        {
+            ActionId = Repair.Id,
+            Backup = SecuredForRepair,
+            Approval = GrantedForRepair,
+        });
+
+        Assert.True(result.IsValid);
+        Assert.Equal(new[] { "/scannow" }, result.ResolvedArguments);
+    }
+
     [Fact]
     public void An_unregistered_action_is_refused()
     {

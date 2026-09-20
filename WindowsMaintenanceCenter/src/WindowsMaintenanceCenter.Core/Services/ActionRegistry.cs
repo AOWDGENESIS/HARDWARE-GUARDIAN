@@ -92,6 +92,34 @@ public sealed class ActionRegistry : IActionRegistry
             return ActionValidationResult.Invalid(BlockReasons.InvalidRequest, new ActionValidationError { Key = "Action_Blocked_NoExecutable" });
         }
 
+        // Chapter 44 orders the gates: BACKUP before APPROVAL before EXECUTE. Both are checked here,
+        // before a single argument is looked at, and both are bound to this action: a record for
+        // another action is not a permission for this one.
+        if (action.RequiresBackup && !BackupCoversAction(action, request.Backup))
+        {
+            return ActionValidationResult.Invalid(
+                BlockReasons.BackupRequired,
+                new ActionValidationError { Key = "Action_Blocked_BackupRequired" });
+        }
+
+        if (action.RequiresApproval)
+        {
+            if (request.Approval is null || request.Approval.Decision != ApprovalDecision.Approved)
+            {
+                return ActionValidationResult.Invalid(
+                    BlockReasons.ApprovalMissing,
+                    new ActionValidationError { Key = "Action_Blocked_ApprovalMissing" });
+            }
+
+            if (!string.Equals(request.Approval.OperationId, action.Id, StringComparison.Ordinal))
+            {
+                // An approval the user gave for something else never authorises this action.
+                return ActionValidationResult.Invalid(
+                    BlockReasons.ApprovalMissing,
+                    new ActionValidationError { Key = "Action_Blocked_ApprovalMismatch" });
+            }
+        }
+
         var errors = new List<ActionValidationError>();
         var resolved = new List<string>();
 
@@ -146,6 +174,15 @@ public sealed class ActionRegistry : IActionRegistry
             ResolvedArguments = resolved,
         };
     }
+
+    /// <summary>
+    /// A backup record only counts for this action when it names the action and carries an artifact
+    /// or a manifest - an empty record is a claim, not a secured state.
+    /// </summary>
+    private static bool BackupCoversAction(RegisteredAction action, BackupRecord? backup) =>
+        backup is not null
+        && string.Equals(backup.OperationId, action.Id, StringComparison.Ordinal)
+        && (backup.ArtifactPath is not null || backup.ManifestPath is not null);
 
     /// <summary>
     /// Validates one value. Returns null when the value is acceptable, otherwise the reason as text.

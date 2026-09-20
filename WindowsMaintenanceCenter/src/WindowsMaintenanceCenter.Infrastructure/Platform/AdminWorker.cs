@@ -94,14 +94,15 @@ public sealed class AdminWorker : IAdminWorker
                     new ActionValidationError { Key = "Action_Blocked_RequiresAdmin" })).ConfigureAwait(false);
             }
 
-            return await RunElevatedAsync(action, validation, validate, cancellationToken).ConfigureAwait(false);
+            return await RunElevatedAsync(action, request, validation, validate, cancellationToken).ConfigureAwait(false);
         }
 
-        return await RunAsync(action, validation, validate, cancellationToken).ConfigureAwait(false);
+        return await RunAsync(action, request, validation, validate, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ActionExecutionResult> RunAsync(
         RegisteredAction action,
+        ActionRequest request,
         ActionValidationResult validation,
         Func<ActionExecutionResult, CancellationToken, Task<bool>>? validate,
         CancellationToken cancellationToken)
@@ -110,8 +111,9 @@ public sealed class AdminWorker : IAdminWorker
         var result = await _runner.RunAsync(action.Executable, validation.ResolvedArguments, options, cancellationToken)
             .ConfigureAwait(false);
 
-        return await FinishAsync(action, result.ExitCode, result.TimedOut, result.CombinedOutput, result.ErrorDetail,
-            elevationCancelled: false, outputCaptured: true, validate, cancellationToken).ConfigureAwait(false);
+        return await FinishAsync(action, request, result.ExitCode, result.TimedOut, result.CombinedOutput,
+            result.ErrorDetail, elevationCancelled: false, outputCaptured: true, validate, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -121,6 +123,7 @@ public sealed class AdminWorker : IAdminWorker
     /// </summary>
     private async Task<ActionExecutionResult> RunElevatedAsync(
         RegisteredAction action,
+        ActionRequest request,
         ActionValidationResult validation,
         Func<ActionExecutionResult, CancellationToken, Task<bool>>? validate,
         CancellationToken cancellationToken)
@@ -167,24 +170,25 @@ public sealed class AdminWorker : IAdminWorker
                     _logger?.LogWarning(ex, "Elevated process could not be stopped after the timeout.");
                 }
 
-                return await FinishAsync(action, exitCode: null, timedOut: true, output: string.Empty,
+                return await FinishAsync(action, request, exitCode: null, timedOut: true, output: string.Empty,
                     errorDetail: BlockReasons.ActionTimeout, elevationCancelled: false, outputCaptured: false,
                     validate, cancellationToken).ConfigureAwait(false);
             }
 
-            return await FinishAsync(action, process.ExitCode, timedOut: false, output: string.Empty, errorDetail: null,
-                elevationCancelled: false, outputCaptured: false, validate, cancellationToken).ConfigureAwait(false);
+            return await FinishAsync(action, request, process.ExitCode, timedOut: false, output: string.Empty,
+                errorDetail: null, elevationCancelled: false, outputCaptured: false, validate, cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
             // The user closed the prompt. Nothing was started, nothing was changed.
-            return await FinishAsync(action, exitCode: null, timedOut: false, output: string.Empty,
+            return await FinishAsync(action, request, exitCode: null, timedOut: false, output: string.Empty,
                 errorDetail: BlockReasons.UacCancelled, elevationCancelled: true, outputCaptured: false,
                 validate, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            return await FinishAsync(action, exitCode: null, timedOut: false, output: string.Empty,
+            return await FinishAsync(action, request, exitCode: null, timedOut: false, output: string.Empty,
                 errorDetail: $"{ex.GetType().Name}: {ex.Message}", elevationCancelled: false, outputCaptured: false,
                 validate, cancellationToken).ConfigureAwait(false);
         }
@@ -192,6 +196,7 @@ public sealed class AdminWorker : IAdminWorker
 
     private async Task<ActionExecutionResult> FinishAsync(
         RegisteredAction action,
+        ActionRequest request,
         int? exitCode,
         bool timedOut,
         string output,
@@ -329,6 +334,8 @@ public sealed class AdminWorker : IAdminWorker
             result.Outcome,
             componentId: action.Id,
             newState: result.Summary.Key,
+            approval: request.Approval,
+            backup: request.Backup,
             error: result.ErrorDetail,
             evidence: result.Evidence,
             cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -346,6 +353,10 @@ public sealed class AdminWorker : IAdminWorker
             BlockReasons.ActionArgumentInvalid => "Action_Blocked_ArgumentInvalid",
             BlockReasons.ActionRequiresAdmin => "Action_Blocked_RequiresAdmin",
             BlockReasons.UnsupportedPlatform => "Action_Blocked_RequiresAdmin",
+            // Chapter 30/44: without a backup and without an approval for this very action nothing
+            // runs, and the user is told which of the two is missing.
+            BlockReasons.BackupRequired => "Action_Blocked_BackupRequired",
+            BlockReasons.ApprovalMissing => "Action_Blocked_ApprovalMissing",
             _ => "Action_Summary_Blocked",
         };
 
@@ -381,6 +392,8 @@ public sealed class AdminWorker : IAdminWorker
             StageOutcome.Blocked,
             componentId: request.ActionId,
             newState: summaryKey,
+            approval: request.Approval,
+            backup: request.Backup,
             error: validation.ReasonCode,
             evidence: result.Evidence,
             cancellationToken: CancellationToken.None).ConfigureAwait(false);
@@ -402,6 +415,9 @@ public sealed class AdminWorker : IAdminWorker
             "Service" => ComponentCategory.Windows,
             "Startup" => ComponentCategory.Windows,
             "Security" => ComponentCategory.Security,
+            "Network" => ComponentCategory.Network,
+            "Volume" => ComponentCategory.Storage,
+            "Power" => ComponentCategory.Battery,
             _ => ComponentCategory.System,
         };
     }

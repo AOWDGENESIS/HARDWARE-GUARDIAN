@@ -76,6 +76,21 @@ public sealed class SystemActionCatalogTests
     }
 
     [Fact]
+    public void An_action_that_changes_system_files_demands_a_backup_and_an_approval()
+    {
+        // Chapters 30 and 44: before these two may ever be released, the gate has to be declared here
+        // as well. The registry checks it in the order BACKUP -> APPROVAL -> ARGUMENTS.
+        var repairing = Catalog.Where(action => action.Id is "System.DismRestoreHealth" or "System.SfcScanNow");
+
+        Assert.Equal(2, repairing.Count());
+        Assert.All(repairing, action =>
+        {
+            Assert.True(action.RequiresApproval, $"{action.Id} changes system files without an approval requirement.");
+            Assert.True(action.RequiresBackup, $"{action.Id} changes system files without a backup requirement.");
+        });
+    }
+
+    [Fact]
     public void Every_action_names_a_program_without_a_path_and_a_timeout()
     {
         foreach (var action in Catalog)

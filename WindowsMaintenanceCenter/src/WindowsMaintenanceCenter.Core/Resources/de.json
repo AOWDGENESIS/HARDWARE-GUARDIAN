@@ -781,6 +781,9 @@
     "Action_IpConfigAll": "Netzwerkkonfiguration vollständig anzeigen (ipconfig /all, nur lesend)",
     "Action_SystemInfoSnapshot": "Systeminformationen erfassen (systeminfo, nur lesend)",
     "Action_SfcScanNow": "Systemdateien prüfen und reparieren (SFC /scannow)",
-    "Action_ChkdskScan": "Datenträger online prüfen (CHKDSK /scan)"
+    "Action_ChkdskScan": "Datenträger online prüfen (CHKDSK /scan)",
+    "Action_Blocked_BackupRequired": "Für diese Aktion liegt keine Sicherung der betroffenen Orte vor. Es wurde nichts geändert - zuerst sichern, dann freigeben.",
+    "Action_Blocked_ApprovalMissing": "Für diese Aktion liegt keine Freigabe vor. Es wurde nichts geändert.",
+    "Action_Blocked_ApprovalMismatch": "Die vorliegende Freigabe gehört zu einer anderen Aktion und gilt für diese nicht. Es wurde nichts geändert."
   }
 }

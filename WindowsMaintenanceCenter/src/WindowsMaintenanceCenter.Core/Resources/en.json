@@ -781,6 +781,9 @@
     "Action_IpConfigAll": "Show the full network configuration (ipconfig /all, read only)",
     "Action_SystemInfoSnapshot": "Capture system information (systeminfo, read only)",
     "Action_SfcScanNow": "Check and repair system files (SFC /scannow)",
-    "Action_ChkdskScan": "Check a volume online (CHKDSK /scan)"
+    "Action_ChkdskScan": "Check a volume online (CHKDSK /scan)",
+    "Action_Blocked_BackupRequired": "No backup of the affected locations exists for this action. Nothing was changed - secure first, then approve.",
+    "Action_Blocked_ApprovalMissing": "No approval exists for this action. Nothing was changed.",
+    "Action_Blocked_ApprovalMismatch": "The approval on record belongs to a different action and does not cover this one. Nothing was changed."
   }
 }

@@ -51,6 +51,19 @@ public sealed class AdminWorkerTests
         return (new AdminWorker(registry, runner, environment, audit, protocol), runner, audit, protocol, environment);
     }
 
+    private static readonly RegisteredAction RepairAction = new()
+    {
+        Id = "System.SfcScanNow",
+        Description = LocalizedText.Of("Action_Unknown_Description"),
+        Risk = RiskLevel.High,
+        RequiresAdmin = false,
+        RequiresApproval = true,
+        RequiresBackup = true,
+        Executable = "sfc.exe",
+        Timeout = TimeSpan.FromMinutes(60),
+        ArgumentTemplate = new[] { "/scannow" },
+    };
+
     [Fact]
     public async Task An_unregistered_action_starts_nothing()
     {
@@ -230,5 +243,66 @@ public sealed class AdminWorkerTests
         Assert.Equal("Cleanup.Everything", entry.OperationKey);
         Assert.Equal(StageOutcome.Blocked, entry.Result);
         Assert.Equal(BlockReasons.ActionNotRegistered, entry.Error);
+    }
+
+    [Fact]
+    public async Task A_repair_without_a_secured_state_and_without_an_approval_starts_nothing()
+    {
+        // Chapter 30/44: the gate sits in front of the process, not behind it. The run is blocked, the
+        // reason names the missing backup first, and the audit entry keeps that fact.
+        var (worker, runner, audit, protocol, _) = Build(RepairAction);
+
+        var result = await worker.ExecuteAsync(new ActionRequest { ActionId = RepairAction.Id });
+
+        Assert.Equal(0, runner.Calls);
+        Assert.Equal(StageOutcome.Blocked, result.Outcome);
+        Assert.False(result.Succeeded);
+        Assert.Equal(BlockReasons.BackupRequired, result.ErrorDetail);
+        Assert.Equal(StageOutcome.Blocked, Assert.Single(audit.Entries).Result);
+        Assert.Contains(protocol.Entries, entry => entry.Severity == Severity.Blocked);
+    }
+
+    [Fact]
+    public async Task A_repair_with_the_secured_state_but_without_an_approval_still_starts_nothing()
+    {
+        var (worker, runner, _, _, _) = Build(RepairAction);
+
+        var result = await worker.ExecuteAsync(new ActionRequest
+        {
+            ActionId = RepairAction.Id,
+            Backup = new BackupRecord { Id = "BKP-1", OperationId = RepairAction.Id, ArtifactPath = @"C:\Backup\1.zip" },
+        });
+
+        Assert.Equal(0, runner.Calls);
+        Assert.Equal(BlockReasons.ApprovalMissing, result.ErrorDetail);
+    }
+
+    [Fact]
+    public async Task A_repair_with_backup_and_approval_runs_and_keeps_them_in_the_audit_entry()
+    {
+        var (worker, runner, audit, _, _) = Build(RepairAction);
+        runner.Result = new ProcessResult { ExitCode = 0 };
+
+        var approval = new ApprovalRecord
+        {
+            RequestId = "APR-1",
+            OperationId = RepairAction.Id,
+            Decision = ApprovalDecision.Approved,
+            DecidedAt = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero),
+        };
+        var backup = new BackupRecord { Id = "BKP-1", OperationId = RepairAction.Id, ArtifactPath = @"C:\Backup\1.zip" };
+
+        var result = await worker.ExecuteAsync(new ActionRequest
+        {
+            ActionId = RepairAction.Id,
+            Approval = approval,
+            Backup = backup,
+        });
+
+        Assert.Equal(1, runner.Calls);
+        Assert.Equal("sfc.exe", runner.LastExecutable);
+        Assert.Same(approval, Assert.Single(audit.Entries).Approval);
+        Assert.Same(backup, Assert.Single(audit.Entries).Backup);
+        Assert.Equal(StageOutcome.Succeeded, result.Outcome);
     }
 }
