@@ -88,8 +88,15 @@ public sealed class SimulationFixtureTests
         var first = await _provider.GetProcessorsAsync(CancellationToken.None);
         var second = await _provider.GetProcessorsAsync(CancellationToken.None);
 
-        Assert.Equal(first[0].Name.Display, second[0].Name.Display);
-        Assert.Equal(first[0].Cores.Display, second[0].Cores.Display);
+        // Display is a method, not a property: without the call the test compares two freshly created
+        // delegates, which are never equal and would fail for the wrong reason. What has to be equal
+        // is the shown text of both reads.
+        Assert.Equal(
+            first[0].Name.Display(System.Globalization.CultureInfo.InvariantCulture),
+            second[0].Name.Display(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(
+            first[0].Cores.Display(System.Globalization.CultureInfo.InvariantCulture),
+            second[0].Cores.Display(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]

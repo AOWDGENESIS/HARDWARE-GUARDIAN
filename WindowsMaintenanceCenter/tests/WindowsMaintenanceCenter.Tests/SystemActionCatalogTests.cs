@@ -57,7 +57,17 @@ public sealed class SystemActionCatalogTests
             {
                 Assert.DoesNotContain("scannow", part, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("restorehealth", part, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("/f", part, StringComparison.OrdinalIgnoreCase);
+
+                // A forcing switch has to be compared as a switch. systeminfo.exe takes "/fo list"
+                // (format output); a check on the prefix "/f" would refuse that harmless argument and
+                // in exchange would let "/F" through - the opposite of what this test is for.
+                var token = part.Trim();
+                Assert.False(
+                    token.Equals("/f", StringComparison.OrdinalIgnoreCase)
+                    || token.Equals("/force", StringComparison.OrdinalIgnoreCase)
+                    || token.StartsWith("/f:", StringComparison.OrdinalIgnoreCase)
+                    || token.StartsWith("/force:", StringComparison.OrdinalIgnoreCase),
+                    $"{action.Id} carries the forcing switch '{part}' although it is released as read only.");
             }
         }
     }

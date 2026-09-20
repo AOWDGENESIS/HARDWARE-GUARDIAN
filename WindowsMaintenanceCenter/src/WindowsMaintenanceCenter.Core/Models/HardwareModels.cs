@@ -191,7 +191,13 @@ public sealed record GraphicsAdapterInfo
 
     public TextInfo VendorSubsystemId { get; init; }
 
-    public bool IsIntegratedGraphics { get; init; }
+    /// <summary>
+    /// Tri-state on purpose: the property is derived from the adapter name, and a name that could not
+    /// be read cannot answer the question. A plain <c>false</c> there would be an invented statement
+    /// about the hardware (spec sections 1.3 and 61; test
+    /// A_value_that_was_not_measured_keeps_its_reason_in_the_report).
+    /// </summary>
+    public bool? IsIntegratedGraphics { get; init; }
 }
 
 /// <summary>Storage device with SMART/NVMe health data as far as the platform exposes it.</summary>

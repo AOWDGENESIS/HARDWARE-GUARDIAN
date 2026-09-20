@@ -1,37 +1,40 @@
 <#
 .SYNOPSIS
-    Runs the automated tests and proves that they ran.
+    Runs the automated tests, proves that they ran, and files the proof under test-results/unit.
 
 .DESCRIPTION
-    Runs the xUnit test project and writes a TRX result file plus a human readable console log.
-    A failing test aborts the script with a non-zero exit code, so a CI run cannot pass silently.
+    Builds the xUnit test project, starts the produced test application and writes a TRX result file
+    plus a human readable console log.
 
     Why this script starts the test application itself instead of calling `dotnet test`:
-    xUnit v3 runs on the Microsoft.Testing.Platform (MTP), and the .NET 10 SDK does not start MTP
-    projects through the old VSTest target any more ("Testing with VSTest target is no longer
-    supported"). Starting the produced executable is the route the xUnit project documents itself,
-    and it cannot be affected by an SDK default.
+    xUnit v3 runs on a test platform that the .NET 10 SDK no longer starts through the old VSTest
+    target ("Testing with VSTest target is no longer supported"). Starting the produced executable is
+    the route the xUnit project documents itself, and it cannot be affected by an SDK default.
 
     Why the script asks the executable what it can do before it runs:
     An option that a test application does not know makes the run fail with "unknown option", which
-    looks like a broken suite although only the report extension was missing. MTP v2 registers
-    report extensions through build hooks, so whether TRX is available depends on the build, not on
-    the command line. The script therefore reads `--help` first, uses the report option that really
-    exists, and writes the help text into artifacts/test-results/help.log. Without that file a
-    missing report option is indistinguishable from a typing mistake.
+    looks like a broken suite although only the report option was wrong. The run of 35504520714
+    showed exactly that: the application runs xUnit's own in-process runner, which takes
+    `-result-trx <file>`, not the `--report-trx` of the Microsoft.Testing.Platform extensions. The
+    script therefore reads `--help` first, uses the report option that really exists and keeps the
+    help text as artifacts/test-results/help.log.
 
-    A run without a TRX file is still a run - the console log of the test application is kept as
-    artifacts/test-results/test-run.log - but it is reported as a run whose proof is incomplete, so
-    a run that was only executed but not documented never looks like a fully verified one (spec 86).
+    A run without a TRX file is still a run - the console log is kept and its test count is read from
+    it - but it is reported as a run whose proof is incomplete, so a run that was only executed but
+    not documented never looks like a verified one (specification chapters 5 and 86).
+
+    Every run copies its results into test-results/unit/<utc>-<outcome>/ with the five fields of
+    chapter 71 (timestamp, version, build, environment, result). That folder is the evidence the
+    specification asks for, not artifacts/.
 
 .PARAMETER Configuration
     Debug or Release (default: Release).
 
 .PARAMETER Filter
-    Optional xUnit filter, for example "FullyQualifiedName~PathGuardTests".
+    Optional filter, for example "FullyQualifiedName~PathGuardTests" (MTP) or a class name (xUnit).
 
 .EXAMPLE
-    pwsh ./scripts/test.ps1 -Filter "FullyQualifiedName~MaintenanceSafetyTests"
+    pwsh ./scripts/test.ps1 -Filter "*PathGuard*"
 
 .NOTES
     NOT EXECUTED in the development container (no .NET SDK there). See docs/STATUS.md.
@@ -43,7 +46,7 @@ param(
 
     # The suite had 314 cases when they were first counted on 2026-09-20. A lower number means tests
     # were skipped or not discovered, which must fail the run instead of looking like a green suite
-    # (spec 61 and 87). Raise this number whenever cases are added; never lower it.
+    # (specification chapters 61 and 87). Raise this number whenever cases are added; never lower it.
     [int]$MinimumTests = 300
 )
 
@@ -52,7 +55,7 @@ $ErrorActionPreference = 'Stop'
 
 # Native exit codes are checked explicitly below ($LASTEXITCODE) and turned into a message that says
 # what failed. Letting PowerShell raise its own error for every non-zero exit code would hide the
-# distinction between "the test executable printed its help" and "the tests failed".
+# difference between "the test executable printed its help" and "the tests failed".
 if (Test-Path variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
@@ -60,8 +63,10 @@ if (Test-Path variable:PSNativeCommandUseErrorActionPreference) {
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $project = Join-Path $root 'tests/WindowsMaintenanceCenter.Tests/WindowsMaintenanceCenter.Tests.csproj'
 $results = Join-Path $root 'artifacts/test-results'
+$trx = Join-Path $results 'windowsmaintenancecenter.trx'
 
 New-Item -ItemType Directory -Force -Path $results | Out-Null
+if (Test-Path $trx) { Remove-Item $trx -Force }
 
 $buildArguments = @('build', $project, '-c', $Configuration, '--nologo')
 Write-Host "dotnet $($buildArguments -join ' ')" -ForegroundColor Cyan
@@ -77,10 +82,9 @@ if (-not (Test-Path $testExecutable)) {
 
 $testDirectory = Split-Path -Parent $testExecutable
 
-# Which files of the test platform and its extensions the build produced. This list is evidence: a
-# report extension that is missing here cannot be asked for on the command line, and a report
-# extension that is present here but unknown to the executable is a registration problem, not a
-# missing package.
+# Which files of the test platform and its extensions the build produced. A report extension that is
+# missing here cannot be asked for on the command line; one that is present but unknown to the
+# executable is a registration problem, not a missing package.
 Write-Host '-- test platform files next to the test application --' -ForegroundColor Cyan
 $platformFiles = Get-ChildItem -Path $testDirectory -Filter '*.dll' |
     Where-Object { $_.Name -match 'Microsoft\.Testing|TestAdapter|Trx' } |
@@ -98,34 +102,40 @@ $helpLog = Join-Path $results 'help.log'
 Write-Host "-- $testExecutable --help" -ForegroundColor Cyan
 $helpText = (& $testExecutable --help 2>&1 | Tee-Object -FilePath $helpLog) -join "`n"
 
-$reportOption = $null
-foreach ($candidate in @('--report-trx', '--report-xunit-trx')) {
-    if ($helpText -match ('(?m)^\s*' + [regex]::Escape($candidate) + '\b')) {
-        $reportOption = $candidate
-        break
+# Two test platforms are possible: the xUnit v3 in-process runner (option `-result-trx <file>`) and
+# the Microsoft.Testing.Platform extensions (option `--report-trx`). Which one is available is
+# decided by the build, so it is read from the help instead of being assumed.
+$mtpReport = [bool]($helpText -match '(?m)^\s*--report-trx\b')
+$xunitReport = [bool]($helpText -match '(?m)^\s*-result-trx\b')
+
+$arguments = New-Object System.Collections.Generic.List[string]
+if ($xunitReport) {
+    Write-Host 'report option offered by the executable: -result-trx (xUnit v3 in-process runner)' -ForegroundColor Green
+    $arguments.AddRange([string[]]@('-result-trx', $trx, '-noColor'))
+    if ($helpText -match '(?m)^\s*-result-html\b') {
+        $arguments.AddRange([string[]]@('-result-html', (Join-Path $results 'windowsmaintenancecenter.html')))
     }
-}
-if ($reportOption) {
-    Write-Host "report option offered by the executable: $reportOption" -ForegroundColor Green
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $arguments.AddRange([string[]]@('-filter', $Filter))
+    }
+} elseif ($mtpReport) {
+    Write-Host 'report option offered by the executable: --report-trx (Microsoft.Testing.Platform)' -ForegroundColor Green
+    if ($helpText -match '(?m)^\s*--results-directory\b') {
+        $arguments.AddRange([string[]]@('--results-directory', $results))
+    }
+    if ($helpText -match '(?m)^\s*--no-ansi\b') { $arguments.Add('--no-ansi') }
+    $arguments.Add('--report-trx')
+    if ($helpText -match '(?m)^\s*--report-trx-filename\b') {
+        $arguments.AddRange([string[]]@('--report-trx-filename', 'windowsmaintenancecenter.trx'))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $arguments.AddRange([string[]]@('--filter', $Filter))
+    }
 } else {
     Write-Warning 'the executable offers no TRX report option - the run is executed and logged, but its proof is incomplete (see help.log).'
-}
-
-$arguments = @()
-if ($helpText -match '(?m)^\s*--results-directory\b') {
-    $arguments += @('--results-directory', $results)
-}
-if ($helpText -match '(?m)^\s*--no-ansi\b') {
-    $arguments += '--no-ansi'
-}
-if ($reportOption) {
-    $arguments += $reportOption
-    if ($reportOption -eq '--report-trx' -and $helpText -match '(?m)^\s*--report-trx-filename\b') {
-        $arguments += @('--report-trx-filename', 'windowsmaintenancecenter.trx')
+    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+        $arguments.AddRange([string[]]@('-filter', $Filter))
     }
-}
-if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-    $arguments += @('--filter', $Filter)
 }
 
 # The console log is kept as a file as well: it is the fallback proof when no TRX file could be
@@ -143,40 +153,84 @@ if ($testExitCode -ne 0) {
     throw "the test run failed with exit code $testExitCode (see $consoleLog)."
 }
 
-# A run that produced no result file, or a result file without a single test, is not a passed test
-# run: it means the tests were not discovered - the mistake this project must never report as
-# success. The expected number of test cases guards against a silently shrinking suite.
-$trx = Join-Path $results 'windowsmaintenancecenter.trx'
+# The numbers are read from the TRX when there is one, and from the console log otherwise. A run that
+# produced no numbers at all is not a passed test run: it means the tests were not discovered - the
+# mistake this project must never report as success.
+$executed = 0
+$passed = 0
+$failed = 0
+$skipped = 0
+$proof = 'TRX'
+
 if (Test-Path $trx) {
     [xml]$report = Get-Content -Raw $trx
-    $counters = $report.TestRun.ResultSummary.Counters
-    $executed = [int]$counters.total
-    if ($executed -lt $MinimumTests) {
-        throw "only $executed test(s) were executed, at least $MinimumTests are expected - the suite shrank or was not discovered."
+    $cases = @($report.SelectNodes('//UnitTestResult'))
+    $executed = $cases.Count
+    foreach ($node in $cases) {
+        switch ($node.GetAttribute('outcome')) {
+            'Passed' { $passed++ }
+            'Failed' { $failed++ }
+            default { $skipped++ }
+        }
     }
-
-    Write-Host "tests passed: $executed executed, $($counters.passed) passed, $($counters.failed) failed, $($counters.skipped) skipped" -ForegroundColor Green
-    Write-Host "TRX: $trx" -ForegroundColor Green
-    Write-Host "console log: $consoleLog" -ForegroundColor Green
-    return
+} else {
+    $proof = 'console log only (no TRX file was written)'
+    $text = $console -join "`n"
+    if ($text -match '(?m)\bTotal:\s*(\d+)') { $executed = [int]$Matches[1] }
+    if ($text -match '(?m)\bFailed:\s*(\d+)') { $failed = [int]$Matches[1] }
+    if ($text -match '(?m)\bSkipped:\s*(\d+)') { $skipped = [int]$Matches[1] }
+    if ($executed -gt 0) { $passed = $executed - $failed - $skipped }
 }
 
-# No TRX file: the test application does not carry the report extension. The run itself is still
-# proven by its console log, and the number of executed tests is read from that log, because a run
-# whose size nobody checked is not a proof of anything.
-$text = $console -join "`n"
-$total = if ($text -match '(?m)^\s*total:\s*(\d+)') { [int]$Matches[1] } else { $null }
-$failed = if ($text -match '(?m)^\s*failed:\s*(\d+)') { [int]$Matches[1] } else { $null }
-
-if ($null -eq $total) {
-    throw "the test run wrote no TRX file and its console log at $consoleLog carries no test count - the run cannot be verified."
+if ($executed -lt $MinimumTests) {
+    throw "only $executed test case(s) were reported, at least $MinimumTests are expected - the suite shrank or was not discovered."
 }
-if ($total -lt $MinimumTests) {
-    throw "only $total test(s) were reported, at least $MinimumTests are expected - the suite shrank or was not discovered."
-}
-if ($null -ne $failed -and $failed -gt 0) {
+if ($failed -gt 0) {
     throw "$failed test(s) failed (see $consoleLog)."
 }
 
-Write-Warning "tests passed: $total executed, but NO TRX file was written - the proof of this run rests on $consoleLog alone."
-Write-Host 'The report extension is missing from the test application. This is a gap in the evidence, not a passed gate; see docs/VM-CI.md.' -ForegroundColor Yellow
+$stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
+$outcome = "$passed-of-$executed"
+$evidence = Join-Path $root "test-results/unit/$stamp-$outcome"
+New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+
+# Chapter 71: every report carries timestamp, version, build, environment and result. The build is
+# taken from the runner's environment when there is one, and stays "unknown" otherwise.
+$version = 'unknown'
+$props = Join-Path $root 'eng/Version.props'
+if (Test-Path $props) {
+    $propsText = Get-Content -Raw $props
+    if ($propsText -match '<VersionPrefix>(.*?)</VersionPrefix>') { $version = $Matches[1].Trim() }
+}
+$build = if ($env:GITHUB_SHA) { $env:GITHUB_SHA } else { 'unknown (no checkout revision in this environment)' }
+$environment = @(
+    "machine=$env:COMPUTERNAME",
+    "os=$([System.Environment]::OSVersion.VersionString)",
+    "powerShell=$($PSVersionTable.PSVersion)",
+    "dotnet=$(& dotnet --version 2>$null)",
+    "configuration=$Configuration",
+    "filter=$(if ([string]::IsNullOrWhiteSpace($Filter)) { 'none' } else { $Filter })"
+)
+
+$summary = New-Object System.Collections.Generic.List[string]
+$summary.Add("timestamp   : $stamp")
+$summary.Add("version     : $version")
+$summary.Add("build       : $build")
+$summary.Add("result      : $passed passed, $failed failed, $skipped skipped, $executed executed (exit code $testExitCode)")
+$summary.Add("proof       : $proof")
+$summary.Add('environment :')
+$environment | ForEach-Object { $summary.Add("  $_") }
+$summary | Set-Content -Encoding utf8 (Join-Path $evidence 'summary.txt')
+
+foreach ($file in @($trx, $consoleLog, $helpLog, (Join-Path $results 'windowsmaintenancecenter.html'))) {
+    if (Test-Path $file) {
+        Copy-Item $file (Join-Path $evidence (Split-Path -Leaf $file)) -Force
+    }
+}
+
+Write-Host "tests passed: $executed executed, $passed passed, $failed failed, $skipped skipped" -ForegroundColor Green
+Write-Host "proof: $proof" -ForegroundColor Green
+Write-Host "evidence: $evidence" -ForegroundColor Green
+if ($proof -ne 'TRX') {
+    Write-Warning 'This run is documented by its console log only. It is not the proof chapter 71 asks for, so it must not be filed as a passed gate; see docs/VM-CI.md.'
+}

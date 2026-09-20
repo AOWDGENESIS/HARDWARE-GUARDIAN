@@ -53,10 +53,15 @@ public sealed class SmbiosCodesTests
         Assert.Equal(expected, SmbiosCodes.ChassisType(code));
     }
 
+    // The codes have to be ones the documented table really does not contain. 25 (0x19) and 29
+    // (0x1D) do not belong here: the table names them FBD2 and LPDDR3, so a test that calls them
+    // undocumented would demand a wrong answer. 21 (0x15), 23 (0x17) and 32 (0x20) are the gaps
+    // (DMTF DSP0134 7.18.2).
     [Theory]
     [InlineData(0u)]
-    [InlineData(25u)]
-    [InlineData(29u)]
+    [InlineData(21u)]
+    [InlineData(23u)]
+    [InlineData(32u)]
     [InlineData(77u)]
     [InlineData(uint.MaxValue)]
     public void An_undocumented_code_is_reported_as_a_code_and_never_guessed(uint code)

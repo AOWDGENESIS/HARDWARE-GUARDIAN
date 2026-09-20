@@ -87,7 +87,10 @@ public sealed class UpdateDecisionEngineTests
     [Fact]
     public void Unknown_compatibility_is_not_treated_as_compatible()
     {
-        var result = _engine.Evaluate(Verified() with { IsCompatible = null });
+        // The candidate has to be newer than the installed version: with the same version the engine
+        // answers "current", and that answer says nothing about compatibility. The fixture starts at
+        // 1.0, so the case described by this test needs 2.0.
+        var result = _engine.Evaluate(Verified() with { IsCompatible = null, Available = Version("2.0") });
 
         Assert.Equal(UpdateStatus.Warning, result.Status);
         Assert.False(result.CanDownload);

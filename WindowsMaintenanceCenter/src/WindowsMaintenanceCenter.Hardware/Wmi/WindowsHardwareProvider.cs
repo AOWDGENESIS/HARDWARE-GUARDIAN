@@ -271,7 +271,9 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 TemperatureCelsius = Measured<double>.Missing("no supported GPU temperature source (vendor tool required)"),
                 UtilizationPercent = Measured<double>.Missing("no supported GPU utilisation source (vendor tool required)"),
                 VendorSubsystemId = Text(item, "PNPDeviceID", origin),
-                IsIntegratedGraphics = isIntegrated,
+                // The classification rests on the adapter name: without a name there is no answer,
+                // and null says exactly that instead of "not integrated".
+                IsIntegratedGraphics = name.IsKnown ? isIntegrated : null,
             });
         }
 

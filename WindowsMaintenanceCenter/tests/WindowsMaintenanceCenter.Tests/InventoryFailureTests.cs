@@ -39,8 +39,10 @@ public sealed class InventoryFailureTests
 
         Assert.Equal(2, snapshot.InventoryFailedReads);
         Assert.Equal(2, snapshot.Problems.Count);
+        // Identifier scheme of chapter 85: WMC-<topic>-<number>. The topic stands where the earlier
+        // three letter prefix stood, which is why the expectation names the whole prefix.
         Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("WMC-STORAGE", StringComparison.Ordinal));
-        Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("DRV", StringComparison.Ordinal));
+        Assert.Contains(snapshot.Problems, problem => problem.Id.StartsWith("WMC-DRIVER", StringComparison.Ordinal));
 
         // The evidence has to name the failed call, not just say "empty".
         Assert.All(snapshot.Problems, problem => Assert.Contains("Get", problem.Evidence, StringComparison.Ordinal));
@@ -89,7 +91,7 @@ public sealed class InventoryFailureTests
         var snapshot = await harness.Orchestrator.RunFullScanAsync(CancellationToken.None);
 
         var problem = Assert.Single(snapshot.Problems);
-        Assert.Equal("HW-SYS", problem.Id[..6]);
+        Assert.StartsWith("WMC-SYSTEM", problem.Id, StringComparison.Ordinal);
         Assert.Equal(Severity.Error, problem.Severity);
         Assert.Equal(HealthStatus.Warning, snapshot.OverallStatus);
     }

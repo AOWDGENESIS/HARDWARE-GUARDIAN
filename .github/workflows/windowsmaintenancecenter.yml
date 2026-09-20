@@ -259,10 +259,25 @@ jobs:
             "job_status=$env:JOB_STATUS"
           )
           $summary | Set-Content -Encoding utf8 (Join-Path $target 'run.txt')
+          # The unit test proof of chapter 71 belongs into test-results/unit, not only into the run
+          # folder: scripts/test.ps1 files it there with timestamp, version, build, environment and
+          # result. Both places are recorded, because the run folder also carries the build, publish
+          # and installer logs.
+          $unitEvidence = 'test-results/unit'
           git config user.name 'Windows Maintenance Center CI'
           git config user.email 'ci@users.noreply.github.com'
           git add --force $target
           $staged = git status --porcelain $target
+          if (Test-Path $unitEvidence) {
+            # The TRX file is the proof of the unit run; only something implausibly large is left out,
+            # and then the console log next to it still names every case.
+            Get-ChildItem -Path $unitEvidence -Recurse -File | Where-Object { $_.Length -gt 8MB } | ForEach-Object {
+              Write-Host "not keeping $($_.Name): $($_.Length) bytes"
+              Remove-Item $_.FullName
+            }
+            git add --force $unitEvidence
+            $staged += git status --porcelain $unitEvidence
+          }
           if (-not $staged) { Write-Host 'nothing new to record'; exit 0 }
           git commit -m "CI-Lauf $run aufzeichnen [skip ci]" | Write-Host
           git push origin "HEAD:$env:GITHUB_REF_NAME"

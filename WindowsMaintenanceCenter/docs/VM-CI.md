@@ -85,6 +85,44 @@ Fehler des jeweiligen Bau-Schritts:
 | 15 | `6f9aa45` | `WindowsHardwareProvider` wurde ueber einen Namensraum angesprochen, den es nicht gibt | 6 Fehler / 718 Warnungen |
 | 16 | `37d34ba` | Berichtskultur, Aliaslisten, Testprojekt-Warnungen — **der Bau ist durch** | **0 Fehler / 50 Warnungen: Bau ✓, Testschritt ✗** |
 | 17 | `1f852a7` | Testschritt startet die Testanwendung statt `dotnet test`; sie laeuft, lehnt aber `--report-trx` ab: die TRX-Erweiterung ist im Lauf nicht registriert | Bau ✓, Testlauf ausgefuehrt, Nachweis unvollstaendig |
+| 18 | `01eda0c` | `test.ps1` fragt die Anwendung selbst (`--help`): sie faehrt den xUnit-eigenen Runner und nimmt `-result-trx`. **Die Suite laeuft: 314 Faelle, 0 Fehler in der Ausfuehrung, 11 inhaltliche Testfehler.** Kein TRX in diesem Lauf, weil die Option erst danach gesetzt wurde | 314 ausgefuehrt, **11 failed**, Exit 1 |
+
+### Die elf echten Testfunde aus Lauf 18
+
+Erstmals lief nicht die Umgebung schief, sondern die Suite fand elf Sachen. Neun davon sind jetzt
+behoben, und die Trennung ist wichtig: **drei waren Fehler im Produkt, sechs in den Testdaten oder
+-erwartungen.**
+
+Produktfehler (im Code behoben):
+
+| Fund | Warum das gefaehrlich war |
+| --- | --- |
+| `PathGuard` liess einen Pfad mit abschliessendem Punkt zu (`cache.`) | Windows entfernt solche Zeichen beim Zugriff: geprueft worden waere ein anderer Pfad als geloescht worden. Der Test `A_segment_that_ends_with_a_dot_or_a_space_is_refused` hat genau das aufgedeckt. |
+| `PathGuard` meldete fuer die Wurzel der Allowlist "ausserhalb aller Wurzeln" | Ergebnis gleich (verweigert), Begruendung falsch: der Leser haette einen Pfadfehler gesucht, wo eine Grenze verteidigt wurde. |
+| `IsIntegratedGraphics` war ein Wahrheitswert, kein "unbekannt" | Ein Adaptername, der nicht gelesen werden konnte, wurde als "nicht integriert" gemeldet - eine erfundene Hardwareaussage. Jetzt dreiwertig, der Bericht schreibt `UNKNOWN: not reported`. |
+
+Testfehler (Testdaten oder -erwartungen korrigiert, jeweils mit Begruendung im Test):
+
+| Fund | Ursache |
+| --- | --- |
+| `SmbiosCodesTests` nannte 25 und 29 "undokumentiert" | Beide sind dokumentiert (0x19 = FBD2, 0x1D = LPDDR3). Der Test haette eine falsche Antwort verlangt. |
+| `InventoryFailureTests` erwartete die alten Problem-IDs `HW-SYS` / `DRV` | Kapitel 85 verlangt `WMC-<Thema>-<Nummer>`; die Erwartungen folgen jetzt dem Schema. |
+| `SystemActionCatalogTests` suchte `/f` als Teilzeichenkette | `/fo list` von `systeminfo.exe` ist eine Formatausgabe, kein Erzwingungsschalter. Der Test prueft jetzt den Schalter selbst - vorher haette er `/F` durchgelassen. |
+| `SimulationFixtureTests` verglich `Name.Display` ohne Aufruf | Verglichen wurden zwei frische Delegates, nie die angezeigten Werte. |
+| `UpdateDecisionEngineTests` setzte fuer den Kompatibilitaetsfall keinen neueren Kandidaten | Gleiche Version ergibt "aktuell"; die Frage nach der Kompatibilitaet stellt sich erst bei einem neueren Kandidaten. |
+
+**Noch offen aus diesem Lauf:** `Volume.ChkdskScan` mit einem Traversal-Argument meldete
+`ACTION_ARGUMENT_INVALID` statt `ACTION_PATH_NOT_ALLOWED`. Die Argumentpruefung antwortete auf den
+Wert, statt die Pfadrichtlinie zu befragen; `CheckArgument` fragt jetzt zuerst nach dem Ort, damit
+Kapitel 79 die Antwort gibt.
+
+Der Lauf belegt ausserdem: die Testanwendung ist **kein** Microsoft.Testing.Platform-Host, sondern
+faehrt den xUnit-eigenen In-Prozess-Runner (`xUnit.net v3 In-Process Runner v4.0.1`). Dessen
+Optionsliste (`artifacts/test-results/help.log` im Laufrecord) nennt `-result-trx <Datei>` und
+`-result-html`, dazu `-noColor`, `-reporter` und die Filter `-class`, `-method`, `-namespace`,
+`-trait`. Die Ausgabe der Suite nennt die Zahlen in einer Zeile
+(`Total: 314, Errors: 0, Failed: 11, Skipped: 0`), sodass ein Lauf auch ohne Berichtsdatei
+auswertbar bleibt.
 
 ### Der TRX-Befund aus Lauf 17
 
@@ -109,6 +147,13 @@ Testplattform-Dateien im Ausgabeordner mit ihren Versionen auf und benutzt die B
 tatsaechlich vorhanden ist. Fehlt sie ganz, laeuft die Suite trotzdem, ihre Ausgabe steht in
 `test-run.log`, und das Skript sagt ausdruecklich, dass der Nachweis allein auf diesem Protokoll
 beruht. Ein Lauf ohne TRX wird **nicht** als bestandene Abnahme gefuehrt.
+
+Lauf 18 hat die Frage beantwortet: Die Anwendung faehrt den **xUnit-eigenen In-Prozess-Runner** und
+kennt `-result-trx <Datei>` (siehe oben). `test.ps1` benutzt diese Option, sobald sie in der Hilfe
+steht, und legt jeden Lauf zusaetzlich unter `test-results/unit/<Zeitstempel>-<Ergebnis>/` ab -
+mit `summary.txt` (timestamp, version, build, environment, result nach Kapitel 71), der TRX-Datei
+und dem Konsolenprotokoll. Damit steht der Unit-Nachweis im Nachweisverzeichnis der Spezifikation,
+nicht nur im Laufrecord.
 
 Waehrend der fruehere Stand dieses Dokuments den Lauf 13 als „nicht ablesbar\" fuehrte: der Lauf
 `35501975574` ist inzwischen aus dem Laufnachweis im Zweig ablesbar (2 Fehler, beide

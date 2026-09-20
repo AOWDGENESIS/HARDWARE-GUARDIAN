@@ -724,7 +724,7 @@ public sealed class ReportGenerator : IReportGenerator
                 ["videoMemoryBytes"] = Show(g.VideoMemoryBytes),
                 ["driverVersion"] = Show(g.DriverVersion),
                 ["driverDate"] = Show(g.DriverDate),
-                ["isIntegratedGraphics"] = g.IsIntegratedGraphics,
+                ["isIntegratedGraphics"] = YesNo(g.IsIntegratedGraphics),
             }).ToList(),
             ["storage"] = snapshot.Storage.Select(d => (object)new Dictionary<string, object?>
             {

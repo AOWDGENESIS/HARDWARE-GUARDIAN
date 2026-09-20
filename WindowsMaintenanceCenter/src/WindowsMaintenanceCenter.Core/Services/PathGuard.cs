@@ -34,6 +34,16 @@ public sealed class PathGuard : IPathGuard
             return Deny(null, "PathGuard_Reason_Empty", "empty path");
         }
 
+        // A segment that ends in a dot or a space is ambiguous: Windows strips such characters when
+        // the path is handed to the file system, so the string the caller checked and the file that
+        // is touched would not be the same one. The check therefore has to look at the path as it was
+        // written - Path.GetFullPath removes those characters, which is exactly what makes them worth
+        // refusing (spec section 77; test A_segment_that_ends_with_a_dot_or_a_space_is_refused).
+        if (HasAmbiguousSegment(path))
+        {
+            return Deny(path, "PathGuard_Reason_AmbiguousSegment", "a path segment ends with a dot or a space");
+        }
+
         if (!TryNormalise(path, out var normalised, out var normaliseReason))
         {
             return Deny(null, "PathGuard_Reason_Invalid", normaliseReason ?? "path could not be normalised");
@@ -57,12 +67,20 @@ public sealed class PathGuard : IPathGuard
             return Deny(normalised, "PathGuard_Reason_NoAllowedRoot", "allow list is empty", notes);
         }
 
-        // A segment that ends in a dot or a space is ambiguous: Windows strips such characters when
-        // the path is handed to the file system, so the string the user sees and the file that is
-        // deleted can differ. Fail closed instead of guessing (spec section 77).
+        // The same check on the normalised form: a link target can carry a segment of this kind.
         if (HasAmbiguousSegment(normalised))
         {
             return Deny(normalised, "PathGuard_Reason_AmbiguousSegment", "a path segment ends with a dot or a space", notes);
+        }
+
+        // The root of an allowed root is the boundary, not a member of it: an operation on it would
+        // touch everything the allow list covers at once. This has to be checked before the
+        // containment test, because "strictly inside" is false for the root itself and the message
+        // would then claim the path is outside every allowed root - true for the containment test,
+        // misleading for the reader (test The_allow_list_root_itself_is_never_deleted).
+        if (roots.Any(root => string.Equals(root, normalised, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Deny(normalised, "PathGuard_Reason_IsAllowedRoot", "operation on an allow list root itself is refused", notes);
         }
 
         // A link or junction inside the allowed root can point anywhere. Both the path as written

@@ -201,6 +201,17 @@ public sealed class ActionRegistry : IActionRegistry
             return Refuse("Action_Text_Metacharacter", spec.Name);
         }
 
+        // A value written as a location stays a location, whatever the argument was declared as. A
+        // value that walks upwards or names a UNC/device location has to be answered by the path
+        // policy of chapter 79, not by the value check: "the value does not match its declaration"
+        // would hide that somebody tried to leave the directory they were given
+        // (test A_volume_argument_of_the_disk_check_is_validated_before_it_could_be_used).
+        var locationReason = CheckLocation(value);
+        if (locationReason is not null)
+        {
+            return Refuse(locationReason, spec.Name);
+        }
+
         switch (spec.Kind)
         {
             case ActionArgumentKind.Number:
@@ -230,6 +241,30 @@ public sealed class ActionRegistry : IActionRegistry
     /// Path policy of chapter 79: no parent directory, no UNC and no device path, no shell
     /// metacharacter. A value that fails here never reaches a command line.
     /// </summary>
+    /// <summary>
+    /// Answers with the path reason when the value names a location the policy refuses, otherwise
+    /// null. Used for declared path arguments and for every other argument as well: a location stays
+    /// a location.
+    /// </summary>
+    private static string? CheckLocation(string value)
+    {
+        var normalized = value.Replace('/', '\\');
+
+        if (normalized.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            // UNC (\\server\share) and device paths (\\?\, \\.\) - neither is needed by an action
+            // that is registered today.
+            return "Action_Path_UncOrDevice";
+        }
+
+        if (normalized.Split('\\', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
+        {
+            return "Action_Path_Traversal";
+        }
+
+        return null;
+    }
+
     private static ActionValidationError? CheckPath(ActionArgumentSpec spec, string value)
     {
         if (ContainsShellMetacharacter(value))
@@ -237,18 +272,10 @@ public sealed class ActionRegistry : IActionRegistry
             return Refuse("Action_Path_Metacharacter", spec.Name);
         }
 
-        var normalized = value.Replace('/', '\\');
-
-        if (normalized.StartsWith(@"\\", StringComparison.Ordinal))
+        var locationReason = CheckLocation(value);
+        if (locationReason is not null)
         {
-            // UNC (\\server\share) and device paths (\\?\, \\.\) - neither is needed by an action
-            // that is registered today.
-            return Refuse("Action_Path_UncOrDevice", spec.Name);
-        }
-
-        if (normalized.Split('\\', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
-        {
-            return Refuse("Action_Path_Traversal", spec.Name);
+            return Refuse(locationReason, spec.Name);
         }
 
         if (!spec.AllowSpaces && value.Contains(' ', StringComparison.Ordinal))
