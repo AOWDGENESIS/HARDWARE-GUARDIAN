@@ -161,7 +161,7 @@ public static class PowerShellCommandCatalog
             "'IS_INSTALLED=' + $update.IsInstalled } } " +
             "catch { 'WU_ERROR=' + $_.Exception.Message }",
 
-        [RestorePointStatus] =
+        [SystemRestoreStatus] =
             "$sr = Get-CimInstance -Namespace root/default -ClassName SystemRestore -ErrorAction SilentlyContinue; " +
             "if ($null -eq $sr) { 'SR_CONTROL_AVAILABLE=false' } else { 'SR_CONTROL_AVAILABLE=true' }",
 

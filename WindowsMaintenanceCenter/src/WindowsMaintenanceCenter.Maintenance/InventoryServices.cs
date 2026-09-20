@@ -95,7 +95,7 @@ public sealed class SoftwareInventoryService : ISoftwareInventoryService
         }
 
         return DateTime.TryParseExact(raw.Value, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
-            ? TextInfo.Known(parsed.ToString("yyyy-MM-dd"), origin)
+            ? TextInfo.Known(parsed.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), origin)
             : TextInfo.Unknown(origin, $"InstallDate '{raw.Value}' could not be parsed");
     }
 }

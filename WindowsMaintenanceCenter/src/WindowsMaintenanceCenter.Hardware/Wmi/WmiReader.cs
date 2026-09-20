@@ -118,7 +118,7 @@ public sealed class WmiObject
         {
             string s => s,
             string[] array => array.FirstOrDefault() ?? string.Empty,
-            DateTime date => date.ToString("yyyy-MM-dd"),
+            DateTime date => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             bool flag => flag ? "TRUE" : "FALSE",
             _ => raw.ToString() ?? string.Empty,
         };

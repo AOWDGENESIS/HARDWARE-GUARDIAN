@@ -108,7 +108,8 @@ public sealed class FileAuditSink : IAuditSink
         }
 
         // Keep the raw key chain visible next to the readable text: it is required for support.
-        builder.Append(" | text=").Append(_localizer.Resolve(entry.OperationKey));
+        // OperationKey is a key, not a text: Resolve() takes LocalizedText, the indexer takes a key.
+        builder.Append(" | text=").Append(_localizer[entry.OperationKey]);
         return builder.ToString();
     }
 }

@@ -23,7 +23,6 @@ namespace WindowsMaintenanceCenter.Infrastructure.Localization;
 public sealed class JsonLocalizer : ILocalizer
 {
     private const string OverrideSubdirectory = "localization";
-    private const string MissingFormat = "[[{0}]]";
 
     private readonly Dictionary<string, Dictionary<string, string>> _catalogs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _missing = new(StringComparer.Ordinal);
@@ -88,13 +87,13 @@ public sealed class JsonLocalizer : ILocalizer
     {
         if (string.IsNullOrWhiteSpace(key))
         {
-            return string.Format(CultureInfo.InvariantCulture, MissingFormat, "empty_key");
+            return Missing("empty_key");
         }
 
         if (!TryGetTemplate(key, out var template))
         {
             MarkMissing(key);
-            return string.Format(CultureInfo.InvariantCulture, MissingFormat, key);
+            return Missing(key);
         }
 
         if (arguments is null || arguments.Length == 0 || !template.Contains('{', StringComparison.Ordinal))
@@ -110,9 +109,12 @@ public sealed class JsonLocalizer : ILocalizer
         {
             // A template whose placeholders do not match the call site must never crash the UI.
             MarkMissing(key);
-            return string.Format(CultureInfo.InvariantCulture, MissingFormat, key);
+            return Missing(key);
         }
     }
+
+    /// <summary>A missing key never becomes an empty string; the marker makes it visible.</summary>
+    private static string Missing(string key) => "[[" + key + "]]";
 
     public string Resolve(LocalizedText text)
     {

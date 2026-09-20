@@ -126,10 +126,12 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
         }
 
         Measured<uint> usage = Measured<uint>.Missing("memory usage could not be derived");
-        if (totalMemory.HasValue && freeMemory.HasValue && totalMemory.Value > 0)
+        if (totalMemory.Value is { } totalBytes && freeMemory.Value is { } freeBytes && totalBytes > 0)
         {
-            var used = totalMemory.Value - freeMemory.Value;
-            usage = Measured<uint>.Known((uint)Math.Clamp(used * 100 / totalMemory.Value, 0, 100), origin);
+            // Measured<T>.Value is nullable; the arithmetic unwraps it once and stays in double so that
+            // the product of two 64 bit numbers cannot wrap around.
+            var used = totalBytes >= freeBytes ? totalBytes - freeBytes : 0UL;
+            usage = Measured<uint>.Known((uint)Math.Clamp(used * 100d / totalBytes, 0d, 100d), origin);
         }
 
         return new MemoryInfo
@@ -181,8 +183,8 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             SerialNumber = Text(board, "SerialNumber", origin),
             Chipset = TextInfo.Unknown(origin, "chipset is not exposed through Win32_BaseBoard"),
             UefiMode = Text(firmware, "BootupState", origin),
-            SecureBootState = secureBoot.HasValue
-                ? TextInfo.Known(secureBoot.Value.Value ? "Enabled" : "Disabled", secureBoot.Origin)
+            SecureBootState = secureBoot.Value is { } secureBootOn
+                ? TextInfo.Known(secureBootOn ? "Enabled" : "Disabled", secureBoot.Origin)
                 : TextInfo.Unknown(secureBoot.Origin, secureBoot.UnknownReason),
             BoardIdentifiers = new[]
             {
@@ -219,7 +221,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             Manufacturer = Text(bios, "Manufacturer", origin),
             Version = Text(bios, "SMBIOSBIOSVersion", origin),
             ReleaseDate = bios is not null && bios.TryGetDateTime("ReleaseDate", out var released)
-                ? TextInfo.Known(released.ToString("yyyy-MM-dd"), origin)
+                ? TextInfo.Known(released.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), origin)
                 : TextInfo.Unknown(origin, "ReleaseDate not reported"),
             SmbiosVersion = bios is not null && bios.TryGetUInt("SMBIOSMajorVersion", out var major) && bios.TryGetUInt("SMBIOSMinorVersion", out var minor)
                 ? TextInfo.Known($"{major}.{minor}", origin)
@@ -262,7 +264,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 CurrentResolutionHeight = UInt(item, "CurrentVerticalResolution", origin),
                 CurrentRefreshRate = UInt(item, "CurrentRefreshRate", origin),
                 DriverVersion = Text(item, "DriverVersion", origin),
-                DriverDate = item is not null && item.TryGetDateTime("DriverDate", out var driverDate) ? TextInfo.Known(driverDate.ToString("yyyy-MM-dd"), origin) : TextInfo.Unknown(origin, "driver date not reported"),
+                DriverDate = item is not null && item.TryGetDateTime("DriverDate", out var driverDate) ? TextInfo.Known(driverDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), origin) : TextInfo.Unknown(origin, "driver date not reported"),
                 TemperatureCelsius = Measured<double>.Missing("no supported GPU temperature source (vendor tool required)"),
                 UtilizationPercent = Measured<double>.Missing("no supported GPU utilisation source (vendor tool required)"),
                 VendorSubsystemId = Text(item, "PNPDeviceID", origin),
@@ -310,8 +312,8 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                         FileSystem = Text(logical, "FileSystem", origin),
                         SizeBytes = volumeSize,
                         FreeBytes = freeSpace,
-                        FreePercent = volumeSize.HasValue && freeSpace.HasValue && volumeSize.Value > 0
-                            ? Measured<byte>.Known((byte)Math.Clamp(freeSpace.Value * 100 / volumeSize.Value, 0, 100), origin)
+                        FreePercent = volumeSize.Value is { } sizeBytes && freeSpace.Value is { } freeOnVolume && sizeBytes > 0
+                            ? Measured<byte>.Known((byte)Math.Clamp(freeOnVolume * 100d / sizeBytes, 0d, 100d), origin)
                             : Measured<byte>.Missing("free space percentage could not be derived"),
                     });
                 }
@@ -329,7 +331,9 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                     PartitionStyle = TextInfo.Unknown(origin, "partition style is reported per disk through Win32_DiskPartition"),
                     SizeBytes = size,
                     FreeSpaceBytes = volumes.Count > 0 && volumes.All(v => v.FreeBytes.HasValue)
-                        ? Measured<ulong>.Known(volumes.Sum(v => v.FreeBytes.Value!.Value), origin)
+                        // Sum() over a ulong selector is ambiguous between the decimal and float
+                        // overloads; the fold is explicit and cannot wrap silently.
+                        ? Measured<ulong>.Known(volumes.Aggregate(0UL, (sum, volume) => sum + volume.FreeBytes.Value!.Value), origin)
                         : Measured<ulong>.Missing("free space could not be summed up for this device"),
                     HealthStatus = health,
                     PercentageUsed = Measured<byte>.Missing("SMART wear indicator needs MSFT_StorageReliabilityCounter"),
@@ -612,7 +616,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 DeviceInstanceId = TextInfo.From(deviceId, origin, "DeviceID not reported"),
                 DriverProvider = Text(driver, "DriverProviderName", origin),
                 DriverVersion = Text(driver, "DriverVersion", origin),
-                DriverDate = driver.TryGetDateTime("DriverDate", out var driverDate) ? TextInfo.Known(driverDate.ToString("yyyy-MM-dd"), origin) : TextInfo.Unknown(origin, "DriverDate not reported"),
+                DriverDate = driver.TryGetDateTime("DriverDate", out var driverDate) ? TextInfo.Known(driverDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), origin) : TextInfo.Unknown(origin, "DriverDate not reported"),
                 DriverFileName = Text(driver, "InfName", origin),
                 DeviceClass = Text(driver, "DeviceClass", origin),
                 InfName = Text(driver, "InfName", origin),
@@ -690,7 +694,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
             BuildNumber = Text(os, "BuildNumber", origin),
             Revision = Text(os, "Version", origin),
             Architecture = Text(os, "OSArchitecture", origin),
-            InstallDate = os is not null && os.TryGetDateTime("InstallDate", out var installed) ? TextInfo.Known(installed.ToString("yyyy-MM-dd"), origin) : TextInfo.Unknown(origin, "InstallDate not reported"),
+            InstallDate = os is not null && os.TryGetDateTime("InstallDate", out var installed) ? TextInfo.Known(installed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), origin) : TextInfo.Unknown(origin, "InstallDate not reported"),
             BootDevice = Text(os, "BootDevice", origin),
             SystemDrive = Text(os, "SystemDrive", origin),
             RegisteredOwnerPresent = TextInfo.Known(
@@ -767,7 +771,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
     private TextInfo ReadSecureBootText(ValueOrigin origin)
     {
         var reading = SecureBootReader.Read();
-        var api = origin with { Source = "GetFirmwareEnvironmentVariable(UEFI)" };
+        var api = origin with { Source = DataSource.WindowsApi, Detail = "GetFirmwareEnvironmentVariable(UEFI)" };
         return reading.Value is { } value
             ? TextInfo.Known(value ? "Enabled" : "Disabled", api)
             : TextInfo.Unknown(api, reading.Detail);

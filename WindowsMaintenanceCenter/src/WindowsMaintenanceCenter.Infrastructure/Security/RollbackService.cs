@@ -292,7 +292,7 @@ public sealed class RollbackService : IRollbackService
             BackupManifest? manifest = null;
             try
             {
-                manifest = JsonSerializer.Deserialize<BackupManifest>(File.ReadAllText(manifestPath), Serialization.JsonSerialization.Default);
+                manifest = JsonSerializer.Deserialize<BackupManifest>(File.ReadAllText(manifestPath), Serialization.JsonOptions.Default);
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
             {

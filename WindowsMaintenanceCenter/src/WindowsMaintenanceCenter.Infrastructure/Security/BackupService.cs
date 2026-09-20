@@ -52,11 +52,7 @@ public sealed class BackupService : IBackupService
         {
             var list = await _processRunner.RunAsync(
                 ExecutablePath("WindowsPowerShell\\v1.0\\powershell.exe") ?? "powershell.exe",
-                new[]
-                {
-                    "-NoProfile", "-NonInteractive", "-Command",
-                    "$p = Get-ComputerRestorePoint -ErrorAction SilentlyContinue; if ($p) { 'POINTS=' + ($p | Measure-Object).Count } else { 'POINTS=0' }",
-                },
+                RestorePointCountArguments,
                 new ProcessRunOptions { Timeout = TimeSpan.FromSeconds(30) },
                 cancellationToken).ConfigureAwait(false);
 
@@ -352,6 +348,16 @@ public sealed class BackupService : IBackupService
             new ProcessRunOptions { Timeout = timeout },
             cancellationToken).ConfigureAwait(false);
     }
+
+        /// <summary>
+    /// The argument vector of the restore point query. It is a constant, so it is written once and
+    /// not rebuilt on every call.
+    /// </summary>
+    private static readonly string[] RestorePointCountArguments =
+    {
+        "-NoProfile", "-NonInteractive", "-Command",
+        "$p = Get-ComputerRestorePoint -ErrorAction SilentlyContinue; if ($p) { 'POINTS=' + ($p | Measure-Object).Count } else { 'POINTS=0' }",
+    };
 
     private static string Sanitise(string value) => new((value ?? "op").Where(c => char.IsLetterOrDigit(c) || c is '-' or '_').ToArray());
 

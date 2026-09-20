@@ -52,8 +52,13 @@
       CA1000: Measured<T>.Known/NotAvailable/Missing are the only way to build a measured value, and
       they read as one family. Moving them to a non-generic helper class would touch every call site
       for a style rule about generic types.
+      CA1001: the file stores guard their own access with a SemaphoreSlim and live as long as the
+      application does; disposing them would mean disposing a singleton that is still in use.
+      CA5350: SHA-1 is offered by the hash service for exactly one purpose - checking a hash that a
+      vendor published under SHA-1. Nothing is secured with it, and every artefact hash this project
+      produces is SHA-256 (spec section 92).
     -->
-    <NoWarn>$(NoWarn);CA1303;CA1031;CA1848;CA2007;CA1062;CA1416;NU1510;CA1716;CA1859;CA1873;CA1000</NoWarn>
+    <NoWarn>$(NoWarn);CA1303;CA1031;CA1848;CA2007;CA1062;CA1416;NU1510;CA1716;CA1859;CA1873;CA1000;CA1001;CA5350</NoWarn>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Fail the build on genuinely wrong nullable usage without blocking on style hints. -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625</WarningsAsErrors>

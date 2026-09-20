@@ -207,6 +207,13 @@ public sealed class AdminWorker : IAdminWorker
         Func<ActionExecutionResult, CancellationToken, Task<bool>>? validate,
         CancellationToken cancellationToken)
     {
+        // A tool that reports a finding with a code of its own did run and did answer. That is not a
+        // success (the state is not as intended) and it is not a failed run either, so the result
+        // carries both facts: the run is complete, and there is a finding (chapter 88).
+        // It is worked out before the evidence list because the evidence states it.
+        var reportedFindings = !blocked && exitCode is not null && exitCode != 0
+            && action.FindingExitCodes.Contains(exitCode.Value);
+
         var evidence = new List<string>
         {
             $"action={action.Id}",
@@ -230,12 +237,6 @@ public sealed class AdminWorker : IAdminWorker
 
         var blocked = timedOut || elevationCancelled || errorDetail is BlockReasons.UacCancelled
             || errorDetail is BlockReasons.ActionTimeout;
-
-        // A tool that reports a finding with a code of its own did run and did answer. That is not a
-        // success (the state is not as intended) and it is not a failed run either, so the result
-        // carries both facts: the run is complete, and there is a finding (chapter 88).
-        var reportedFindings = !blocked && exitCode is not null && exitCode != 0
-            && action.FindingExitCodes.Contains(exitCode.Value);
 
         var succeeded = !blocked && (exitCode == 0 || reportedFindings);
 

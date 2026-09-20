@@ -64,7 +64,7 @@ public static class DirectoryMeasurer
         var tally = new SkipTally();
         var notes = new List<string>();
 
-        foreach (var (path, length, lastWrite) in Enumerate(root, pattern, maxDepth, notes, cancellationToken, tally))
+        foreach (var (path, length, lastWrite) in Enumerate(root, pattern, maxDepth, notes, tally, cancellationToken))
         {
             totalBytes += length;
             totalFiles++;
@@ -100,7 +100,7 @@ public static class DirectoryMeasurer
         var tally = new SkipTally();
         var result = new List<string>();
 
-        foreach (var item in Enumerate(root, pattern, maxDepth, notes, cancellationToken, tally))
+        foreach (var item in Enumerate(root, pattern, maxDepth, notes, tally, cancellationToken))
         {
             if (now - item.LastWrite >= minimumAge)
             {
@@ -116,8 +116,8 @@ public static class DirectoryMeasurer
         string pattern,
         int maxDepth,
         List<string> notes,
-        CancellationToken cancellationToken,
-        SkipTally skipped)
+        SkipTally skipped,
+        CancellationToken cancellationToken)
     {
         var pending = new Stack<(string Path, int Depth)>();
         pending.Push((root, 0));

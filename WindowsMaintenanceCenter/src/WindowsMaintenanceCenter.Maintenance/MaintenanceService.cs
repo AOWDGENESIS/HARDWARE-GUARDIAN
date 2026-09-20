@@ -220,8 +220,8 @@ public sealed class MaintenanceService : IMaintenanceService
                 FileCount = item.FileCount,
                 Change = isProtected
                     ? LocalizedText.Of("Maintenance_Change_None", item.DisplayNameKey)
-                    : LocalizedText.Of("Maintenance_Change_Delete", item.FileCount.Display, item.SizeBytes.Display),
-                Reason = item.ProtectionReason ?? LocalizedText.Of("Maintenance_Reason_Evidence", item.Notes.FirstOrDefault() ?? "measured"),
+                    : LocalizedText.Of("Maintenance_Change_Delete", item.FileCount.Display(), item.SizeBytes.Display()),
+                Reason = item.ProtectionReason ?? LocalizedText.Of("Maintenance_Reason_Evidence", item.Notes.Count > 0 ? item.Notes[0] : "measured"),
                 Risk = isProtected ? RiskLevel.High : item.SafetyClass == SafetyClass.Optional ? RiskLevel.Medium : RiskLevel.Low,
                 IsProtected = isProtected,
                 IsSelected = !isProtected,
@@ -282,7 +282,7 @@ public sealed class MaintenanceService : IMaintenanceService
                 ? LocalizedText.Of("Maintenance_DryRun_Protected", item.DisplayNameKey)
                 : item.SafetyClass == SafetyClass.Unknown
                     ? LocalizedText.Of("Maintenance_DryRun_UnknownCategory", item.DisplayNameKey)
-                    : LocalizedText.Of("Maintenance_DryRun_WouldFree", item.SizeBytes.Display, item.FileCount.Display);
+                    : LocalizedText.Of("Maintenance_DryRun_WouldFree", item.SizeBytes.Display(), item.FileCount.Display());
 
             results.Add(new MaintenanceItemResult
             {
@@ -319,7 +319,7 @@ public sealed class MaintenanceService : IMaintenanceService
             CompletedAt = _clock.Now,
             Items = results,
             FreedBytes = Measured<long>.NotAvailable("dry run: nothing was deleted"),
-            Summary = LocalizedText.Of("Maintenance_Result_DryRun", plan.Items.Count(i => !i.IsProtected), plan.TotalBytesToFree.Display),
+            Summary = LocalizedText.Of("Maintenance_Result_DryRun", plan.Items.Count(i => !i.IsProtected), plan.TotalBytesToFree.Display()),
         };
     }
 
@@ -366,7 +366,7 @@ public sealed class MaintenanceService : IMaintenanceService
                 Kind = OperationKind.Maintenance,
                 Risk = plan.Risk,
                 Category = ComponentCategory.Maintenance,
-                Reason = LocalizedText.Of("Maintenance_Change_Delete", plan.Items.Count, plan.TotalBytesToFree.Display),
+                Reason = LocalizedText.Of("Maintenance_Change_Delete", plan.Items.Count, plan.TotalBytesToFree.Display()),
             },
             null,
             cancellationToken).ConfigureAwait(false);
@@ -710,7 +710,7 @@ public sealed class MaintenanceService : IMaintenanceService
             ComponentCategory.Maintenance,
             overall,
             approval: approval,
-            evidence: evidence.Count > 0 ? evidence : new[] { "no item was executed" },
+            evidence: evidence.Count > 0 ? evidence : NoItemsExecuted,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         _protocol.Report(ModuleKey, LocalizedText.Of("Maintenance_Execute_Completed", plan.PlanId), overall == StageOutcome.Succeeded ? Severity.Success : Severity.Warning, $"{deletedTotal} file(s), {freedTotal / (1024 * 1024)} MB");
@@ -888,4 +888,10 @@ internal static class MeasuredFormatting
     public static string Display<T>(this Measured<T> measured) where T : struct => measured.HasValue
         ? measured.Value!.ToString() ?? "UNKNOWN"
         : $"UNKNOWN ({measured.UnknownReason})";
+
+    /// <summary>
+    /// Evidence line for a plan that executed nothing. Kept as a constant instead of an array literal
+    /// that would be built on every call.
+    /// </summary>
+    private static readonly string[] NoItemsExecuted = { "no item was executed" };
 }

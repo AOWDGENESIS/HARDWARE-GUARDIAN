@@ -47,7 +47,7 @@ public sealed class WorkloadModule : DiagnosticModuleBase
 
         foreach (var suggestion in assessment.Suggestions)
         {
-            evidence.Add($"suggestion={suggestion.Category}: {suggestion.Reason.Key}");
+            evidence.Add($"suggestion={suggestion.Id}: {suggestion.What.Key}; risk={suggestion.RiskLevel}; reversible={suggestion.IsReversible}");
         }
 
         var protectedWorkloads = detected.Where(d => d.MustNotBeDisturbed).ToList();
