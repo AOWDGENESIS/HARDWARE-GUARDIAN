@@ -1,0 +1,297 @@
+xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.12)
+  Discovering: WindowsMaintenanceCenter.Tests
+  Discovered:  WindowsMaintenanceCenter.Tests
+  Starting:    WindowsMaintenanceCenter.Tests
+    WindowsMaintenanceCenter.Tests.ReportGeneratorTests.A_foreign_value_cannot_steer_the_report [FAIL]
+      Assert.All() Failure: 57 out of 58 items in the collection did not pass.
+      [0]:  Item:  "Windows Maintenance Center - System Report\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 42)
+                   Collection: [···, 'p', 'o', 'r', 't', '\r']
+                   Found:      '\r'
+      [1]:  Item:  "=================================================="···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '=', '=', '=', '=', '\r']
+                   Found:      '\r'
+      [2]:  Item:  "Created: 2026-03-04 05:06:07 +00:00\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 35)
+                   Collection: [···, '0', ':', '0', '0', '\r']
+                   Found:      '\r'
+      [3]:  Item:  "Application: unknown (unknown)\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 30)
+                   Collection: [···, 'o', 'w', 'n', ')', '\r']
+                   Found:      '\r'
+      [4]:  Item:  "Language: en-US\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 15)
+                   Collection: [···, 'n', '-', 'U', 'S', '\r']
+                   Found:      '\r'
+      [5]:  Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [6]:  Item:  "Overall state\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 13)
+                   Collection: [···, 't', 'a', 't', 'e', '\r']
+                   Found:      '\r'
+      [7]:  Item:  "--------------------------------------------------"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '-', '-', '-', '-', '\r']
+                   Found:      '\r'
+      [8]:  Item:  "Overall status: Critical\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 24)
+                   Collection: [···, 'i', 'c', 'a', 'l', '\r']
+                   Found:      '\r'
+      [9]:  Item:  "Summary: Critical: 1 finding(s) require immediate "···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 57)
+                   Collection: [···, 'i', 'o', 'n', '.', '\r']
+                   Found:      '\r'
+      [10]: Item:  "Simulation mode: Yes\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 20)
+                   Collection: [···, ' ', 'Y', 'e', 's', '\r']
+                   Found:      '\r'
+      [11]: Item:  "Snapshot: SNAP-TEST (2026-03-04 05:06:07)\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 41)
+                   Collection: [···, ':', '0', '7', ')', '\r']
+                   Found:      '\r'
+      [12]: Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [13]: Item:  "Hardware\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 8)
+                   Collection: [···, 'w', 'a', 'r', 'e', '\r']
+                   Found:      '\r'
+      [14]: Item:  "--------------------------------------------------"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '-', '-', '-', '-', '\r']
+                   Found:      '\r'
+      [15]: Item:  "Processor:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 10)
+                   Collection: [···, 's', 'o', 'r', ':', '\r']
+                   Found:      '\r'
+      [16]: Item:  "    SIMULATION — Test CPU\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 25)
+                   Collection: [···, ' ', 'C', 'P', 'U', '\r']
+                   Found:      '\r'
+      [17]: Item:  "      Cores: 6 / 12   Clock: 3900 MHz   Usage: UNK"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 79)
+                   Collection: [···, 'a', 'd', ' ', '%', '\r']
+                   Found:      '\r'
+      [18]: Item:  "Memory:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 7)
+                   Collection: [···, 'o', 'r', 'y', ':', '\r']
+                   Found:      '\r'
+      [19]: Item:  "    Capacity: 25769803776 B   Slots: 2 / 2   Usage"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 91)
+                   Collection: [···, 'a', 'd', ' ', '%', '\r']
+                   Found:      '\r'
+      [20]: Item:  "    DIMM 0 (BANK 0): 12884901888 B @ 3200 MHz   Me"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 118)
+                   Collection: [···, 'e', ' ', '8', ')', '\r']
+                   Found:      '\r'
+      [21]: Item:  "Mainboard:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 10)
+                   Collection: [···, 'a', 'r', 'd', ':', '\r']
+                   Found:      '\r'
+      [22]: Item:  "    UNKNOWN: reason not reported UNKNOWN: reason n"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 113)
+                   Collection: [···, '(', 'N', 'o', ')', '\r']
+                   Found:      '\r'
+      [23]: Item:  "BIOS/UEFI:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 10)
+                   Collection: [···, 'E', 'F', 'I', ':', '\r']
+                   Found:      '\r'
+      [24]: Item:  "    UNKNOWN: reason not reported UNKNOWN: reason n"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 173)
+                   Collection: [···, 'a', 'd', ' ', 'h', '\r']
+                   Found:      '\r'
+      [25]: Item:  "Graphics:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 9)
+                   Collection: [···, 'i', 'c', 's', ':', '\r']
+                   Found:      '\r'
+      [26]: Item:  "    SIMULATION — Test GPU  UNKNOWN: video memory n"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 86)
+                   Collection: [···, '4', '6', '0', '1', '\r']
+                   Found:      '\r'
+      [27]: Item:  "Storage:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 8)
+                   Collection: [···, 'a', 'g', 'e', ':', '\r']
+                   Found:      '\r'
+      [28]: Item:  "    SIMULATION — Test SSD · NVMe · 1000204886016 B"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 227)
+                   Collection: [···, 'l', 'e', ' ', 'h', '\r']
+                   Found:      '\r'
+      [29]: Item:  "Network:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 8)
+                   Collection: [···, 'o', 'r', 'k', ':', '\r']
+                   Found:      '\r'
+      [30]: Item:  "    SIMULATION — Test Ethernet [wired] Connected  "···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 109)
+                   Collection: [···, 'E', ':', 'F', 'F', '\r']
+                   Found:      '\r'
+      [31]: Item:  "Monitor:\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 8)
+                   Collection: [···, 't', 'o', 'r', ':', '\r']
+                   Found:      '\r'
+      [32]: Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [33]: Item:  "Findings\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 8)
+                   Collection: [···, 'i', 'n', 'g', 's', '\r']
+                   Found:      '\r'
+      [34]: Item:  "--------------------------------------------------"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '-', '-', '-', '-', '\r']
+                   Found:      '\r'
+      [35]: Item:  "[WMC-CPU-001] Critical · Open · Finding without a "···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 55)
+                   Collection: [···, 'i', 't', 'l', 'e', '\r']
+                   Found:      '\r'
+      [36]: Item:  "    A finding without a detailed description.\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 45)
+                   Collection: [···, 'i', 'o', 'n', '.', '\r']
+                   Found:      '\r'
+      [37]: Item:  "    Why: The available data is not sufficient to d"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 83)
+                   Collection: [···, 's', 'l', 'y', '.', '\r']
+                   Found:      '\r'
+      [38]: Item:  "    Impact: Impact not classified.\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 34)
+                   Collection: [···, 'i', 'e', 'd', '.', '\r']
+                   Found:      '\r'
+      [39]: Item:  "    Recommended action: Review the finding and dec"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 63)
+                   Collection: [···, 'l', 'l', 'y', '.', '\r']
+                   Found:      '\r'
+      [40]: Item:  "    Log entry: WMC-CPU-001\\u000D\\u000AWMC-FAKE-000"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 50)
+                   Collection: [···, '-', '0', '0', '0', '\r']
+                   Found:      '\r'
+      [41]: Item:  "    Evidence: line 1\\u001B[31mline 2\\u0007<script>"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 67)
+                   Collection: [···, 'i', 'p', 't', '>', '\r']
+                   Found:      '\r'
+      [42]: Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [43]: Item:  "Components\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 10)
+                   Collection: [···, 'e', 'n', 't', 's', '\r']
+                   Found:      '\r'
+      [44]: Item:  "--------------------------------------------------"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '-', '-', '-', '-', '\r']
+                   Found:      '\r'
+      [45]: Item:  "Cpu            SIM\\u001B[2JULATION\\u000D\\u000AWMC-"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 57)
+                   Collection: [···, '-', '9', '9', '9', '\r']
+                   Found:      '\r'
+      [46]: Item:  "    Manufacturer: Test Vendor   Model: Test Model\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 49)
+                   Collection: [···, 'o', 'd', 'e', 'l', '\r']
+                   Found:      '\r'
+      [47]: Item:  "    Status: Critical   Source: WMI\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 34)
+                   Collection: [···, ' ', 'W', 'M', 'I', '\r']
+                   Found:      '\r'
+      [48]: Item:  "    Device instance: PCI\\VEN_1002&DEV_1638&SUBSYS_"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 58)
+                   Collection: [···, '5', '6', '7', '8', '\r']
+                   Found:      '\r'
+      [49]: Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [50]: Item:  "Sensors\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 7)
+                   Collection: [···, 's', 'o', 'r', 's', '\r']
+                   Found:      '\r'
+      [51]: Item:  "--------------------------------------------------"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '-', '-', '-', '-', '\r']
+                   Found:      '\r'
+      [52]: Item:  "No sensor readings are available on this system.\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 48)
+                   Collection: [···, 't', 'e', 'm', '.', '\r']
+                   Found:      '\r'
+      [53]: Item:  "\r"
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                ↓ (pos 0)
+                   Collection: ['\r']
+                   Found:      '\r'
+      [54]: Item:  "=================================================="···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 78)
+                   Collection: [···, '=', '=', '=', '=', '\r']
+                   Found:      '\r'
+      [55]: Item:  "This report describes a state. No change was perfo"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 72)
+                   Collection: [···, ' ', 'i', 't', '.', '\r']
+                   Found:      '\r'
+      [56]: Item:  "Contains local system information. No data was tra"···
+            Error: Assert.DoesNotContain() Failure: Item found in collection
+                                                         ↓ (pos 81)
+                   Collection: [···, 'i', 'n', 'g', '.', '\r']
+                   Found:      '\r'
+      Stack Trace:
+        /_/WindowsMaintenanceCenter.Tests/ReportGeneratorTests.cs(223,0): at WindowsMaintenanceCenter.Tests.ReportGeneratorTests.A_foreign_value_cannot_steer_the_report()
+        --- End of stack trace from previous location ---
+  Finished:    WindowsMaintenanceCenter.Tests (ID = 'd9166560957a46470fae98146567ab134b84665440c53d74e87b1345ee206936')
+=== TEST EXECUTION SUMMARY ===
+   WindowsMaintenanceCenter.Tests  Total: 348, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 2.404s
