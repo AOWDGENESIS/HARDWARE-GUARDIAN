@@ -74,6 +74,28 @@ if (-not (Test-Path $publishedExe)) { throw "expected the published executable a
 $portableTarget = Join-Path $releaseDirectory $portableName
 Copy-Item -Path $publishedExe -Destination $portableTarget -Force
 
+# The published folder also needs a readable readme: the installer installs it next to the exe and
+# the artefact is meant to be handed out as it is. It says what the tool is allowed to do and what
+# it never does - the usual first question about a tool that promises to clean a system.
+$readmeSource = Join-Path $root 'docs/PORTABLE_README.txt'
+if (Test-Path $readmeSource) {
+    Copy-Item -Path $readmeSource -Destination (Join-Path $portableDirectory 'README.txt') -Force
+} else {
+    Write-Host "note: $readmeSource is missing - the portable folder gets no README.txt" -ForegroundColor Yellow
+}
+
+# The portable build is only portable when the application finds the marker file next to the
+# executable; without it the same exe writes its data to %ProgramData%\HardwareGuardian. The marker
+# therefore ships beside the exe (see docs/TROUBLESHOOTING.md and PathProvider.ResolvePortable).
+$markerContent = @(
+    'Hardware Guardian - portable mode'
+    ''
+    'This file marks the folder as portable: all configuration, reports, backups and audit logs'
+    'stay in the sub folder "data" next to the executable. Delete this file to switch the'
+    'application back to installed mode (data below %ProgramData%\HardwareGuardian).'
+)
+Set-Content -Path (Join-Path $portableDirectory 'HardwareGuardian.portable') -Value $markerContent -Encoding UTF8
+
 # 2. installer
 if ([string]::IsNullOrWhiteSpace($InnoSetupPath)) {
     $candidates = @(

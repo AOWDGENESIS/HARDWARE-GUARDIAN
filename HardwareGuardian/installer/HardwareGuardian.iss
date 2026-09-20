@@ -60,6 +60,10 @@ Name: "startupcheck"; Description: "Start {#AppName} after the setup"; GroupDesc
 ; The published portable build is the single source for both delivery forms.
 Source: "{#SourceDirectory}\HardwareGuardian.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDirectory}\README.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+; The portable marker file next to the exe switches the application to portable mode (data below
+; the executable). An installed copy must keep its data in %ProgramData%\HardwareGuardian, so the
+; marker is deliberately NOT installed and the installer refuses a source folder that contains it.
+Source: "{#SourceDirectory}\HardwareGuardian.portable"; DestDir: "{tmp}"; Flags: dontcopy skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -74,6 +78,21 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 ; only removed after the user confirmed it - settings and audit trail are evidence, not waste.
 
 [Code]
+function InitializeSetup(): Boolean;
+var
+  MarkerInSource: String;
+begin
+  Result := True;
+  MarkerInSource := ExpandConstant('{#SourceDirectory}\HardwareGuardian.portable');
+  if FileExists(MarkerInSource) then
+  begin
+    MsgBox('The source folder contains the portable marker file "HardwareGuardian.portable".' + #13#10 +
+           'That build stores its data next to the executable, which conflicts with an installed copy.' + #13#10#13#10 +
+           'Build the installer from a source folder without the marker.', mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   MachineData: String;
