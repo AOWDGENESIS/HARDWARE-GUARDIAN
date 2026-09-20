@@ -38,12 +38,27 @@ $results = Join-Path $root 'artifacts/test-results'
 
 New-Item -ItemType Directory -Force -Path $results | Out-Null
 
-# xUnit v3 runs on the Microsoft.Testing.Platform: everything after "--" is read by the test
-# application itself, not by the SDK. The TRX file is produced by the platform's report extension.
+# xUnit v3 runs on the Microsoft.Testing.Platform (MTP). The .NET 10 SDK no longer starts MTP
+# projects through the old VSTest path, and `dotnet test` only uses MTP when the repository asks for
+# it. Both routes are used here, in this order:
+#   1. build the test project,
+#   2. start the produced test executable directly - that is the route the xUnit project documents and
+#      it cannot be affected by any SDK runner default.
+# The TRX file comes from the platform's report extension, so a run without a result file stays a run
+# without a result file instead of looking green.
+$buildArguments = @('build', $project, '-c', $Configuration, '--nologo')
+Write-Host "dotnet $($buildArguments -join ' ')" -ForegroundColor Cyan
+& dotnet @buildArguments
+if ($LASTEXITCODE -ne 0) {
+    throw "the test project could not be built (exit code $LASTEXITCODE)."
+}
+
+$testExecutable = Join-Path $root "tests/WindowsMaintenanceCenter.Tests/bin/$Configuration/net10.0-windows/WindowsMaintenanceCenter.Tests.exe"
+if (-not (Test-Path $testExecutable)) {
+    throw "the test executable was not produced at $testExecutable - the test project did not build."
+}
+
 $arguments = @(
-    'test', $project,
-    '-c', $Configuration,
-    '--',
     '--report-trx',
     '--report-trx-filename', 'windowsmaintenancecenter.trx',
     '--results-directory', $results
@@ -52,8 +67,8 @@ if (-not [string]::IsNullOrWhiteSpace($Filter)) {
     $arguments += @('--filter', $Filter)
 }
 
-Write-Host "dotnet $($arguments -join ' ')" -ForegroundColor Cyan
-& dotnet @arguments
+Write-Host "$testExecutable $($arguments -join ' ')" -ForegroundColor Cyan
+& $testExecutable @arguments
 if ($LASTEXITCODE -ne 0) {
     throw "the test run failed with exit code $LASTEXITCODE."
 }
