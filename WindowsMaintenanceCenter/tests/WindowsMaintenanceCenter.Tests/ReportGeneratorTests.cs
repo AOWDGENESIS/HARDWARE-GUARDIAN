@@ -179,12 +179,14 @@ public sealed class ReportGeneratorTests
         using var paths = new TempPathProvider();
         var generator = CreateGenerator(paths);
         var baseRequest = ReportRequest();
+        var baseSnapshot = baseRequest.Snapshot;
+        Assert.NotNull(baseSnapshot);
 
         var injected = baseRequest with
         {
-            Snapshot = baseRequest.Snapshot with
+            Snapshot = baseSnapshot with
             {
-                Components = baseRequest.Snapshot.Components
+                Components = baseSnapshot.Components
                     .Select(component => component with
                     {
                         Name = TextInfo.Known("SIM\u001b[2JULATION\r\nWMC-CPU-999", component.Name.Origin),

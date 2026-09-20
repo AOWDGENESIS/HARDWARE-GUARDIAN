@@ -46,10 +46,11 @@ param(
 
     # The suite had 315 cases when they were first counted on 2026-09-20 (run 35505322775 executed
     # 315, 0 failed). The journal and the recovery engine (M34/M35) added 14 cases, the hash chain of
-    # the journal (SEC-12) another 5 and report injection (SEC-14) one, so the floor is 335. A lower number means tests were skipped or
+    # the journal (SEC-12) another 5, report injection (SEC-14) one and the injection attacks of the
+    # security matrix (SEC-01 to SEC-03) thirteen, so the floor is 348. A lower number means tests were skipped or
     # not discovered, which must fail the run instead of looking like a green suite (specification
     # chapters 61 and 87). Raise this number whenever cases are added; never lower it.
-    [int]$MinimumTests = 335
+    [int]$MinimumTests = 348
 )
 
 Set-StrictMode -Version Latest
