@@ -41,6 +41,8 @@ class Mutation:
     # Some defects are the absence of a file. `Directory.Build.props` imports `build/Version.props`;
     # without that file every project fails to load (MSB4019), which is worth a check of its own.
     delete_file: bool = False
+    # Tools that need arguments (for example to stay offline) get them here.
+    args: tuple[str, ...] = ()
 
 
 MUTATIONS: tuple[Mutation, ...] = (
@@ -121,6 +123,14 @@ MUTATIONS: tuple[Mutation, ...] = (
         "{services:Loc Section_SensorsX}",
     ),
     Mutation(
+        "sources: a third-party driver portal as an update source",
+        "check-source-urls",
+        "src/HardwareGuardian.Manufacturer/ManufacturerSources.cs",
+        'LandingUrl = "https://www.realtek.com/Download/List?cate_id=584",',
+        'LandingUrl = "https://www.driverguide.com/driver/",',
+        args=("--offline", "--quiet"),
+    ),
+    Mutation(
         "binding: member that the view model does not have",
         "check-bindings",
         "src/HardwareGuardian.App/Views/HardwareView.xaml",
@@ -162,7 +172,7 @@ def main() -> int:
         else:
             target.write_text(text.replace(mutation.original, mutation.broken, 1), encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, f"tools/{mutation.tool}.py"],
+            [sys.executable, f"tools/{mutation.tool}.py", *mutation.args],
             cwd=workspace,
             capture_output=True,
             text=True,

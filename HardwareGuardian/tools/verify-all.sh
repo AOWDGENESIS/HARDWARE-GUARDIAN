@@ -12,6 +12,7 @@ set -u
 cd "$(dirname "$0")/.."
 status=0
 incomplete=0
+skipped=0
 
 run() {
   echo
@@ -28,6 +29,22 @@ run() {
   fi
 }
 
+run_optional() {
+  # For checks that need something this environment may not have (a network, for example).
+  # "Did not run" is reported, but it does not turn the offline verdict into "incomplete",
+  # because it was never part of that verdict.
+  echo
+  echo "=== $1 (optional, needs network) ==="
+  shift
+  "$@"
+  code=$?
+  if [ "$code" -eq 3 ]; then
+    skipped=$((skipped + 1))
+  elif [ "$code" -ne 0 ]; then
+    status=1
+  fi
+}
+
 run "Syntax (tree-sitter, C# grammar)" python3 tools/verify-syntax.py
 run "Contracts (members, types, interface implementation)" python3 tools/check-contracts.py
 run "Localisation (keys used vs. keys defined)" python3 tools/check-localization.py
@@ -36,11 +53,16 @@ run "Bindings (every {Binding} root against its data scope)" python3 tools/check
 run "Projects (references, central package versions)" python3 tools/check-projects.py
 run "Solution file is up to date" python3 tools/generate-solution.py --check
 run "The checks themselves (deliberate defects must be reported)" python3 tools/check-mutation.py
+run_optional "Manufacturer sources (official vendor pages answer over HTTPS)" python3 tools/check-source-urls.py --quiet
 
 echo
 if [ "$status" -ne 0 ]; then
   echo "at least one check reported findings (see above)"
   exit 1
+fi
+
+if [ "$skipped" -gt 0 ]; then
+  echo "$skipped optional check(s) did not run (no network); they are not part of the offline verdict"
 fi
 
 if [ "$incomplete" -gt 0 ]; then
