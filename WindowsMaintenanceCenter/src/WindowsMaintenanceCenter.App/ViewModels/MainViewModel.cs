@@ -4,6 +4,7 @@ using WindowsMaintenanceCenter.App.Mvvm;
 using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Events;
+using WindowsMaintenanceCenter.Core.Services;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
 

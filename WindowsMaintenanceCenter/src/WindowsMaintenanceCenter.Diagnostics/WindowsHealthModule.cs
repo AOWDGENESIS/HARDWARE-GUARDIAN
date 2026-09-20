@@ -164,7 +164,9 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
                 Category = ComponentCategory.Windows,
                 Severity = Severity.Info,
                 Title = LocalizedText.Of("Problem_WindowsUpdatesUnknown_Title"),
-                Description = report.Updates.Summary,
+                // The description says what is unknown and why; the raw summary of the check is kept
+                // in the evidence below, where it belongs.
+                Description = LocalizedText.Of("Problem_WindowsUpdatesUnknown_Description"),
                 Evidence = $"outcome={report.Updates.Outcome}; searchPerformed={report.Updates.SearchPerformed}; error={report.Updates.ErrorDetail ?? "none"}",
                 Impact = LocalizedText.Of("Problem_WindowsUpdatesUnknown_Impact"),
                 RecommendedAction = LocalizedText.Of("Problem_WindowsCheck_ActionElevated"),

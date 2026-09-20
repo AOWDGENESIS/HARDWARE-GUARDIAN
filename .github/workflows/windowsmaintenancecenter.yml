@@ -119,6 +119,46 @@ jobs:
           dotnet restore WindowsMaintenanceCenter.sln -p:RestoreLockedMode=false --use-lock-file *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed with exit code $LASTEXITCODE (see artifacts/ci/restore.log)" }
 
+      # Compiler output is long and the run log is not readable from everywhere. This step reduces it
+      # to what has to be fixed: how many errors, which codes, and the first line of each distinct
+      # message. It writes its result next to the other run logs.
+      - name: Summarise the compiler output
+        if: always()
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/build.log'
+          $summary = 'artifacts/ci/build-summary.txt'
+          New-Item -ItemType Directory -Force -Path (Split-Path $summary) | Out-Null
+          if (-not (Test-Path $log)) { 'no build log was written' | Set-Content $summary; exit 0 }
+          $lines = Get-Content $log
+          $diagnostics = $lines | Select-String -Pattern '\serror [A-Z]+[0-9]+:|\swarning [A-Z]+[0-9]+:' |
+            ForEach-Object {
+              $text = $_.Line -replace '\s*\[[A-Z]:.*$', ''
+              if ($text -match '^(?<file>.+?)\((?<line>\d+),\d+\): (?<kind>error|warning) (?<code>[A-Z]+\d+): (?<message>.*)$') {
+                [pscustomobject]@{ File = $Matches.file; Line = $Matches.line; Kind = $Matches.kind; Code = $Matches.code; Message = $Matches.message.Trim() }
+              }
+            }
+          $out = New-Object System.Collections.Generic.List[string]
+          $out.Add("errors=$(@($diagnostics | Where-Object Kind -eq 'error').Count) warnings=$(@($diagnostics | Where-Object Kind -eq 'warning').Count)")
+          $out.Add('')
+          $out.Add('errors by code:')
+          $diagnostics | Where-Object Kind -eq 'error' | Group-Object Code | Sort-Object Count -Descending |
+            ForEach-Object { $out.Add("  $($_.Count)  $($_.Name)") }
+          $out.Add('')
+          $out.Add('distinct error messages:')
+          $diagnostics | Where-Object Kind -eq 'error' |
+            Group-Object { ($_.Message -replace "'[^']*'", "'X'") } | Sort-Object Count -Descending |
+            ForEach-Object {
+              $first = $_.Group[0]
+              $out.Add("  $($_.Count)x $($first.File -replace '.*WindowsMaintenanceCenter', '')($($first.Line)): $($first.Message)")
+            }
+          $out.Add('')
+          $out.Add('warnings by code:')
+          $diagnostics | Where-Object Kind -eq 'warning' | Group-Object Code | Sort-Object Count -Descending |
+            ForEach-Object { $out.Add("  $($_.Count)  $($_.Name)") }
+          $out | Set-Content -Encoding utf8 $summary
+          $out | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
+
       - name: Report the lock files (a restore that creates them is not a restore that verified them)
         shell: pwsh
         run: |
