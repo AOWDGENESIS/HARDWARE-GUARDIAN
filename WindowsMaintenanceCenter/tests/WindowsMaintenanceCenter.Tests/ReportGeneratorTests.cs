@@ -217,7 +217,9 @@ public sealed class ReportGeneratorTests
 
         // No escape, no bell, no carriage return *inside* a line: the finding cannot move the cursor.
         // The line breaks of the document itself are structure and stay, so the check looks at lines.
-        var lines = content.Split('\n');
+        var lines = content.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
+        // The line break of the document itself ends a line; what must not appear is a line break
+        // or escape *inside* a value.
         Assert.All(lines, line => Assert.DoesNotContain('\u001b', line));
         Assert.All(lines, line => Assert.DoesNotContain('\u0007', line));
         Assert.All(lines, line => Assert.DoesNotContain('\r', line));
