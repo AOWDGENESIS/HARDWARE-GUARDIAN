@@ -690,7 +690,7 @@ public sealed class MaintenanceService : IMaintenanceService
                 ComponentCategory.Maintenance,
                 outcome,
                 componentId: item.RootPath,
-                oldState: item.SizeBytes.Display,
+                oldState: item.SizeBytes.Display(),
                 newState: $"{freed} byte removed ({deleted} file(s))",
                 approval: approval,
                 evidence: new[] { $"category={item.Category}", $"deleted={deleted}", $"freed={freed}", $"skipped={skippedFiles}" },
@@ -880,6 +880,13 @@ public sealed class MaintenanceService : IMaintenanceService
             return Array.Empty<string>();
         }
     }
+
+    /// <summary>
+    /// Evidence line for a plan that executed nothing. Kept as a constant instead of an array literal
+    /// that would be built on every call.
+    /// </summary>
+    private static readonly string[] NoItemsExecuted = { "no item was executed" };
+
 }
 
 /// <summary>Small helper so that reports can render an unknown measurement without a value.</summary>
@@ -888,10 +895,4 @@ internal static class MeasuredFormatting
     public static string Display<T>(this Measured<T> measured) where T : struct => measured.HasValue
         ? measured.Value!.ToString() ?? "UNKNOWN"
         : $"UNKNOWN ({measured.UnknownReason})";
-
-    /// <summary>
-    /// Evidence line for a plan that executed nothing. Kept as a constant instead of an array literal
-    /// that would be built on every call.
-    /// </summary>
-    private static readonly string[] NoItemsExecuted = { "no item was executed" };
 }

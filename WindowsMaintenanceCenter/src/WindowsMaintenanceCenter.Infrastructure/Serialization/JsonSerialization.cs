@@ -192,7 +192,7 @@ public sealed class LocalizedTextJsonConverter : JsonConverter<LocalizedText>
             writer.WriteStartArray();
             foreach (var argument in value.Arguments)
             {
-                writer.WriteString(Flatten(argument));
+                writer.WriteStringValue(Flatten(argument));
             }
 
             writer.WriteEndArray();

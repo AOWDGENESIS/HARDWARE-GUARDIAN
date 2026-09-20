@@ -75,9 +75,11 @@ public sealed class SourceVerifier : ISourceVerifier
             return true;
         }
 
+        // The host is read into a local variable: an out parameter cannot be used inside a lambda.
+        var candidate = host;
         return policy.AllowedHosts.Any(allowedHost =>
-            host.Equals(allowedHost, StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase));
+            candidate.Equals(allowedHost, StringComparison.OrdinalIgnoreCase) ||
+            candidate.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task<SourceVerificationResult> VerifyAsync(string url, SourcePolicy policy, CancellationToken cancellationToken)
