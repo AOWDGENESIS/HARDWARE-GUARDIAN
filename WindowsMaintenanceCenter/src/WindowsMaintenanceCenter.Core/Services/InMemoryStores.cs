@@ -126,8 +126,10 @@ public sealed class InMemorySnapshotStore : ISnapshotStore
         {
             // FirstOrDefault answers null when nothing matches; reading .Snapshot from it threw
             // before the nullability warning was ever looked at.
+            // The list holds value tuples, so FirstOrDefault answers the default tuple instead of
+            // null; a missing path therefore has to be recognised by the path itself.
             var match = _snapshots.FirstOrDefault(s => s.Path == path);
-            return Task.FromResult(match?.Snapshot);
+            return Task.FromResult<SystemSnapshot?>(match.Path == path ? match.Snapshot : null);
         }
     }
 

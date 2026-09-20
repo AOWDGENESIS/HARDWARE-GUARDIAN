@@ -49,8 +49,11 @@
       type is deliberate - it is what keeps the call sites honest about not mutating.
       CA1873: logging arguments are small string interpolations; guarding every one of them would add
       noise without a measurable gain.
+      CA1000: Measured<T>.Known/NotAvailable/Missing are the only way to build a measured value, and
+      they read as one family. Moving them to a non-generic helper class would touch every call site
+      for a style rule about generic types.
     -->
-    <NoWarn>$(NoWarn);CA1303;CA1031;CA1848;CA2007;CA1062;CA1416;NU1510;CA1716;CA1859;CA1873</NoWarn>
+    <NoWarn>$(NoWarn);CA1303;CA1031;CA1848;CA2007;CA1062;CA1416;NU1510;CA1716;CA1859;CA1873;CA1000</NoWarn>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Fail the build on genuinely wrong nullable usage without blocking on style hints. -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625</WarningsAsErrors>
