@@ -58,6 +58,126 @@ internal sealed class FakeEnvironmentProbe : IEnvironmentProbe
     public bool IsPortableRequested { get; set; }
 }
 
+/// <summary>
+/// Process runner double for the action tests: it answers with a prepared result and records what it
+/// was asked to run. No process is started, so the tests run on every platform - and what they check
+/// is the decision, not the operating system.
+/// </summary>
+internal sealed class RecordingProcessRunner : IProcessRunner
+{
+    public string? LastExecutable { get; private set; }
+
+    public IReadOnlyList<string> LastArguments { get; private set; } = Array.Empty<string>();
+
+    public ProcessRunOptions? LastOptions { get; private set; }
+
+    public int Calls { get; private set; }
+
+    public ProcessResult Result { get; set; } = new() { ExitCode = 0, StandardOutput = "ok" };
+
+    public Task<ProcessResult> RunAsync(
+        string executable,
+        IReadOnlyList<string> arguments,
+        ProcessRunOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        LastExecutable = executable;
+        LastArguments = arguments;
+        LastOptions = options;
+        return Task.FromResult(Result);
+    }
+}
+
+/// <summary>Audit double that keeps the entries in memory instead of writing files.</summary>
+internal sealed class RecordingAuditLog : IAuditLog
+{
+    public List<AuditEntry> Entries { get; } = new();
+
+    public string Location => "(memory)";
+
+    public Task RecordAsync(AuditEntry entry, CancellationToken cancellationToken)
+    {
+        Entries.Add(entry);
+        return Task.CompletedTask;
+    }
+
+    public Task<AuditEntry> RecordAsync(
+        OperationKind operation,
+        string operationKey,
+        ComponentCategory category,
+        StageOutcome result,
+        string? componentId = null,
+        string? oldState = null,
+        string? newState = null,
+        ManufacturerSourceRef? source = null,
+        ApprovalRecord? approval = null,
+        BackupRecord? backup = null,
+        RollbackResult? rollback = null,
+        string? error = null,
+        IReadOnlyList<string>? evidence = null,
+        CancellationToken cancellationToken = default)
+    {
+        var entry = new AuditEntry
+        {
+            Id = $"AUD-{Entries.Count + 1:D3}",
+            Timestamp = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero),
+            Operation = operation,
+            OperationKey = operationKey,
+            Category = category,
+            Result = result,
+            ComponentId = componentId,
+            OldState = oldState,
+            NewState = newState,
+            Source = source ?? ManufacturerSourceRef.Unknown(),
+            Approval = approval,
+            Backup = backup,
+            Rollback = rollback,
+            Error = error,
+            Evidence = evidence ?? Array.Empty<string>(),
+        };
+
+        Entries.Add(entry);
+        return Task.FromResult(entry);
+    }
+
+    public IReadOnlyList<AuditEntry> Recent(int maxEntries = 100) =>
+        Entries.Count <= maxEntries ? Entries : Entries.GetRange(Entries.Count - maxEntries, maxEntries);
+}
+
+/// <summary>Live protocol double: keeps what was published for the assertions.</summary>
+internal sealed class RecordingLiveProtocol : ILiveProtocol
+{
+    public event EventHandler<ProtocolEntry>? EntryAdded;
+
+    public List<ProtocolEntry> Entries { get; } = new();
+
+    public int MaxEntries { get; set; } = 500;
+
+    public long Sequence => Entries.Count;
+
+    public IReadOnlyList<ProtocolEntry> Snapshot() => Entries;
+
+    public ProtocolEntry Publish(string module, LocalizedText action, Severity severity, string? detail = null)
+    {
+        var entry = new ProtocolEntry
+        {
+            Module = module,
+            Action = action,
+            Severity = severity,
+            Detail = detail,
+            Timestamp = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.Zero),
+            Sequence = Entries.Count + 1,
+        };
+
+        Entries.Add(entry);
+        EntryAdded?.Invoke(this, entry);
+        return entry;
+    }
+
+    public void Clear() => Entries.Clear();
+}
+
 /// <summary>Settings double that keeps everything in memory.</summary>
 internal sealed class FakeSettingsService : ISettingsService
 {

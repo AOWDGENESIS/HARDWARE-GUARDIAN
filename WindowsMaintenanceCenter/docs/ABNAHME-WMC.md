@@ -16,7 +16,7 @@ Damit gilt:
 | Ebene | Zustand |
 | --- | --- |
 | Build (Gate 1) | nie ausgeführt → `BLOCKED` |
-| Unit-Tests (Gate 2) | 245 Testfälle in 19 Dateien geschrieben, nie ausgeführt → `BLOCKED` |
+| Unit-Tests (Gate 2) | 303 Testfälle in 22 Dateien geschrieben, nie ausgeführt → `BLOCKED` |
 | Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | nie ausgeführt → `BLOCKED` |
 | Installer/Uninstaller (Gate 7) | Definition geschrieben, nie kompiliert → `BLOCKED` |
 | Lokalisierung (Gate 8) | 2 von 4 Sprachen vorhanden; keine Sprachprüfung gelaufen → `BLOCKED` |
@@ -63,9 +63,9 @@ weit die Umsetzung ist - sie ist **kein** Abnahmenachweis.
 | M28 Reporting | P1 | HTML, TXT, JSON mit echten Systemdaten und Aktionen | **PDF fehlt** (Auftrag: umsetzen); `M28-F-005` übersprungene Aktionen im Bericht |
 | M29 Offline Engine | P0 | Offline-Erkennung, Sperren für Online-Funktionen | Offline-Lauf über alle lokalen Module als Nachweis |
 | M30 AI | P2 | nichts | Modul „Windows Stalker": strukturierte Daten lesen, Empfehlungen mit Begründung, kein Shell-Zugriff, kein Versand privater Daten |
-| M31 Admin Worker | P0 | Start ohne Adminrechte, Hinweis auf Erfordernis | **`M31-S-001`/`M31-S-002` verletzt**: heute startet die ganze Anwendung erhöht neu, statt eine registrierte Aktion privilegiert auszuführen; UAC-Abbruch behandeln |
-| M32 Action Registry | P0 | Vorlagenkatalog mit Parametermuster, Timeouts; Fehlerkennungen nach Kapitel 85 (`WMC-<Thema>-<Nr>`) | Aktionen mit ID, Risiko, Adminbedarf, Argumenten, Validierung, Rollback, Timeout, Freigabe |
-| M33 Command Execution | P0 | Prozessläufer mit Whitelist, Timeout, Exit-Code, Abbruch; Fehlerkennungen nach Kapitel 85 (`WMC-<Thema>-<Nr>`, z. B. `WMC-UPDATE-0042`) | Nachweis der Timeout- und Abbrucherkennung |
+| M31 Admin Worker | P0 | **umgesetzt, nicht ausgeführt**: `AdminWorker` führt genau eine registrierte Aktion aus, hebt pro Aktion über `runas` anstatt die Anwendung neu zu starten, wertet Win32 1223 als UAC-Abbruch (`UAC_CANCELLED`, nichts geändert) und gibt nie einen Erfolg ohne Nachprüfung aus. `ElevationService` (Neustart der ganzen Anwendung) existiert weiter, ist aber nicht mehr der Weg einer Aktion | Negativnachweis: keiner der 14 Sicherheitsangriffe ist gelaufen (Gate 4), Abnahme auf VM offen |
+| M32 Action Registry | P0 | **umgesetzt, nicht ausgeführt**: `ActionRegistry` mit ID, Beschreibung, Risiko, Adminbedarf, Argumentformen (Text/Number/Path/Choice/Switch), Timeout, Rollback-Verweis und Freigabeflag; Argumente werden vor dem Start geprüft (Metazeichen Kapitel 78, Pfadpolitik Kapitel 79), der Kommandostring entsteht nur aus der Registrierung. Katalog: `SystemActionCatalog` (3 freigegebene lesende Abfragen, 5 registrierte aber **nicht** freigegebene Prüf-/Reparaturwerkzeuge). Fehlerkennungen nach Kapitel 85 | Freigabe der Reparaturwerkzeuge erst nach Freigabe-/Backup-Tor und gemessenen Exit-Codes; Nachweis auf VM offen |
+| M33 Command Execution | P0 | **umgesetzt, nicht ausgeführt**: Start nur über die Registry, Timeout mit Abbruch des Prozessbaums und Ergebnis `BLOCKED` (nie Erfolg, `Action_Blocked_Timeout`), Exit-Code != 0 → `Failed`, dokumentierte Befundcodes → `ReportedFindings` (Lauf vollständig, Zustand nicht behoben). Fehlerkennungen nach Kapitel 85 | Nachweis der Timeout- und Abbrucherkennung: Testfälle geschrieben, aber nie ausgeführt (Gate 2 `BLOCKED`) |
 | M34 State Machine | P0 | **angeglichen**: genau die vierzehn Zustände des Kapitels 40 (in dieser Runde umbenannt, PLAN_GENERATED und RECOVERING neu). WARNUNG ist kein Zustand mehr - ein Lauf mit Befunden endet in ERROR, ein Lauf ohne eindeutiges Ergebnis in BLOCKED statt SUCCESS; aus EXECUTING führt kein Weg direkt nach SUCCESS | `M34-F-001` jeder Zustand **wird gespeichert** (heute nur im Arbeitsspeicher, keine Persistenz) und `M34-R-001` Wiedererkennen unterbrochener Jobs - beides gehört zu M35 und ist offen |
 | M35 Recovery Engine | P0 | nichts | unterbrochene Jobs erkennen, Backup-/Rollbackstatus, Optionen anzeigen, ohne Freigabe nichts Riskantes tun |
 | M36 Configuration | P0 | Laden, Speichern, Schema-Version, Schutz vor ungültiger Konfiguration | `M36-F-003` Migration inklusive Sicherung vor der Migration |
@@ -117,7 +117,7 @@ Ordner sind leer, weil kein Test ausgeführt wurde - genau das schreibt die Spez
 
 ---
 
-## 2a. Umgesetzt in der Runde vom 2026-09-20 (zweite Runde nach der Spezifikation)
+## 2a. Umgesetzt nach der Spezifikation (Stand 2026-09-20)
 
 | Punkt | Was geändert wurde | Fundstelle |
 | --- | --- | --- |
@@ -127,10 +127,18 @@ Ordner sind leer, weil kein Test ausgeführt wurde - genau das schreibt die Spez
 | Kapitel 85 Fehlerdarstellung | Jeder Fehler hat WHAT (Titel), WHY (`Cause`, Standard „Ursache nicht eindeutig feststellbar"), IMPACT, ACTION und LOG (`LogReference`, leer wenn nichts geschrieben wurde); sichtbar im Dashboard (neue Spalten) und im TXT-/JSON-Bericht | `Core/Models/ProblemModels.cs`, `App/Views/DashboardView.xaml`, `Reporting/ReportGenerator.cs` |
 | Texte | 8 neue Schlüssel je Sprache (746 → 750 nach der Dashboard-Erweiterung) | `Core/Resources/{de,en}.json` |
 
+| M32 Action Registry | Neue Modelle (`RegisteredAction`, `ActionArgumentSpec`, `ActionRequest`, `ActionValidationResult`, `ActionExecutionResult`) und die Registry selbst; Ablehnungen kommen als Schlüssel zurück (die Oberfläche entscheidet die Sprache) und unterscheiden „nicht registriert", „nicht freigegeben", „Argument ungültig", „Pfad nicht erlaubt" (Nachweis: 36 Testfälle in `ActionRegistryTests.cs`) | `Core/Models/ActionModels.cs`, `Core/Services/ActionRegistry.cs` |
+| Kapitel 78/79 Angriffsfälle | `" ' ; & \| > < $ ` ( ) { } % ^` in jedem Text- und Pfadargument, `..`, UNC- und Gerätepfade werden abgewiesen; Längenlimit je Argument; Platzhalter `{Name}` werden nur mit geprüften Werten ersetzt | `Core/Services/ActionRegistry.cs` |
+| M31 Admin Worker | Registry zuerst, dann Admin-Tor; Anhebung je Aktion, UAC-Abbruch = `UAC_CANCELLED` ohne Änderung; Ausgabe eines erhöhten Laufs ist ehrlich als nicht erfassbar gekennzeichnet; Audit-Eintrag und Protokollzeile je Lauf und je Ablehnung (Nachweis: 12 Testfälle in `AdminWorkerTests.cs`) | `Infrastructure/Platform/AdminWorker.cs` |
+| M33 Timeout/Befundcode | Timeout → Prozessbaum beenden → `BLOCKED`; Befundcode eines Werkzeugs → Lauf vollständig, `ReportedFindings`, Text „nicht behoben" statt Erfolg; fehlgeschlagene Nachprüfung → `Failed`/`VERIFICATION_FAILED` | `Infrastructure/Platform/AdminWorker.cs` |
+| Aktionskatalog | `SystemActionCatalog`: freigegeben sind nur drei lesende Abfragen ohne Adminrechte (`System.FsutilDeleteNotifyQuery`, `Network.IpConfigAll`, `System.SystemInfoSnapshot`); DISM-, SFC- und CHKDSK-Aufrufe sind registriert, aber `Allowed = false` und damit sichtbar und abgelehnt statt heimlich vorhanden. Der Test hält diese Liste fest, damit kein Reparaturwerkzeug unbemerkt freigegeben wird (10 Testfälle) | `Infrastructure/Platform/SystemActionCatalog.cs`, `tests/.../SystemActionCatalogTests.cs` |
+| Verdrahtung | `IActionRegistry`/`IAdminWorker` werden im Kompositionswurzel erzeugt und über DI verteilt; `App.xaml.cs` baut den Katalog einmal beim Start | `App/App.xaml.cs` |
+
 Nicht umgesetzt und weiterhin offen: die Persistenz des Zustands über einen Neustart (`M34-F-001`
 verlangt „jeder Zustand wird gespeichert") und das Wiedererkennen unterbrochener Jobs
 (`M34-R-001`/M35). Beides braucht die Recovery-Engine und, nach dem Entscheid zur Datenhaltung, den
-SQLite-Spiegel.
+SQLite-Spiegel. Ebenso offen: das Freigabe- und Backup-Tor vor den Reparaturwerkzeugen (Kapitel 30/44)
+und die Messung ihrer Exit-Codes auf einer echten Maschine - deshalb bleiben sie `Allowed = false`.
 
 ## 3. Reihenfolge bis zur ersten belastbaren Abnahme
 
@@ -139,8 +147,9 @@ Reihenfolge:
 
 1. **Zustandsmaschine und Fehler-IDs an die Spezifikation angleichen** (M34, Kapitel 85) - sie
    tragen alle anderen Module.
-2. **M31 Admin Worker**: Aktion für Aktion privilegieren statt die ganze Anwendung neu zu starten.
-3. **M32 Action Registry**: registrierte Aktionen mit Risiko, Freigabe, Rollback, Timeout.
+2. **M31 Admin Worker / M32 Action Registry / M33 Command Execution**: umgesetzt (siehe §2a);
+   offen sind das Freigabe-/Backup-Tor vor den Reparaturwerkzeugen, die Messung ihrer Exit-Codes und
+   der Nachweis auf einer echten Maschine.
 4. **M06 Oberfläche** für Auswahl und Installation der Windows-Updates, dann M07 winget.
 5. **M05, M09, M10, M11, M14, M16-M20**: Analyzer und Verwaltungsmodule mit Seiten und Empty States.
 6. **M35 Recovery + M24 Rollback + M25 Journal** schließen.

@@ -156,6 +156,17 @@ public partial class App : Application
         services.AddSingleton<IProcessSnapshotProvider, WindowsProcessSnapshotProvider>();
         services.AddSingleton<IElevationService, ElevationService>();
         services.AddSingleton<IPathGuard, PathGuard>();
+
+        // Action registry and admin worker (chapters 32, 37, 38): the catalogue is fixed at start up,
+        // and every execution goes through the worker - the registry decides what may run at all.
+        services.AddSingleton<IActionRegistry>(_ => new ActionRegistry(SystemActionCatalog.Create()));
+        services.AddSingleton<IAdminWorker>(sp => new AdminWorker(
+            sp.GetRequiredService<IActionRegistry>(),
+            sp.GetRequiredService<IProcessRunner>(),
+            sp.GetRequiredService<IEnvironmentProbe>(),
+            sp.GetRequiredService<IAuditLog>(),
+            sp.GetRequiredService<ILiveProtocol>(),
+            sp.GetRequiredService<ILogger<AdminWorker>>()));
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IUiDispatcher>(_ => new WpfUiDispatcher());
         services.AddSingleton(_themes!);

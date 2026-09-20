@@ -401,4 +401,25 @@ public static class BlockReasons
 
     /// <summary>The caller handed in something that cannot be acted on (for example a negative index).</summary>
     public const string InvalidRequest = "INVALID_REQUEST";
+
+    /// <summary>The action is not registered (chapter 32, M32-SEC-001).</summary>
+    public const string ActionNotRegistered = "ACTION_NOT_REGISTERED";
+
+    /// <summary>The action is registered but deliberately not executable in this version.</summary>
+    public const string ActionNotAllowed = "ACTION_NOT_ALLOWED";
+
+    /// <summary>An argument is missing, unknown or does not match its declared shape (M32-SEC-002).</summary>
+    public const string ActionArgumentInvalid = "ACTION_ARGUMENT_INVALID";
+
+    /// <summary>A path argument tried to leave its permitted area (M32-SEC-003, chapter 79).</summary>
+    public const string ActionPathNotAllowed = "ACTION_PATH_NOT_ALLOWED";
+
+    /// <summary>The action needs administrator rights and the process does not have them (M31-S-003).</summary>
+    public const string ActionRequiresAdmin = "ADMINISTRATOR_REQUIRED";
+
+    /// <summary>The user closed the elevation prompt (M31-S-004). Nothing was changed.</summary>
+    public const string UacCancelled = "UAC_CANCELLED";
+
+    /// <summary>The action hit its timeout (chapter 39, M33-E-001).</summary>
+    public const string ActionTimeout = "TIMEOUT";
 }
