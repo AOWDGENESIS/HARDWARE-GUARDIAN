@@ -27,7 +27,7 @@ public sealed class InventoryFailureTests
             .GetMethods()
             .Count(method => !method.IsSpecialName && method.Name.StartsWith("Get", StringComparison.Ordinal));
 
-        Assert.Equal(readMethods, InventoryReader.StepCount);
+        Assert.Equal(InventoryReader.StepCount, readMethods);
     }
 
     [Fact]

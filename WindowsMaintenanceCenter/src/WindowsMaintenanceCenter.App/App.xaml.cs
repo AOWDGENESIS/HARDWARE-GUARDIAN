@@ -204,10 +204,10 @@ public partial class App : Application
         }
         else
         {
-            services.AddSingleton<IHardwareProvider>(sp => new Hardware.WindowsHardwareProvider(
+            services.AddSingleton<IHardwareProvider>(sp => new WindowsHardwareProvider(
                 sp.GetRequiredService<WmiReader>(),
                 sp.GetRequiredService<IClock>()));
-            services.AddSingleton<Hardware.WindowsHardwareProvider>(sp => (Hardware.WindowsHardwareProvider)sp.GetRequiredService<IHardwareProvider>());
+            services.AddSingleton<WindowsHardwareProvider>(sp => (WindowsHardwareProvider)sp.GetRequiredService<IHardwareProvider>());
         }
 
         // Domain services

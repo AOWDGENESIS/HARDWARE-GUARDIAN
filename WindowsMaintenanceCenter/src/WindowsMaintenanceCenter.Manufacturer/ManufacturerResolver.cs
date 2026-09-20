@@ -260,6 +260,48 @@ public sealed class UnknownSourceAdapter : ManufacturerAdapterBase
 /// <summary>Resolves a manufacturer string or hardware id to an adapter (spec section 11).</summary>
 public sealed class ManufacturerResolver : IManufacturerResolver
 {
+    /// <summary>Name variants reported by GIGABYTE components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesGIGABYTE = { "GIGABYTE", "Giga-Byte" };
+
+    /// <summary>Name variants reported by ASUSTeK components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesASUSTeK = { "ASUSTeK", "ASUS" };
+
+    /// <summary>Name variants reported by Micro-Star components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesMicroStar = { "Micro-Star", "MSI" };
+
+    /// <summary>Name variants reported by ASRock components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesASRock = { "ASRock" };
+
+    /// <summary>Name variants reported by Dell components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesDell = { "Dell", "Alienware" };
+
+    /// <summary>Name variants reported by HP components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesHP = { "HP", "Hewlett-Packard", "HPE" };
+
+    /// <summary>Name variants reported by LENOVO components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesLENOVO = { "LENOVO", "ThinkPad", "IdeaPad" };
+
+    /// <summary>Name variants reported by Acer components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesAcer = { "Acer", "Predator" };
+
+    /// <summary>Name variants reported by Microsoft components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesMicrosoft = { "Microsoft", "Surface" };
+
+    /// <summary>Name variants reported by Samsung components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesSamsung = { "Samsung" };
+
+    /// <summary>Name variants reported by Kingston components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesKingston = { "Kingston" };
+
+    /// <summary>Name variants reported by Crucial components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesCrucial = { "Crucial", "Micron" };
+
+    /// <summary>Name variants reported by WDC components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesWDC = { "WDC", "Western Digital", "SanDisk" };
+
+    /// <summary>Name variants reported by Seagate components (SMBIOS and driver data).</summary>
+    private static readonly string[] VendorAliasesSeagate = { "Seagate", "ST" };
+
     private readonly IReadOnlyList<IManufacturerAdapter> _adapters;
 
     public ManufacturerResolver(IClock clock)
@@ -269,20 +311,20 @@ public sealed class ManufacturerResolver : IManufacturerResolver
             new AmdAdapter(clock),
             new NvidiaAdapter(clock),
             new IntelAdapter(clock),
-            new BoardVendorAdapter(clock, "gigabyte", "Vendor_GIGABYTE", new[] { "GIGABYTE", "Giga-Byte" }, ManufacturerSources.Gigabyte),
-            new BoardVendorAdapter(clock, "asus", "Vendor_ASUS", new[] { "ASUSTeK", "ASUS" }, ManufacturerSources.Asus),
-            new BoardVendorAdapter(clock, "msi", "Vendor_MSI", new[] { "Micro-Star", "MSI" }, ManufacturerSources.Msi),
-            new BoardVendorAdapter(clock, "asrock", "Vendor_ASRock", new[] { "ASRock" }, ManufacturerSources.Asrock),
-            new OemVendorAdapter(clock, "dell", "Vendor_Dell", new[] { "Dell", "Alienware" }, ManufacturerSources.Dell),
-            new OemVendorAdapter(clock, "hp", "Vendor_HP", new[] { "HP", "Hewlett-Packard", "HPE" }, ManufacturerSources.Hp),
-            new OemVendorAdapter(clock, "lenovo", "Vendor_Lenovo", new[] { "LENOVO", "ThinkPad", "IdeaPad" }, ManufacturerSources.Lenovo),
-            new OemVendorAdapter(clock, "acer", "Vendor_Acer", new[] { "Acer", "Predator" }, ManufacturerSources.Acer),
-            new OemVendorAdapter(clock, "microsoft", "Vendor_Microsoft", new[] { "Microsoft", "Surface" }, ManufacturerSources.Microsoft),
-            new StorageVendorAdapter(clock, "samsung", "Vendor_Samsung", new[] { "Samsung" }, ManufacturerSources.Samsung),
-            new StorageVendorAdapter(clock, "kingston", "Vendor_Kingston", new[] { "Kingston" }, ManufacturerSources.Kingston),
-            new StorageVendorAdapter(clock, "crucial", "Vendor_Crucial", new[] { "Crucial", "Micron" }, ManufacturerSources.Crucial),
-            new StorageVendorAdapter(clock, "westerndigital", "Vendor_WesternDigital", new[] { "WDC", "Western Digital", "SanDisk" }, ManufacturerSources.WesternDigital),
-            new StorageVendorAdapter(clock, "seagate", "Vendor_Seagate", new[] { "Seagate", "ST" }, ManufacturerSources.Seagate),
+            new BoardVendorAdapter(clock, "gigabyte", "Vendor_GIGABYTE", VendorAliasesGIGABYTE, ManufacturerSources.Gigabyte),
+            new BoardVendorAdapter(clock, "asus", "Vendor_ASUS", VendorAliasesASUSTeK, ManufacturerSources.Asus),
+            new BoardVendorAdapter(clock, "msi", "Vendor_MSI", VendorAliasesMicroStar, ManufacturerSources.Msi),
+            new BoardVendorAdapter(clock, "asrock", "Vendor_ASRock", VendorAliasesASRock, ManufacturerSources.Asrock),
+            new OemVendorAdapter(clock, "dell", "Vendor_Dell", VendorAliasesDell, ManufacturerSources.Dell),
+            new OemVendorAdapter(clock, "hp", "Vendor_HP", VendorAliasesHP, ManufacturerSources.Hp),
+            new OemVendorAdapter(clock, "lenovo", "Vendor_Lenovo", VendorAliasesLENOVO, ManufacturerSources.Lenovo),
+            new OemVendorAdapter(clock, "acer", "Vendor_Acer", VendorAliasesAcer, ManufacturerSources.Acer),
+            new OemVendorAdapter(clock, "microsoft", "Vendor_Microsoft", VendorAliasesMicrosoft, ManufacturerSources.Microsoft),
+            new StorageVendorAdapter(clock, "samsung", "Vendor_Samsung", VendorAliasesSamsung, ManufacturerSources.Samsung),
+            new StorageVendorAdapter(clock, "kingston", "Vendor_Kingston", VendorAliasesKingston, ManufacturerSources.Kingston),
+            new StorageVendorAdapter(clock, "crucial", "Vendor_Crucial", VendorAliasesCrucial, ManufacturerSources.Crucial),
+            new StorageVendorAdapter(clock, "westerndigital", "Vendor_WesternDigital", VendorAliasesWDC, ManufacturerSources.WesternDigital),
+            new StorageVendorAdapter(clock, "seagate", "Vendor_Seagate", VendorAliasesSeagate, ManufacturerSources.Seagate),
             new UnknownSourceAdapter(clock, "realtek", "Vendor_Realtek", new[] { "Realtek" }),
             new UnknownSourceAdapter(clock, "qualcomm", "Vendor_Qualcomm", new[] { "Qualcomm", "Snapdragon" }),
             new UnknownSourceAdapter(clock, "mediatek", "Vendor_MediaTek", new[] { "MediaTek" }),

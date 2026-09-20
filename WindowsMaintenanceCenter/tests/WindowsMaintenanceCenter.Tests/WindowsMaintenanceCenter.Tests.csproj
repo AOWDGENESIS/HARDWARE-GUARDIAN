@@ -12,6 +12,15 @@
       test` fails, and a failing test run must never be turned into a green one by dropping the tests.
     -->
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <!--
+      CA1707 (no underscores in identifiers): a test name is a sentence, and
+      "An_unregistered_action_is_refused" states the rule it proves; the rule would force cryptic names.
+      xUnit1051 (pass the cancellation token of the test): the suite tests deterministic code paths and
+      deliberately runs without a cancellation token; the production code takes them everywhere.
+      CA1861 (literal array arguments): test fixtures build small literal arrays on purpose, right where
+      the expectation is readable.
+    -->
+    <NoWarn>$(NoWarn);CA1707;xUnit1051;CA1861</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

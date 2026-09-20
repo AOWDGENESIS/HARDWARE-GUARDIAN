@@ -392,25 +392,25 @@ public sealed class ReportGenerator : IReportGenerator
 
         builder.AppendLine(_localizer.Resolve(LocalizedText.Of(title)));
         builder.AppendLine(new string('=', 78));
-        builder.AppendLine($"{_localizer["Report_GeneratedAt"]}: {_clock.Now:yyyy-MM-dd HH:mm:ss zzz}");
-        builder.AppendLine($"{_localizer["Report_Application"]}: {_buildInfo?.Get().Version ?? "unknown"} ({_buildInfo?.Get().Commit ?? "unknown"})");
-        builder.AppendLine($"{_localizer["Report_Language"]}: {_localizer.Culture.Name}");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Report_GeneratedAt"]}: {_clock.Now:yyyy-MM-dd HH:mm:ss zzz}");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Application"]}: {_buildInfo?.Get().Version ?? "unknown"} ({_buildInfo?.Get().Commit ?? "unknown"})");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Language"]}: {_localizer.Culture.Name}");
         builder.AppendLine();
 
         if (request.Snapshot is { } snapshot)
         {
             builder.AppendLine(_localizer.Resolve(LocalizedText.Of("Report_Section_Overall")));
             builder.AppendLine(new string('-', 78));
-            builder.AppendLine($"{_localizer["Report_OverallStatus"]}: {snapshot.OverallStatus}");
-            builder.AppendLine($"{_localizer["Report_OverallSummary"]}: {_localizer.Resolve(snapshot.OverallSummary)}");
-            builder.AppendLine($"{_localizer["Report_Simulation"]}: {(snapshot.IsSimulation ? _localizer["Report_Yes"] : _localizer["Report_No"])}");
-            builder.AppendLine($"{_localizer["Report_SnapshotId"]}: {snapshot.Id} ({snapshot.CapturedAt:yyyy-MM-dd HH:mm:ss})");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Report_OverallStatus"]}: {snapshot.OverallStatus}");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Report_OverallSummary"]}: {_localizer.Resolve(snapshot.OverallSummary)}");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Simulation"]}: {(snapshot.IsSimulation ? _localizer["Report_Yes"] : _localizer["Report_No"])}");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Report_SnapshotId"]}: {snapshot.Id} ({snapshot.CapturedAt:yyyy-MM-dd HH:mm:ss})");
             if (snapshot.InventoryFailedReads > 0)
             {
-                builder.AppendLine($"{_localizer["Report_FailedReads"]}: {snapshot.InventoryFailedReads}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_FailedReads"]}: {snapshot.InventoryFailedReads}");
                 foreach (var note in snapshot.InventoryNotes)
                 {
-                    builder.AppendLine($"    {note}");
+                    builder.AppendLine(_localizer.Culture, $"    {note}");
                 }
             }
             builder.AppendLine();
@@ -426,20 +426,20 @@ public sealed class ReportGenerator : IReportGenerator
 
             foreach (var problem in snapshot.Problems)
             {
-                builder.AppendLine($"[{problem.Id}] {problem.Severity} · {problem.Status} · {_localizer.Resolve(problem.Title)}");
-                builder.AppendLine($"    {_localizer.Resolve(problem.Description)}");
-                builder.AppendLine($"    {_localizer["Report_Cause"]}: {_localizer.Resolve(problem.Cause)}");
-                builder.AppendLine($"    {_localizer["Report_Impact"]}: {_localizer.Resolve(problem.Impact)}");
-                builder.AppendLine($"    {_localizer["Report_RecommendedAction"]}: {_localizer.Resolve(problem.RecommendedAction)}");
-                builder.AppendLine($"    {_localizer["Report_LogReference"]}: {problem.LogReference ?? _localizer["Report_LogReference_None"]}");
+                builder.AppendLine(_localizer.Culture, $"[{problem.Id}] {problem.Severity} · {problem.Status} · {_localizer.Resolve(problem.Title)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer.Resolve(problem.Description)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Cause"]}: {_localizer.Resolve(problem.Cause)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Impact"]}: {_localizer.Resolve(problem.Impact)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_RecommendedAction"]}: {_localizer.Resolve(problem.RecommendedAction)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_LogReference"]}: {problem.LogReference ?? _localizer["Report_LogReference_None"]}");
                 if (options.IncludeEvidence && !string.IsNullOrWhiteSpace(problem.Evidence))
                 {
-                    builder.AppendLine($"    {_localizer["Report_Evidence"]}: {problem.Evidence}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Evidence"]}: {problem.Evidence}");
                 }
 
                 foreach (var blocked in problem.BlockedOperations)
                 {
-                    builder.AppendLine($"    {_localizer["Report_Blocked"]}: {blocked.ReasonCode} — {_localizer.Resolve(blocked.Reason)}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Blocked"]}: {blocked.ReasonCode} — {_localizer.Resolve(blocked.Reason)}");
                 }
 
                 builder.AppendLine();
@@ -449,17 +449,17 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var component in snapshot.Components.OrderBy(c => c.SortOrder).ThenBy(c => c.Name.Display, StringComparer.CurrentCultureIgnoreCase))
             {
-                builder.AppendLine($"{component.Category,-14} {component.Name.Display}");
-                builder.AppendLine($"    {_localizer["Report_Manufacturer"]}: {component.Manufacturer.Display}   {_localizer["Report_Model"]}: {component.Model.Display}");
-                builder.AppendLine($"    {_localizer["Report_Status"]}: {component.Status}   {_localizer["Report_Source"]}: {component.Name.Origin.Token()}");
+                builder.AppendLine(_localizer.Culture, $"{component.Category,-14} {component.Name.Display}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Manufacturer"]}: {component.Manufacturer.Display}   {_localizer["Report_Model"]}: {component.Model.Display}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Status"]}: {component.Status}   {_localizer["Report_Source"]}: {component.Name.Origin.Token()}");
                 if (component.Driver is { } driver)
                 {
-                    builder.AppendLine($"    {_localizer["Report_Driver"]}: {driver.Version.Display} ({driver.Provider.Display})  {_localizer["Report_Signature"]}: {driver.SignatureVerification}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Driver"]}: {driver.Version.Display} ({driver.Provider.Display})  {_localizer["Report_Signature"]}: {driver.SignatureVerification}");
                 }
 
                 if (component.DeviceInstanceId.IsKnown)
                 {
-                    builder.AppendLine($"    {_localizer["Report_DeviceInstanceId"]}: {MaskSerial(component.DeviceInstanceId.Display, options)}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_DeviceInstanceId"]}: {MaskSerial(component.DeviceInstanceId.Display, options)}");
                 }
             }
 
@@ -472,7 +472,7 @@ public sealed class ReportGenerator : IReportGenerator
                 var value = reading.Value.HasValue
                     ? $"{reading.Value.Value!.Value.ToString(CultureInfo.CurrentCulture)} {reading.Unit}"
                     : $"UNKNOWN ({reading.Value.UnknownReason})";
-                builder.AppendLine($"{_localizer[reading.NameKey],-32} {value,-24} {_localizer["Report_Quality"]}: {reading.Quality}  {_localizer["Report_MeasurementPoint"]}: {_localizer[reading.MeasurementPointKey]}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer[reading.NameKey],-32} {value,-24} {_localizer["Report_Quality"]}: {reading.Quality}  {_localizer["Report_MeasurementPoint"]}: {_localizer[reading.MeasurementPointKey]}");
             }
 
             if (sensors.Count == 0)
@@ -489,12 +489,12 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var update in request.Updates)
             {
-                builder.AppendLine($"{update.DeviceName.Display}: {update.Status} ({update.Installed.Raw.Display} -> {update.Available.Raw.Display})");
-                builder.AppendLine($"    {_localizer["Report_Reason"]}: {_localizer.Resolve(update.Reason)}");
-                builder.AppendLine($"    {_localizer["Report_Source"]}: {update.Source.AdapterId} · {update.Source.Trust} · {update.Source.Verification}");
+                builder.AppendLine(_localizer.Culture, $"{update.DeviceName.Display}: {update.Status} ({update.Installed.Raw.Display} -> {update.Available.Raw.Display})");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Reason"]}: {_localizer.Resolve(update.Reason)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Source"]}: {update.Source.AdapterId} · {update.Source.Trust} · {update.Source.Verification}");
                 if (!string.IsNullOrWhiteSpace(update.BlockedReasonCode))
                 {
-                    builder.AppendLine($"    {_localizer["Report_Blocked"]}: {update.BlockedReasonCode}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Blocked"]}: {update.BlockedReasonCode}");
                 }
             }
 
@@ -507,10 +507,10 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var result in request.Maintenance)
             {
-                builder.AppendLine($"{result.PlanId} [{result.Mode}] {result.StartedAt:yyyy-MM-dd HH:mm:ss} — {_localizer.Resolve(result.Summary)}");
+                builder.AppendLine(_localizer.Culture, $"{result.PlanId} [{result.Mode}] {result.StartedAt:yyyy-MM-dd HH:mm:ss} — {_localizer.Resolve(result.Summary)}");
                 foreach (var item in result.Items)
                 {
-                    builder.AppendLine($"    {item.Category,-28} {item.Outcome,-10} {(item.Message is null ? string.Empty : _localizer.Resolve(item.Message))}");
+                    builder.AppendLine(_localizer.Culture, $"    {item.Category,-28} {item.Outcome,-10} {(item.Message is null ? string.Empty : _localizer.Resolve(item.Message))}");
                 }
             }
 
@@ -523,7 +523,7 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var entry in request.History)
             {
-                builder.AppendLine($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Kind,-8} {entry.OverallStatus,-10} problems={entry.ProblemCount} changes={entry.ChangeCount}");
+                builder.AppendLine(_localizer.Culture, $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Kind,-8} {entry.OverallStatus,-10} problems={entry.ProblemCount} changes={entry.ChangeCount}");
             }
 
             builder.AppendLine();
@@ -535,15 +535,15 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var entry in request.Audit)
             {
-                builder.AppendLine($"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Operation,-14} {entry.Category,-12} {entry.Result,-10} {entry.OperationKey}");
+                builder.AppendLine(_localizer.Culture, $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Operation,-14} {entry.Category,-12} {entry.Result,-10} {entry.OperationKey}");
                 if (!string.IsNullOrWhiteSpace(entry.Error))
                 {
-                    builder.AppendLine($"    {_localizer["Report_Error"]}: {entry.Error}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Error"]}: {entry.Error}");
                 }
 
                 if (entry.Approval is { } approval)
                 {
-                    builder.AppendLine($"    {_localizer["Report_Approval"]}: {approval.Decision} ({approval.Risk})");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Approval"]}: {approval.Decision} ({approval.Risk})");
                 }
             }
 
@@ -556,27 +556,27 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var note in security.Notes)
             {
-                builder.AppendLine($"- {note}");
+                builder.AppendLine(_localizer.Culture, $"- {note}");
             }
 
             foreach (var hash in security.Hashes)
             {
-                builder.AppendLine($"{_localizer["Report_Hash"]}: {hash.Algorithm} {hash.Hash ?? "unavailable"}  {hash.Path}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Hash"]}: {hash.Algorithm} {hash.Hash ?? "unavailable"}  {hash.Path}");
             }
 
             foreach (var signature in security.Signatures)
             {
-                builder.AppendLine($"{_localizer["Report_Signature"]}: {signature.Verification} {signature.Signer.Display}  {signature.Path}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Signature"]}: {signature.Verification} {signature.Signer.Display}  {signature.Path}");
             }
 
             foreach (var source in security.Sources)
             {
-                builder.AppendLine($"{_localizer["Report_Source"]}: {source.Url} reachable={source.Reachable} verification={source.Verification} trust={source.Trust}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Source"]}: {source.Url} reachable={source.Reachable} verification={source.Verification} trust={source.Trust}");
             }
 
             foreach (var blocked in security.BlockedOperations)
             {
-                builder.AppendLine($"{_localizer["Report_Blocked"]}: {blocked.ReasonCode} — {_localizer.Resolve(blocked.Reason)}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Blocked"]}: {blocked.ReasonCode} — {_localizer.Resolve(blocked.Reason)}");
             }
 
             builder.AppendLine();
@@ -598,11 +598,11 @@ public sealed class ReportGenerator : IReportGenerator
         var builder = new StringBuilder();
 
         builder.AppendLine("<!DOCTYPE html>");
-        builder.AppendLine($"<html lang=\"{_localizer.Culture.TwoLetterISOLanguageName}\">");
+        builder.AppendLine(_localizer.Culture, $"<html lang=\"{_localizer.Culture.TwoLetterISOLanguageName}\">");
         builder.AppendLine("<head>");
         builder.AppendLine("<meta charset=\"utf-8\">");
         builder.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-        builder.AppendLine($"<title>{Escape(_localizer.Resolve(LocalizedText.Of(request.IsSecurityReport ? "Report_Title_Security" : "Report_Title_System")))}</title>");
+        builder.AppendLine(_localizer.Culture, $"<title>{Escape(_localizer.Resolve(LocalizedText.Of(request.IsSecurityReport ? "Report_Title_Security" : "Report_Title_System")))}</title>");
         builder.AppendLine("<style>");
         builder.AppendLine(":root{color-scheme:light dark}body{font-family:'Segoe UI',system-ui,sans-serif;margin:2rem;line-height:1.5}");
         builder.AppendLine("pre{white-space:pre-wrap;word-wrap:break-word;font-family:'Cascadia Mono',Consolas,monospace;font-size:.92rem}");
@@ -613,15 +613,15 @@ public sealed class ReportGenerator : IReportGenerator
         builder.AppendLine("</head>");
         builder.AppendLine("<body>");
         builder.AppendLine("<header>");
-        builder.AppendLine($"<h1>{Escape(_localizer.Resolve(LocalizedText.Of(request.IsSecurityReport ? "Report_Title_Security" : "Report_Title_System")))}</h1>");
-        builder.AppendLine($"<p>{Escape(_localizer["Report_GeneratedAt"])}: {_clock.Now:yyyy-MM-dd HH:mm:ss zzz} · {Escape(_buildInfo?.Get().Version ?? "unknown")}</p>");
+        builder.AppendLine(_localizer.Culture, $"<h1>{Escape(_localizer.Resolve(LocalizedText.Of(request.IsSecurityReport ? "Report_Title_Security" : "Report_Title_System")))}</h1>");
+        builder.AppendLine(_localizer.Culture, $"<p>{Escape(_localizer["Report_GeneratedAt"])}: {_clock.Now:yyyy-MM-dd HH:mm:ss zzz} · {Escape(_buildInfo?.Get().Version ?? "unknown")}</p>");
         if (request.Snapshot?.IsSimulation == true)
         {
-            builder.AppendLine($"<p><strong>{Escape(_localizer["Report_SimulationWarning"])}</strong></p>");
+            builder.AppendLine(_localizer.Culture, $"<p><strong>{Escape(_localizer["Report_SimulationWarning"])}</strong></p>");
         }
 
         builder.AppendLine("</header>");
-        builder.AppendLine($"<pre>{Escape(text)}</pre>");
+        builder.AppendLine(_localizer.Culture, $"<pre>{Escape(text)}</pre>");
         builder.AppendLine("<footer>");
         builder.AppendLine(Escape(_localizer["Report_Footer_Privacy"]));
         builder.AppendLine("</footer>");
@@ -817,64 +817,64 @@ public sealed class ReportGenerator : IReportGenerator
         builder.AppendLine(_localizer.Resolve(LocalizedText.Of("Section_Hardware")));
         builder.AppendLine(new string('-', 78));
 
-        builder.AppendLine($"{_localizer["Component_Cpu"]}:");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Cpu"]}:");
         foreach (var processor in snapshot.Processors)
         {
-            builder.AppendLine($"    {Show(processor.Name)}");
-            builder.AppendLine($"      {_localizer["Report_Cores"]}: {Show(processor.Cores)} / {Show(processor.LogicalProcessors)}"
+            builder.AppendLine(_localizer.Culture, $"    {Show(processor.Name)}");
+            builder.AppendLine(_localizer.Culture, $"      {_localizer["Report_Cores"]}: {Show(processor.Cores)} / {Show(processor.LogicalProcessors)}"
                 + $"   {_localizer["Report_Clock"]}: {Show(processor.CurrentClockMhz)} MHz"
                 + $"   {_localizer["Report_Usage"]}: {Show(processor.LoadPercent)} %");
         }
 
         if (snapshot.Processors.Count == 0)
         {
-            builder.AppendLine($"    {_localizer["Report_NoProcessors"]}");
+            builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_NoProcessors"]}");
         }
 
         var memory = snapshot.Memory;
-        builder.AppendLine($"{_localizer["Component_Memory"]}:");
-        builder.AppendLine($"    {_localizer["Report_Capacity"]}: {Show(memory.TotalPhysicalBytes)} B"
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Memory"]}:");
+        builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Capacity"]}: {Show(memory.TotalPhysicalBytes)} B"
             + $"   {_localizer["Report_Slots"]}: {Show(memory.UsedSlots)} / {Show(memory.TotalSlots)}"
             + $"   {_localizer["Report_Usage"]}: {Show(memory.MemoryUsagePercent)} %");
         foreach (var module in memory.Modules)
         {
-            builder.AppendLine($"    {Show(module.DeviceLocator)} ({Show(module.BankLabel)}): {Show(module.CapacityBytes)} B"
+            builder.AppendLine(_localizer.Culture, $"    {Show(module.DeviceLocator)} ({Show(module.BankLabel)}): {Show(module.CapacityBytes)} B"
                 + $" @ {Show(module.SpeedMhz)} MHz   {_localizer["Report_MemoryType"]}: {Show(module.MemoryType)}"
                 + $"   {_localizer["Report_FormFactor"]}: {Show(module.FormFactor)}");
         }
 
-        builder.AppendLine($"{_localizer["Component_Mainboard"]}:");
-        builder.AppendLine($"    {Show(snapshot.Motherboard.Manufacturer)} {Show(snapshot.Motherboard.Product)}"
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Mainboard"]}:");
+        builder.AppendLine(_localizer.Culture, $"    {Show(snapshot.Motherboard.Manufacturer)} {Show(snapshot.Motherboard.Product)}"
             + $"   {_localizer["Report_Revision"]}: {Show(snapshot.Motherboard.Version)}"
             + $" ({(snapshot.Motherboard.RevisionVerified ? _localizer["Report_Yes"] : _localizer["Report_No"])})");
-        builder.AppendLine($"{_localizer["Component_Bios"]}:");
-        builder.AppendLine($"    {Show(snapshot.Bios.Manufacturer)} {Show(snapshot.Bios.Version)} ({Show(snapshot.Bios.ReleaseDate)})"
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Bios"]}:");
+        builder.AppendLine(_localizer.Culture, $"    {Show(snapshot.Bios.Manufacturer)} {Show(snapshot.Bios.Version)} ({Show(snapshot.Bios.ReleaseDate)})"
             + $"   {_localizer["Report_SecureBootState"]}: {Show(snapshot.Motherboard.SecureBootState)}"
             + $"   {_localizer["Report_Uptime"]}: {Show(snapshot.Windows.UptimeHours)} h");
 
-        builder.AppendLine($"{_localizer["Component_Graphics"]}:");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Graphics"]}:");
         foreach (var adapter in snapshot.Graphics)
         {
-            builder.AppendLine($"    {Show(adapter.Name)}  {Show(adapter.VideoMemoryBytes)} B"
+            builder.AppendLine(_localizer.Culture, $"    {Show(adapter.Name)}  {Show(adapter.VideoMemoryBytes)} B"
                 + $"   {_localizer["Report_Driver"]}: {Show(adapter.DriverVersion)}");
         }
 
-        builder.AppendLine($"{_localizer["Component_Storage"]}:");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Storage"]}:");
         foreach (var device in snapshot.Storage)
         {
-            builder.AppendLine($"    {Show(device.Model)} · {Show(device.BusType)} · {Show(device.SizeBytes)} B"
+            builder.AppendLine(_localizer.Culture, $"    {Show(device.Model)} · {Show(device.BusType)} · {Show(device.SizeBytes)} B"
                 + $"   {_localizer["Report_Status"]}: {Show(device.HealthStatus)}"
                 + $"   {_localizer["Report_Wear"]}: {Show(device.PercentageUsed)} %"
                 + $"   {_localizer["Report_Temperature"]}: {Show(device.TemperatureCelsius)} °C"
                 + $"   {_localizer["Report_PowerOnHours"]}: {Show(device.PowerOnHours)} h");
             foreach (var volume in device.Volumes)
             {
-                builder.AppendLine($"      {_localizer["Report_Volumes"]}: {Show(volume.DriveLetter)} ({Show(volume.FileSystem)})"
+                builder.AppendLine(_localizer.Culture, $"      {_localizer["Report_Volumes"]}: {Show(volume.DriveLetter)} ({Show(volume.FileSystem)})"
                     + $" {Show(volume.FreeBytes)} / {Show(volume.SizeBytes)} B");
             }
         }
 
-        builder.AppendLine($"{_localizer["Component_Network"]}:");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Network"]}:");
         foreach (var adapter in snapshot.Network)
         {
             // The role is a localisation key, so the report stays in the selected language.
@@ -882,39 +882,39 @@ public sealed class ReportGenerator : IReportGenerator
                 : adapter.IsWireless ? "Report_Adapter_Wifi"
                 : adapter.IsBluetooth ? "Report_Adapter_Bluetooth"
                 : "Report_Adapter_Wired";
-            builder.AppendLine($"    {Show(adapter.Description)} [{_localizer[kind]}] {Show(adapter.ConnectionState)}"
+            builder.AppendLine(_localizer.Culture, $"    {Show(adapter.Description)} [{_localizer[kind]}] {Show(adapter.ConnectionState)}"
                 + $"   {Show(adapter.SpeedBitsPerSecond)} bit/s   {MaskSerial(Show(adapter.MacAddress), options)}");
         }
 
-        builder.AppendLine($"{_localizer["Component_Monitor"]}:");
+        builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Monitor"]}:");
         foreach (var monitor in snapshot.Monitors)
         {
-            builder.AppendLine($"    {Show(monitor.Name)} {Show(monitor.HorizontalResolution)} x {Show(monitor.VerticalResolution)}"
+            builder.AppendLine(_localizer.Culture, $"    {Show(monitor.Name)} {Show(monitor.HorizontalResolution)} x {Show(monitor.VerticalResolution)}"
                 + $" @ {Show(monitor.RefreshRate)} Hz");
         }
 
         if (snapshot.Audio.Count > 0)
         {
-            builder.AppendLine($"{_localizer["Component_Audio"]}:");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Audio"]}:");
             foreach (var device in snapshot.Audio)
             {
-                builder.AppendLine($"    {Show(device.Name)}  {_localizer["Report_Status"]}: {Show(device.Status)}");
+                builder.AppendLine(_localizer.Culture, $"    {Show(device.Name)}  {_localizer["Report_Status"]}: {Show(device.Status)}");
             }
         }
 
         if (snapshot.Printers.Count > 0)
         {
-            builder.AppendLine($"{_localizer["Component_Printer"]}:");
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Printer"]}:");
             foreach (var printer in snapshot.Printers)
             {
-                builder.AppendLine($"    {Show(printer.Name)}  {_localizer["Report_Driver"]}: {Show(printer.DriverName)}");
+                builder.AppendLine(_localizer.Culture, $"    {Show(printer.Name)}  {_localizer["Report_Driver"]}: {Show(printer.DriverName)}");
             }
         }
 
         if (snapshot.Battery is { } battery)
         {
-            builder.AppendLine($"{_localizer["Component_Battery"]}:");
-            builder.AppendLine($"    {Show(battery.Name)}  {Show(battery.DesignCapacityMwh)} / {Show(battery.FullChargeCapacityMwh)} mWh"
+            builder.AppendLine(_localizer.Culture, $"{_localizer["Component_Battery"]}:");
+            builder.AppendLine(_localizer.Culture, $"    {Show(battery.Name)}  {Show(battery.DesignCapacityMwh)} / {Show(battery.FullChargeCapacityMwh)} mWh"
                 + $"   {_localizer["Report_Usage"]}: {Show(battery.ChargePercent)} %");
         }
 

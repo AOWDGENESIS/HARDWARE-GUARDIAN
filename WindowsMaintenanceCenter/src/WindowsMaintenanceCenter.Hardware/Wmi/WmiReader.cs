@@ -279,12 +279,13 @@ public sealed class WmiObject
 
         try
         {
-            var year = int.Parse(text.Substring(0, 4), System.Globalization.CultureInfo.InvariantCulture);
-            var month = int.Parse(text.Substring(4, 2), System.Globalization.CultureInfo.InvariantCulture);
-            var day = int.Parse(text.Substring(6, 2), System.Globalization.CultureInfo.InvariantCulture);
-            var hour = int.Parse(text.Substring(8, 2), System.Globalization.CultureInfo.InvariantCulture);
-            var minute = int.Parse(text.Substring(10, 2), System.Globalization.CultureInfo.InvariantCulture);
-            var second = int.Parse(text.Substring(12, 2), System.Globalization.CultureInfo.InvariantCulture);
+            // A DMTF timestamp: the span overload parses the parts without copying.
+            var year = int.Parse(text.AsSpan(0, 4), System.Globalization.CultureInfo.InvariantCulture);
+            var month = int.Parse(text.AsSpan(4, 2), System.Globalization.CultureInfo.InvariantCulture);
+            var day = int.Parse(text.AsSpan(6, 2), System.Globalization.CultureInfo.InvariantCulture);
+            var hour = int.Parse(text.AsSpan(8, 2), System.Globalization.CultureInfo.InvariantCulture);
+            var minute = int.Parse(text.AsSpan(10, 2), System.Globalization.CultureInfo.InvariantCulture);
+            var second = int.Parse(text.AsSpan(12, 2), System.Globalization.CultureInfo.InvariantCulture);
 
             if (month is < 1 or > 12 || day is < 1 or > 31)
             {
