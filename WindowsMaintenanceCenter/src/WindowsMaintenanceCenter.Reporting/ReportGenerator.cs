@@ -508,7 +508,7 @@ public sealed class ReportGenerator : IReportGenerator
                 builder.AppendLine($"{result.PlanId} [{result.Mode}] {result.StartedAt:yyyy-MM-dd HH:mm:ss} — {_localizer.Resolve(result.Summary)}");
                 foreach (var item in result.Items)
                 {
-                    builder.AppendLine($"    {item.Category,-28} {item.Outcome,-10} {item.Message is null ? string.Empty : _localizer.Resolve(item.Message)}");
+                    builder.AppendLine($"    {item.Category,-28} {item.Outcome,-10} {(item.Message is null ? string.Empty : _localizer.Resolve(item.Message))}");
                 }
             }
 
