@@ -161,6 +161,7 @@ public sealed class ReportGenerator : IReportGenerator
                 // would show empty lists and look like "nothing found".
                 ["inventoryFailedReads"] = snapshot.InventoryFailedReads,
                 ["inventoryNotes"] = snapshot.InventoryNotes,
+                ["hardware"] = BuildHardwareJson(snapshot, options),
                 ["problems"] = snapshot.Problems.Select(p => new Dictionary<string, object?>
                 {
                     ["id"] = p.Id,
@@ -407,6 +408,8 @@ public sealed class ReportGenerator : IReportGenerator
             }
             builder.AppendLine();
 
+            AppendHardwareSection(builder, snapshot, options);
+
             builder.AppendLine(_localizer.Resolve(LocalizedText.Of("Report_Section_Problems")));
             builder.AppendLine(new string('-', 78));
             if (snapshot.Problems.Count == 0)
@@ -619,8 +622,308 @@ public sealed class ReportGenerator : IReportGenerator
         return builder.ToString();
     }
 
+    /// <summary>
+    /// The measured hardware as machine readable JSON. Every leaf is either the measured value or
+    /// <c>UNKNOWN: reason</c> - an empty string would hide whether a value is missing or empty
+    /// (spec sections 1.3 and 44). Serial numbers, MAC and IP addresses are masked when the
+    /// report options ask for it.
+    /// </summary>
+    private Dictionary<string, object?> BuildHardwareJson(SystemSnapshot snapshot, ReportOptions options)
+    {
+        var memory = snapshot.Memory;
+        return new Dictionary<string, object?>
+        {
+            ["windows"] = new Dictionary<string, object?>
+            {
+                ["productName"] = Show(snapshot.Windows.ProductName),
+                ["edition"] = Show(snapshot.Windows.Edition),
+                ["displayVersion"] = Show(snapshot.Windows.DisplayVersion),
+                ["buildNumber"] = Show(snapshot.Windows.BuildNumber),
+                ["architecture"] = Show(snapshot.Windows.Architecture),
+                ["isWindows11"] = YesNo(snapshot.Windows.IsWindows11),
+                ["secureBootState"] = Show(snapshot.Windows.SecureBootState),
+                ["activationState"] = Show(snapshot.Windows.ActivationState),
+                ["uptimeHours"] = Show(snapshot.Windows.UptimeHours),
+            },
+            ["system"] = new Dictionary<string, object?>
+            {
+                ["model"] = Show(snapshot.System.ComputerModel),
+                ["manufacturer"] = Show(snapshot.System.Manufacturer),
+                ["systemType"] = Show(snapshot.System.SystemType),
+                ["chassisType"] = Show(snapshot.System.ChassisType),
+                ["serialNumber"] = MaskSerial(Show(snapshot.System.SerialNumber), options),
+            },
+            ["motherboard"] = new Dictionary<string, object?>
+            {
+                ["manufacturer"] = Show(snapshot.Motherboard.Manufacturer),
+                ["product"] = Show(snapshot.Motherboard.Product),
+                ["boardVersion"] = Show(snapshot.Motherboard.Version),
+                ["revisionVerified"] = snapshot.Motherboard.RevisionVerified,
+                ["revisionDetail"] = snapshot.Motherboard.RevisionVerificationDetail,
+                ["uefiMode"] = Show(snapshot.Motherboard.UefiMode),
+                ["secureBootState"] = Show(snapshot.Motherboard.SecureBootState),
+            },
+            ["bios"] = new Dictionary<string, object?>
+            {
+                ["manufacturer"] = Show(snapshot.Bios.Manufacturer),
+                ["version"] = Show(snapshot.Bios.Version),
+                ["releaseDate"] = Show(snapshot.Bios.ReleaseDate),
+                ["smbiosVersion"] = Show(snapshot.Bios.SmbiosVersion),
+                ["isUefi"] = YesNo(snapshot.Bios.IsUefi),
+                ["firmwareType"] = Show(snapshot.Bios.FirmwareType),
+                ["secureBootEnabled"] = YesNo(snapshot.Bios.SecureBootEnabled),
+            },
+            ["processors"] = snapshot.Processors.Select(p => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(p.Name),
+                ["manufacturer"] = Show(p.Manufacturer),
+                ["socket"] = Show(p.SocketDesignation),
+                ["architecture"] = Show(p.Architecture),
+                ["cores"] = Show(p.Cores),
+                ["logicalProcessors"] = Show(p.LogicalProcessors),
+                ["baseClockMhz"] = Show(p.BaseClockMhz),
+                ["currentClockMhz"] = Show(p.CurrentClockMhz),
+                ["loadPercent"] = Show(p.LoadPercent),
+                ["virtualizationFirmwareEnabled"] = Show(p.VirtualizationFirmwareEnabled),
+                ["origin"] = p.Name.Origin.Token(),
+            }).ToList(),
+            ["memory"] = new Dictionary<string, object?>
+            {
+                ["totalPhysicalBytes"] = Show(memory.TotalPhysicalBytes),
+                ["availablePhysicalBytes"] = Show(memory.AvailablePhysicalBytes),
+                ["totalSlots"] = Show(memory.TotalSlots),
+                ["usedSlots"] = Show(memory.UsedSlots),
+                ["usagePercent"] = Show(memory.MemoryUsagePercent),
+                ["modules"] = memory.Modules.Select(m => (object)new Dictionary<string, object?>
+                {
+                    ["bankLabel"] = Show(m.BankLabel),
+                    ["deviceLocator"] = Show(m.DeviceLocator),
+                    ["capacityBytes"] = Show(m.CapacityBytes),
+                    ["speedMhz"] = Show(m.SpeedMhz),
+                    ["memoryType"] = Show(m.MemoryType),
+                    ["formFactor"] = Show(m.FormFactor),
+                    ["manufacturer"] = Show(m.Manufacturer),
+                    ["partNumber"] = Show(m.PartNumber),
+                    ["serialNumber"] = MaskSerial(Show(m.SerialNumber), options),
+                    ["isEcc"] = YesNo(m.IsEcc),
+                }).ToList(),
+            },
+            ["graphics"] = snapshot.Graphics.Select(g => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(g.Name),
+                ["manufacturer"] = Show(g.Manufacturer),
+                ["videoMemoryBytes"] = Show(g.VideoMemoryBytes),
+                ["driverVersion"] = Show(g.DriverVersion),
+                ["driverDate"] = Show(g.DriverDate),
+                ["isIntegratedGraphics"] = g.IsIntegratedGraphics,
+            }).ToList(),
+            ["storage"] = snapshot.Storage.Select(d => (object)new Dictionary<string, object?>
+            {
+                ["friendlyName"] = Show(d.FriendlyName),
+                ["model"] = Show(d.Model),
+                ["serialNumber"] = MaskSerial(Show(d.SerialNumber), options),
+                ["firmwareRevision"] = Show(d.FirmwareRevision),
+                ["busType"] = Show(d.BusType),
+                ["mediaType"] = Show(d.MediaType),
+                ["sizeBytes"] = Show(d.SizeBytes),
+                ["healthStatus"] = Show(d.HealthStatus),
+                ["smartAvailable"] = d.SmartAvailable,
+                ["isNvme"] = d.IsNvme,
+                ["percentageUsed"] = Show(d.PercentageUsed),
+                ["temperatureCelsius"] = Show(d.TemperatureCelsius),
+                ["powerOnHours"] = Show(d.PowerOnHours),
+                ["volumes"] = d.Volumes.Select(v => (object)new Dictionary<string, object?>
+                {
+                    ["driveLetter"] = Show(v.DriveLetter),
+                    ["label"] = Show(v.Label),
+                    ["fileSystem"] = Show(v.FileSystem),
+                    ["sizeBytes"] = Show(v.SizeBytes),
+                    ["freeBytes"] = Show(v.FreeBytes),
+                    ["freePercent"] = Show(v.FreePercent),
+                }).ToList(),
+            }).ToList(),
+            ["network"] = snapshot.Network.Select(n => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(n.Name),
+                ["description"] = Show(n.Description),
+                ["macAddress"] = MaskSerial(Show(n.MacAddress), options),
+                ["ipAddress"] = MaskSerial(Show(n.IpAddress), options),
+                ["connectionState"] = Show(n.ConnectionState),
+                ["speedBitsPerSecond"] = Show(n.SpeedBitsPerSecond),
+                ["driverVersion"] = Show(n.DriverVersion),
+                ["isWireless"] = n.IsWireless,
+                ["isBluetooth"] = n.IsBluetooth,
+                ["isVirtual"] = n.IsVirtual,
+            }).ToList(),
+            ["monitors"] = snapshot.Monitors.Select(m => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(m.Name),
+                ["manufacturer"] = Show(m.Manufacturer),
+                ["productCode"] = Show(m.ProductCode),
+                ["resolution"] = m.HorizontalResolution.Value.HasValue && m.VerticalResolution.Value.HasValue
+                    ? $"{m.HorizontalResolution.Value.Value} x {m.VerticalResolution.Value.Value}"
+                    : $"UNKNOWN: {(m.HorizontalResolution.UnknownReason ?? m.VerticalResolution.UnknownReason ?? "resolution not reported")}",
+                ["refreshRate"] = Show(m.RefreshRate),
+                ["manufactureYear"] = Show(m.ManufactureYear),
+                ["connectionType"] = Show(m.ConnectionType),
+            }).ToList(),
+            ["audio"] = snapshot.Audio.Select(a => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(a.Name),
+                ["manufacturer"] = Show(a.Manufacturer),
+                ["status"] = Show(a.Status),
+                ["driverVersion"] = Show(a.DriverVersion),
+                ["isCapture"] = a.IsCapture,
+            }).ToList(),
+            ["printers"] = snapshot.Printers.Select(p => (object)new Dictionary<string, object?>
+            {
+                ["name"] = Show(p.Name),
+                ["driverName"] = Show(p.DriverName),
+                ["portName"] = Show(p.PortName),
+                ["isDefault"] = p.IsDefault,
+                ["isNetwork"] = p.IsNetwork,
+            }).ToList(),
+            ["battery"] = snapshot.Battery is { } battery
+                ? new Dictionary<string, object?>
+                {
+                    ["name"] = Show(battery.Name),
+                    ["manufacturer"] = Show(battery.Manufacturer),
+                    ["chemistry"] = Show(battery.Chemistry),
+                    ["designCapacityMwh"] = Show(battery.DesignCapacityMwh),
+                    ["fullChargeCapacityMwh"] = Show(battery.FullChargeCapacityMwh),
+                    ["chargePercent"] = Show(battery.ChargePercent),
+                    ["cycleCount"] = Show(battery.CycleCount),
+                    ["healthPercent"] = battery.HealthPercent is { } health ? health : "UNKNOWN: health not reported",
+                }
+                : null,
+        };
+    }
+
+    /// <summary>
+    /// The same inventory as readable text. Values that were not measured keep the reason, so the
+    /// reader can tell "nothing to report" from "could not be read" (spec sections 1.3 and 61).
+    /// </summary>
+    private void AppendHardwareSection(StringBuilder builder, SystemSnapshot snapshot, ReportOptions options)
+    {
+        builder.AppendLine(_localizer.Resolve(LocalizedText.Of("Section_Hardware")));
+        builder.AppendLine(new string('-', 78));
+
+        builder.AppendLine($"{_localizer["Component_Cpu"]}:");
+        foreach (var processor in snapshot.Processors)
+        {
+            builder.AppendLine($"    {Show(processor.Name)}");
+            builder.AppendLine($"      {_localizer["Report_Cores"]}: {Show(processor.Cores)} / {Show(processor.LogicalProcessors)}"
+                + $"   {_localizer["Report_Clock"]}: {Show(processor.CurrentClockMhz)} MHz"
+                + $"   {_localizer["Report_Usage"]}: {Show(processor.LoadPercent)} %");
+        }
+
+        if (snapshot.Processors.Count == 0)
+        {
+            builder.AppendLine("    UNKNOWN: no processor object was reported");
+        }
+
+        var memory = snapshot.Memory;
+        builder.AppendLine($"{_localizer["Component_Memory"]}:");
+        builder.AppendLine($"    {_localizer["Report_Capacity"]}: {Show(memory.TotalPhysicalBytes)} B"
+            + $"   {_localizer["Report_Slots"]}: {Show(memory.UsedSlots)} / {Show(memory.TotalSlots)}"
+            + $"   {_localizer["Report_Usage"]}: {Show(memory.MemoryUsagePercent)} %");
+        foreach (var module in memory.Modules)
+        {
+            builder.AppendLine($"    {Show(module.DeviceLocator)} ({Show(module.BankLabel)}): {Show(module.CapacityBytes)} B"
+                + $" @ {Show(module.SpeedMhz)} MHz   {_localizer["Report_MemoryType"]}: {Show(module.MemoryType)}"
+                + $"   {_localizer["Report_FormFactor"]}: {Show(module.FormFactor)}");
+        }
+
+        builder.AppendLine($"{_localizer["Component_Mainboard"]}:");
+        builder.AppendLine($"    {Show(snapshot.Motherboard.Manufacturer)} {Show(snapshot.Motherboard.Product)}"
+            + $"   {_localizer["Report_Revision"]}: {Show(snapshot.Motherboard.Version)}"
+            + $" ({(snapshot.Motherboard.RevisionVerified ? _localizer["Report_Yes"] : _localizer["Report_No"])})");
+        builder.AppendLine($"{_localizer["Component_Bios"]}:");
+        builder.AppendLine($"    {Show(snapshot.Bios.Manufacturer)} {Show(snapshot.Bios.Version)} ({Show(snapshot.Bios.ReleaseDate)})"
+            + $"   {_localizer["Report_SecureBootState"]}: {Show(snapshot.Motherboard.SecureBootState)}"
+            + $"   {_localizer["Report_Uptime"]}: {Show(snapshot.Windows.UptimeHours)} h");
+
+        builder.AppendLine($"{_localizer["Component_Graphics"]}:");
+        foreach (var adapter in snapshot.Graphics)
+        {
+            builder.AppendLine($"    {Show(adapter.Name)}  {Show(adapter.VideoMemoryBytes)} B"
+                + $"   {_localizer["Report_Driver"]}: {Show(adapter.DriverVersion)}");
+        }
+
+        builder.AppendLine($"{_localizer["Component_Storage"]}:");
+        foreach (var device in snapshot.Storage)
+        {
+            builder.AppendLine($"    {Show(device.Model)} · {Show(device.BusType)} · {Show(device.SizeBytes)} B"
+                + $"   {_localizer["Report_Status"]}: {Show(device.HealthStatus)}"
+                + $"   {_localizer["Report_Wear"]}: {Show(device.PercentageUsed)} %"
+                + $"   {_localizer["Report_Temperature"]}: {Show(device.TemperatureCelsius)} °C"
+                + $"   {_localizer["Report_PowerOnHours"]}: {Show(device.PowerOnHours)} h");
+            foreach (var volume in device.Volumes)
+            {
+                builder.AppendLine($"      {_localizer["Report_Volumes"]}: {Show(volume.DriveLetter)} ({Show(volume.FileSystem)})"
+                    + $" {Show(volume.FreeBytes)} / {Show(volume.SizeBytes)} B");
+            }
+        }
+
+        builder.AppendLine($"{_localizer["Component_Network"]}:");
+        foreach (var adapter in snapshot.Network)
+        {
+            var kind = adapter.IsVirtual ? "virtual" : adapter.IsWireless ? "wi-fi" : adapter.IsBluetooth ? "bluetooth" : "wired";
+            builder.AppendLine($"    {Show(adapter.Description)} [{kind}] {Show(adapter.ConnectionState)}"
+                + $"   {Show(adapter.SpeedBitsPerSecond)} bit/s   {MaskSerial(Show(adapter.MacAddress), options)}");
+        }
+
+        builder.AppendLine($"{_localizer["Component_Monitor"]}:");
+        foreach (var monitor in snapshot.Monitors)
+        {
+            builder.AppendLine($"    {Show(monitor.Name)} {Show(monitor.HorizontalResolution)} x {Show(monitor.VerticalResolution)}"
+                + $" @ {Show(monitor.RefreshRate)} Hz");
+        }
+
+        if (snapshot.Audio.Count > 0)
+        {
+            builder.AppendLine($"{_localizer["Component_Audio"]}:");
+            foreach (var device in snapshot.Audio)
+            {
+                builder.AppendLine($"    {Show(device.Name)}  {_localizer["Report_Status"]}: {Show(device.Status)}");
+            }
+        }
+
+        if (snapshot.Printers.Count > 0)
+        {
+            builder.AppendLine($"{_localizer["Component_Printer"]}:");
+            foreach (var printer in snapshot.Printers)
+            {
+                builder.AppendLine($"    {Show(printer.Name)}  {_localizer["Report_Driver"]}: {Show(printer.DriverName)}");
+            }
+        }
+
+        if (snapshot.Battery is { } battery)
+        {
+            builder.AppendLine($"{_localizer["Component_Battery"]}:");
+            builder.AppendLine($"    {Show(battery.Name)}  {Show(battery.DesignCapacityMwh)} / {Show(battery.FullChargeCapacityMwh)} mWh"
+                + $"   {_localizer["Report_Usage"]}: {Show(battery.ChargePercent)} %");
+        }
+
+        builder.AppendLine();
+    }
+
+    /// <summary>Text of a measured fact, or UNKNOWN with the reason that was recorded.</summary>
+    private static string Show(TextInfo info) =>
+        info.IsKnown ? info.Value! : $"UNKNOWN: {info.UnknownReason ?? "reason not reported"}";
+
+    /// <summary>Text of a measured number, or UNKNOWN with the reason that was recorded.</summary>
+    private static string Show<T>(Measured<T> value, string? format = null) =>
+        value.Value.HasValue
+            ? value.Display(CultureInfo.InvariantCulture, format)
+            : $"UNKNOWN: {value.UnknownReason ?? "reason not reported"}";
+
     private static string MaskSerial(string value, ReportOptions options) =>
         options.MaskSerialNumbers && value.Length > 4 ? $"…{value[^4..]}" : value;
+
+    /// <summary>Tri-state flag: a flag that was not reported stays visible as unknown.</summary>
+    private static string YesNo(bool? value) =>
+        value.HasValue ? (value.Value ? "true" : "false") : "UNKNOWN: not reported";
 
     private static string Sanitise(string value)
     {

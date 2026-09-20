@@ -73,6 +73,71 @@ public sealed class ReportGeneratorTests
     }
 
     [Fact]
+    public async Task Json_report_carries_the_measured_hardware_inventory()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+
+        var artifact = await generator.GenerateAsync(ReportRequest(), ReportFormat.Json, Options(), CancellationToken.None);
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(artifact.FilePath));
+
+        var hardware = document.RootElement.GetProperty("snapshot").GetProperty("hardware");
+        Assert.Equal("SIMULATION — Test CPU", hardware.GetProperty("processors")[0].GetProperty("name").GetString());
+        Assert.Equal("DDR4 (SMBIOS code 26)", hardware.GetProperty("memory").GetProperty("modules")[0].GetProperty("memoryType").GetString());
+        Assert.Equal("DIMM (SMBIOS code 8)", hardware.GetProperty("memory").GetProperty("modules")[0].GetProperty("formFactor").GetString());
+        Assert.Equal("Healthy", hardware.GetProperty("storage")[0].GetProperty("healthStatus").GetString());
+    }
+
+    [Fact]
+    public async Task A_value_that_was_not_measured_keeps_its_reason_in_the_report()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+
+        var artifact = await generator.GenerateAsync(ReportRequest(), ReportFormat.Json, Options(), CancellationToken.None);
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(artifact.FilePath));
+
+        var hardware = document.RootElement.GetProperty("snapshot").GetProperty("hardware");
+        var graphics = hardware.GetProperty("graphics")[0];
+        // The fixture reports no video memory. The report must not show 0 and must not show an
+        // empty string - it has to name the reason (spec sections 1.3 and 61).
+        Assert.StartsWith("UNKNOWN: ", graphics.GetProperty("videoMemoryBytes").GetString(), StringComparison.Ordinal);
+        Assert.NotEqual("0", graphics.GetProperty("videoMemoryBytes").GetString());
+        Assert.Equal("UNKNOWN: not reported", graphics.GetProperty("isIntegratedGraphics").GetString());
+    }
+
+    [Fact]
+    public async Task Mac_and_ip_addresses_are_masked_in_the_report()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+
+        var artifact = await generator.GenerateAsync(
+            ReportRequest(),
+            ReportFormat.Json,
+            Options() with { MaskSerialNumbers = true },
+            CancellationToken.None);
+
+        var content = await File.ReadAllTextAsync(artifact.FilePath);
+        Assert.DoesNotContain("AA:BB:CC:DD:EE:FF", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("192.168.1.50", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Text_report_contains_a_hardware_section()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+
+        var artifact = await generator.GenerateAsync(ReportRequest(), ReportFormat.Text, Options(), CancellationToken.None);
+        var content = await File.ReadAllTextAsync(artifact.FilePath);
+
+        Assert.Contains("Hardware", content, StringComparison.Ordinal);
+        Assert.Contains("Memory type: DDR4 (SMBIOS code 26)", content, StringComparison.Ordinal);
+        Assert.Contains("UNKNOWN:", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Serial_numbers_are_masked_when_configured()
     {
         using var paths = new TempPathProvider();
@@ -142,6 +207,68 @@ public sealed class ReportGeneratorTests
                         Model = TextInfo.Known("Test Model", origin),
                         DeviceInstanceId = TextInfo.Known("PCI\\VEN_1002&DEV_1638&SUBSYS_12345678", origin),
                         Status = HealthStatus.Critical,
+                    },
+                },
+                Processors = new[]
+                {
+                    new ProcessorInfo
+                    {
+                        Name = TextInfo.Known("SIMULATION — Test CPU", origin),
+                        Manufacturer = TextInfo.Known("Test Vendor", origin),
+                        Cores = Measured<uint>.Known(6, origin),
+                        LogicalProcessors = Measured<uint>.Known(12, origin),
+                        CurrentClockMhz = Measured<uint>.Known(3900, origin),
+                    },
+                },
+                Memory = new MemoryInfo
+                {
+                    TotalPhysicalBytes = Measured<ulong>.Known(24UL * 1024 * 1024 * 1024, origin),
+                    TotalSlots = Measured<uint>.Known(2, origin),
+                    UsedSlots = Measured<uint>.Known(2, origin),
+                    Modules = new[]
+                    {
+                        new MemoryModuleInfo
+                        {
+                            BankLabel = TextInfo.Known("BANK 0", origin),
+                            DeviceLocator = TextInfo.Known("DIMM 0", origin),
+                            CapacityBytes = Measured<ulong>.Known(12UL * 1024 * 1024 * 1024, origin),
+                            SpeedMhz = Measured<uint>.Known(3200, origin),
+                            MemoryType = TextInfo.Known("DDR4 (SMBIOS code 26)", origin),
+                            FormFactor = TextInfo.Known("DIMM (SMBIOS code 8)", origin),
+                            Manufacturer = TextInfo.Known("Test Vendor", origin),
+                        },
+                    },
+                },
+                Graphics = new[]
+                {
+                    new GraphicsAdapterInfo
+                    {
+                        Name = TextInfo.Known("SIMULATION — Test GPU", origin),
+                        // deliberately not measured: the report has to say so
+                        VideoMemoryBytes = Measured<ulong>.NotAvailable("video memory not reported"),
+                        DriverVersion = TextInfo.Known("31.0.15.4601", origin),
+                    },
+                },
+                Storage = new[]
+                {
+                    new StorageDeviceInfo
+                    {
+                        Model = TextInfo.Known("SIMULATION — Test SSD", origin),
+                        BusType = TextInfo.Known("NVMe", origin),
+                        SizeBytes = Measured<ulong>.Known(1_000_204_886_016UL, origin),
+                        HealthStatus = TextInfo.Known("Healthy", origin),
+                        SmartAvailable = true,
+                        IsNvme = true,
+                    },
+                },
+                Network = new[]
+                {
+                    new NetworkAdapterInfo
+                    {
+                        Description = TextInfo.Known("SIMULATION — Test Ethernet", origin),
+                        MacAddress = TextInfo.Known("AA:BB:CC:DD:EE:FF", origin),
+                        IpAddress = TextInfo.Known("192.168.1.50", origin),
+                        ConnectionState = TextInfo.Known("Connected", origin),
                     },
                 },
                 Problems = new[]

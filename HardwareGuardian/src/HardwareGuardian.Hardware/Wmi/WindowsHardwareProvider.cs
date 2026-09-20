@@ -585,7 +585,7 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 IsPresent = present,
                 IsDisabled = errorCode == 22,
                 Status = Text(device, "Status", origin),
-                Category = MapPnpCategory(device.GetString("PNPClass")),
+                Category = PnpClassMap.Map(device.GetString("PNPClass")),
                 IsPhantomDevice = present == false,
                 ProblemCode = errorCode.HasValue ? Measured<uint>.Known(errorCode.Value, origin) : Measured<uint>.Missing("no problem code reported"),
             });
@@ -623,7 +623,8 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
                 ProblemCode = problem.HasValue ? Measured<uint>.Known(problem.Value, origin) : Measured<uint>.Missing("no problem code reported"),
                 IsInboxDriver = false,
                 IsGenericFallback = false,
-                Category = MapCategoryFromClass(driver.GetString("DeviceClass")),
+                // DeviceClass and PNPClass carry the same setup class string; the table is shared.
+                Category = PnpClassMap.Map(driver.GetString("DeviceClass")),
                 IsPhantomDevice = false,
             });
         }
@@ -784,23 +785,5 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
 
     private Task<TextInfo> ReadDisplayVersionAsync(CancellationToken cancellationToken) => Task.FromResult(ReadDisplayVersion());
 
-    private static ComponentCategory MapPnpCategory(string? pnpClass) => pnpClass?.ToUpperInvariant() switch
-    {
-        "PROCESSOR" => ComponentCategory.Cpu,
-        "DISPLAY" => ComponentCategory.Graphics,
-        "NET" => ComponentCategory.Network,
-        "MEDIA" => ComponentCategory.Audio,
-        "USB" => ComponentCategory.Usb,
-        "SYSTEM" => ComponentCategory.System,
-        "MONITOR" => ComponentCategory.Monitor,
-        "PRINTER" or "PRINTQUEUE" => ComponentCategory.Printer,
-        "BATTERY" => ComponentCategory.Battery,
-        "HDC" or "SCSIADAPTER" or "DISKDRIVE" => ComponentCategory.Storage,
-        "BLUETOOTH" => ComponentCategory.Network,
-        null or "" => ComponentCategory.Unknown,
-        _ => ComponentCategory.Pci,
-    };
-
-    private static ComponentCategory MapCategoryFromClass(string? deviceClass) => MapPnpCategory(deviceClass);
 }
 
