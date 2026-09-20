@@ -1,0 +1,24 @@
+dotnet build D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\WindowsMaintenanceCenter.Tests.csproj -c Release --nologo
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  WindowsMaintenanceCenter.Core -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Core\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Core.dll
+  WindowsMaintenanceCenter.Maintenance -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Maintenance\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Maintenance.dll
+  WindowsMaintenanceCenter.Simulation -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Simulation\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Simulation.dll
+  WindowsMaintenanceCenter.Hardware -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Hardware\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Hardware.dll
+  WindowsMaintenanceCenter.Diagnostics -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Diagnostics\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Diagnostics.dll
+  WindowsMaintenanceCenter.Infrastructure -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Infrastructure\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Infrastructure.dll
+  WindowsMaintenanceCenter.Reporting -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Reporting\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Reporting.dll
+  WindowsMaintenanceCenter.Tests -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:13.39
+D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Tests.exe --report-trx --report-trx-filename windowsmaintenancecenter.trx --results-directory D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\artifacts\test-results
+error: unknown option: --report-trx
+Exception: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\test.ps1:73
+Line |
+  73 |      throw "the test run failed with exit code $LASTEXITCODE."
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | the test run failed with exit code 3.
