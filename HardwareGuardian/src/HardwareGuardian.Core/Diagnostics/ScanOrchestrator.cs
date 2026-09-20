@@ -30,7 +30,12 @@ public sealed class ScanOrchestrator : IScanOrchestrator
     private readonly IHistoryStore? _historyStore;
     private readonly IBuildInfoProvider? _buildInfo;
     private readonly ILogger<ScanOrchestrator>? _logger;
-    private InventoryResult? _lastInventory;
+    /// <summary>
+    /// Inventory whose problems are already in the problem registry. Every pass reads the hardware
+    /// again - a cached inventory would let a result of an earlier run look like a result of this
+    /// one - and this reference keeps the registration from happening twice for the same read.
+    /// </summary>
+    private InventoryResult? _registeredInventory;
 
     public ScanOrchestrator(
         IHardwareProvider provider,
@@ -80,12 +85,12 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         _state.TryTransitionTo(SystemState.Scanning, "full-scan");
         _protocol.Info("SYS", LocalizedText.Of("Protocol_ScanStarted", _modules.Count));
 
-        var totalSteps = _modules.Count + 18; // inventory reads + module runs
+        var totalSteps = _modules.Count + InventoryReader.StepCount; // inventory reads + module runs
         _progress.Start("Progress_FullScan", "SYS", totalSteps);
         var stopwatch = Stopwatch.StartNew();
 
-        var inventory = await new InventoryReader(_provider, _protocol, _progress).ReadAsync(cancellationToken).ConfigureAwait(false);
-        _lastInventory = inventory;
+        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        RegisterInventoryProblems(inventory);
 
         var moduleResults = new List<ModuleResult>();
         var components = new List<HardwareComponent>(BuildInventoryComponents(inventory));
@@ -115,9 +120,13 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         var module = _modules.FirstOrDefault(m => string.Equals(m.Id, moduleId, StringComparison.OrdinalIgnoreCase))
             ?? throw new ArgumentException($"Unknown module '{moduleId}'.", nameof(moduleId));
 
-        var inventory = _lastInventory ?? await new InventoryReader(_provider, _protocol, _progress).ReadAsync(cancellationToken).ConfigureAwait(false);
-        _lastInventory = inventory;
+        // A snapshot describes one pass. Whatever an earlier pass found is dropped, because
+        // presenting it as a result of this pass would be a fabricated finding.
+        _problems.Clear();
+        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        RegisterInventoryProblems(inventory);
 
+        _events.Publish(new ScanStartedEvent(moduleId, 1, _clock.Now));
         _state.TryTransitionTo(SystemState.Scanning, $"module:{moduleId}");
         var stopwatch = Stopwatch.StartNew();
         var result = await RunModuleSafelyAsync(module, inventory, cancellationToken).ConfigureAwait(false);
@@ -135,8 +144,10 @@ public sealed class ScanOrchestrator : IScanOrchestrator
     public async Task<SystemSnapshot> ReadInventoryAsync(CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var inventory = await new InventoryReader(_provider, _protocol, _progress).ReadAsync(cancellationToken).ConfigureAwait(false);
-        _lastInventory = inventory;
+        // Same rule as for a scan: this snapshot contains what this pass found, nothing else.
+        _problems.Clear();
+        var inventory = await ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
+        RegisterInventoryProblems(inventory);
         stopwatch.Stop();
 
         var snapshot = await BuildSnapshotAsync(
@@ -150,6 +161,40 @@ public sealed class ScanOrchestrator : IScanOrchestrator
         LastSnapshot = snapshot;
         Raise(snapshot);
         return snapshot;
+    }
+
+    /// <summary>Reads the inventory for this pass. Every pass reads, nothing is carried over.</summary>
+    private async Task<InventoryResult> ReadInventoryAsync(CancellationToken cancellationToken) =>
+        await new InventoryReader(_provider, _protocol, _progress).ReadAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <summary>
+    /// Turns failed inventory reads into problems. Without this the failures only appeared in the
+    /// log file: the read returned an empty value, no problem was registered, and a scan with a
+    /// lost WMI class could still be reported as healthy - the exact "looks fine because the data
+    /// is missing" failure the specification forbids (spec sections 1.3, 61).
+    /// </summary>
+    private void RegisterInventoryProblems(InventoryResult inventory)
+    {
+        if (ReferenceEquals(_registeredInventory, inventory))
+        {
+            // The same inventory is reused for a later module run; its problems are already in.
+            return;
+        }
+
+        _registeredInventory = inventory;
+
+        if (inventory.Problems.Count > 0)
+        {
+            _problems.AddRange(inventory.Problems);
+        }
+
+        if (inventory.FailedReads > 0 || inventory.Problems.Count > 0)
+        {
+            _protocol.Warning(
+                "SYS",
+                LocalizedText.Of("Protocol_ReadFailures", inventory.FailedReads, inventory.SuccessfulReads),
+                string.Join(" | ", inventory.Notes.Take(3)));
+        }
     }
 
     private async Task<ModuleResult> RunModuleSafelyAsync(IDiagnosticModule module, InventoryResult inventory, CancellationToken cancellationToken)
@@ -274,6 +319,8 @@ public sealed class ScanOrchestrator : IScanOrchestrator
             OverallSummary = summary,
             Workload = workload,
             IsSimulation = _provider.IsSimulation,
+            InventoryFailedReads = inventory.FailedReads,
+            InventoryNotes = inventory.Notes,
             ApplicationVersion = _buildInfo?.Get().Version ?? "unknown",
         };
 

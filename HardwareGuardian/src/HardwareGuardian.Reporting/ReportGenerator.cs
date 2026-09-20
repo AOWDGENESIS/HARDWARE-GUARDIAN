@@ -157,6 +157,10 @@ public sealed class ReportGenerator : IReportGenerator
                 ["isSimulation"] = snapshot.IsSimulation,
                 ["overallStatus"] = snapshot.OverallStatus.ToString(),
                 ["overallSummary"] = _localizer.Resolve(snapshot.OverallSummary),
+                // An incomplete inventory has to be visible in the file: without this a report
+                // would show empty lists and look like "nothing found".
+                ["inventoryFailedReads"] = snapshot.InventoryFailedReads,
+                ["inventoryNotes"] = snapshot.InventoryNotes,
                 ["problems"] = snapshot.Problems.Select(p => new Dictionary<string, object?>
                 {
                     ["id"] = p.Id,
@@ -393,6 +397,14 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine($"{_localizer["Report_OverallSummary"]}: {_localizer.Resolve(snapshot.OverallSummary)}");
             builder.AppendLine($"{_localizer["Report_Simulation"]}: {(snapshot.IsSimulation ? _localizer["Report_Yes"] : _localizer["Report_No"])}");
             builder.AppendLine($"{_localizer["Report_SnapshotId"]}: {snapshot.Id} ({snapshot.CapturedAt:yyyy-MM-dd HH:mm:ss})");
+            if (snapshot.InventoryFailedReads > 0)
+            {
+                builder.AppendLine($"{_localizer["Report_FailedReads"]}: {snapshot.InventoryFailedReads}");
+                foreach (var note in snapshot.InventoryNotes)
+                {
+                    builder.AppendLine($"    {note}");
+                }
+            }
             builder.AppendLine();
 
             builder.AppendLine(_localizer.Resolve(LocalizedText.Of("Report_Section_Problems")));

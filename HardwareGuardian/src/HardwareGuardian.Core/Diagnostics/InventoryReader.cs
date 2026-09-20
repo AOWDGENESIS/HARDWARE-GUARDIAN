@@ -57,6 +57,13 @@ public sealed record InventoryResult
 /// </summary>
 public sealed class InventoryReader
 {
+    /// <summary>
+    /// Number of progress steps one inventory read reports: one per read method of
+    /// <see cref="IHardwareProvider"/> (seventeen at the time of writing). A test asserts this
+    /// against the interface, so adding a read method cannot leave the progress bar wrong.
+    /// </summary>
+    public const int StepCount = 17;
+
     private readonly IHardwareProvider _provider;
     private readonly ILiveProtocol _protocol;
     private readonly IProgressReporter _progress;

@@ -3,7 +3,7 @@
 This file is deliberately blunt. It exists so that no reader can mistake the current
 state for a finished product. It is updated after every work session.
 
-Last updated: 2026-09-19 (third session)
+Last updated: 2026-09-20 (fifth session)
 
 ---
 
@@ -15,9 +15,9 @@ Last updated: 2026-09-19 (third session)
 | NuGet restore (`dotnet restore`) | **NOT AVAILABLE** (api.nuget.org unreachable from the shell) | Package pins were verified against the NuGet flat-container index, but no package has been downloaded. |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
-| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 118 C# files parse without syntax errors (2026-09-19). **Syntax only — not a compile, not a type check.** |
+| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 119 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
-| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/HardwareGuardian.Tests` exists (11 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. |
+| Unit tests | **WRITTEN, NOT EXECUTED** | `tests/HardwareGuardian.Tests` exists (12 files, xUnit v3). Running them needs the .NET SDK, which this environment does not have. Nothing in this document claims that a test passed. |
 
 Therefore, for the current revision:
 
@@ -32,7 +32,7 @@ Therefore, for the current revision:
 
 | Project | Files | Lines | Purpose | State |
 | --- | --- | --- | --- | --- |
-| `HardwareGuardian.Core` | 42 | 7 341 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 470/470 keys |
+| `HardwareGuardian.Core` | 42 | 7 420 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 470/470 keys |
 | `HardwareGuardian.Infrastructure` | 24 | 4 138 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
 | `HardwareGuardian.Hardware` | 2 | 1 095 | WMI provider for real hardware | Written; contract-checked |
 | `HardwareGuardian.Sensors` | 2 | 524 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
@@ -46,9 +46,9 @@ Therefore, for the current revision:
 | `HardwareGuardian.Reporting` | 1 | 620 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
 | `HardwareGuardian.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
 | `HardwareGuardian.App` | 17 | 2 510 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
-| `tests/HardwareGuardian.Tests` | 11 | 1 333 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture | Written; contract-checked; **NOT EXECUTED** |
+| `tests/HardwareGuardian.Tests` | 12 | 1 480 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling | Written; contract-checked; **NOT EXECUTED** |
 
-Total: **118 C# files, 22 904 lines + 10 XAML files** in 15 projects, all listed in
+Total: **119 C# files, 23 603 lines + 10 XAML files** in 15 projects, all listed in
 `HardwareGuardian.sln`.
 
 Delivery layer:
@@ -65,6 +65,25 @@ Delivery layer:
 Not present: the release artefacts themselves, the build/test evidence and the verification on real
 hardware. PDF export is intentionally not implemented (see section 4).
 
+### Fifth session - logic review of the core and the check runner
+
+The review of `ScanOrchestrator`, `ProblemRegistry` and the report writer found one defect of the
+kind the specification forbids outright (missing data presented as a clean result) and three
+structural weaknesses. All of them are fixed and each fix has a check or a test:
+
+| Finding | Location | Fix |
+| --- | --- | --- |
+| **Failed hardware reads disappeared.** The inventory reader turned every failed read into a `ProblemDraft`, but the orchestrator never registered them: the problem registry stayed empty, no problem ID was assigned, the dashboard, the problem centre and both reports never mentioned it. A scan in which a whole WMI class was unreadable could therefore end as **Healthy**. | `Core/Diagnostics/ScanOrchestrator.cs`, `Core/Models/ReportModels.cs`, `Reporting/ReportGenerator.cs` | The orchestrator registers the inventory problems (warning level, category from the failed class, evidence names the API call), writes a warning into the live protocol, and carries `InventoryFailedReads` plus the notes into the snapshot. JSON and TXT reports list them under "Hardware reads that failed". Covered by `InventoryFailureTests`. |
+| `RunModuleAsync` and `ReadInventoryAsync` did not clear the problem registry, so a single-module run reported the findings of the previous full scan as its own result. | `Core/Diagnostics/ScanOrchestrator.cs` | Every pass clears the registry and reads the hardware again: a snapshot contains what this pass found. The dead `_lastInventory` cache that would have served stale data was removed. |
+| The progress total of a full scan was the magic number `_modules.Count + 18` while the inventory reports 17 steps. Over time that number drifts and the progress bar (and with it the ETA) becomes wrong. | `Core/Diagnostics/InventoryReader.cs`, `Core/Diagnostics/ScanOrchestrator.cs` | `InventoryReader.StepCount` is the single source; a test compares it against the read methods of `IHardwareProvider`, so a new read method fails the suite instead of silently skewing the progress. |
+| **The build was broken at the root.** `Directory.Build.props` imports `build/Version.props`, but that file was missing from the working tree - MSBuild fails to load **every** project with MSB4019 before a single line is compiled. No check noticed, because nothing looked above the project files. | `build/Version.props` (restored), `tools/check-projects.py` | The file is back (byte-identical to the branch history) and the checker now resolves every `<Import Project="…">` in the MSBuild root files, requires `build/Version.props`, `Directory.Packages.props` and `global.json` to exist, and fails if any project sets `VersionPrefix` itself. Verified by removing the file: three findings. |
+| The SDK-free runner printed "all available checks passed" even when a check had been skipped for a missing dependency (`verify-syntax.py` without tree-sitter returned 0). A partial run looked like a full one. | `tools/verify-all.sh`, `tools/verify-syntax.py` | A skipped check exits with code 3; the runner counts those, prints "checks passed, but N check(s) did not run" and exits with code 2 instead of 0. Green now means: every check ran and every check passed. |
+
+Tool numbers after this session: 119 files / 378 declared types, 676 localisation keys per language,
+10 XAML files with 143 bindings, 15 projects, and **12/12** deliberate defects reported by the
+mutation self-test (new cases: a test double that loses an interface method, and a deleted MSBuild
+import target).
+
 ### Fourth session - safety review of the delivery level
 
 The pass over the shell and the delivery level found more than names this time: the Windows repair
@@ -73,8 +92,8 @@ blind spots that made deliberate typos invisible (see the findings table). What 
 
 * every check run (`check-contracts`, `check-localization`, `check-xaml`, `check-bindings`,
   `check-projects`, `verify-syntax`, `generate-solution --check`, `check-mutation`) is clean,
-* the mutation self-test proves that ten deliberate defects are still reported,
-* the binding checker resolves all 139 bindings, the XAML checker reports no hard-coded UI text and
+* the mutation self-test proves that twelve deliberate defects are still reported,
+* the binding checker resolves all 143 bindings, the XAML checker reports no hard-coded UI text and
   the localisation checker reports no missing and no unused key in either language.
 
 Still not verified: compilation, the unit tests, real hardware, the PowerShell scripts, the
@@ -84,14 +103,14 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 
 | Tool | What it proves | Current result |
 | --- | --- | --- |
-| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 118 files, no syntax error |
-| `tools/check-contracts.py` | object initialisers, enum/static members, `local.Member` against the declared type, interface implementations (src **and** tests) | 118 files / 370 types, 0 findings |
-| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no unused key; both files symmetric | 674 keys, 0 missing, 0 unused |
+| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 119 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
+| `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 119 files / 378 types, 0 findings |
+| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no unused key; both files symmetric | 676 keys, 0 missing, 0 unused |
 | `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 10 files, 0 findings |
-| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 139 bindings, 0 findings |
-| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared | 15 projects / 118 sources, 0 findings |
+| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 143 bindings, 0 findings |
+| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`build/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 119 sources, 0 findings |
 | `tools/generate-solution.py --check` | `HardwareGuardian.sln` matches the projects on disk | up to date |
-| `tools/check-mutation.py` | the checkers above actually fail: ten deliberate defects (property, enum member, field/parameter/lambda/`foreach` member, unknown localisation key, hard-coded UI text, wrong binding) are injected into a temporary copy one at a time | 10/10 reported, exit code 0 |
+| `tools/check-mutation.py` | the checkers above actually fail: eleven deliberate defects (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a missing MSBuild import target) are injected into a temporary copy one at a time | 12/12 reported, exit code 0 |
 
 ### The application shell
 

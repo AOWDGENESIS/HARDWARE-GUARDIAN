@@ -28,7 +28,71 @@ TESTS = ROOT / "tests"
 NAMESPACE = re.compile(r"^\s*namespace\s+([A-Za-z_][\w\.]*)", re.M)
 USING = re.compile(r"^\s*using\s+(HardwareGuardian[\w\.]*)\s*;", re.M)
 PROJECT_REF = re.compile(r'ProjectReference\s+Include="([^"]+)"')
+IMPORT = re.compile(r'<Import\s+Project="([^"]+)"')
 PACKAGE_REF = re.compile(r'PackageReference\s+Include="([^"]+)"')
+
+
+def check_build_configuration() -> list[str]:
+    """Checks the MSBuild files that sit above the projects.
+
+    `Directory.Build.props` imports `build/Version.props`. When that file is missing, every project
+    fails to load with MSB4019 and nothing can be built at all - a state that a repository snapshot
+    or a careless cleanup can produce, and that no other check here would notice. The import target
+    is therefore resolved and required to exist, and the version has to be declared in exactly one
+    place.
+    """
+    findings: list[str] = []
+    msbuild_roots = [
+        ROOT / "Directory.Build.props",
+        ROOT / "Directory.Build.targets",
+        ROOT / "Directory.Packages.props",
+    ]
+
+    imported: set[str] = set()
+    for candidate in msbuild_roots:
+        if not candidate.is_file():
+            continue
+        text = candidate.read_text(encoding="utf-8", errors="replace")
+        for raw in IMPORT.findall(text):
+            resolved = raw.replace("$(MSBuildThisFileDirectory)", str(ROOT) + "/").replace("\\", "/")
+            target = pathlib.Path(resolved)
+            if not target.is_absolute():
+                target = (candidate.parent / resolved).resolve()
+            try:
+                relative = target.relative_to(ROOT)
+            except ValueError:
+                continue
+            if not target.is_file():
+                findings.append(
+                    f"{candidate.name}: imports '{relative}' which does not exist - every project would fail to load (MSB4019)"
+                )
+                continue
+            imported.add(str(relative))
+
+    # Version.props is imported by hand, so a missing import means the values are silently ignored.
+    # Directory.Packages.props is picked up by the SDK itself; there it is only the existence that
+    # matters (central package management needs it at the repository root).
+    if "build/Version.props" not in imported:
+        findings.append(
+            "build/Version.props is not imported by Directory.Build.props - the product version would be ignored"
+        )
+
+    for relative in ("Directory.Packages.props", "global.json", "build/Version.props"):
+        if not (ROOT / relative).is_file():
+            findings.append(f"{relative} is missing (expected in this repository)")
+
+    version_props = ROOT / "build" / "Version.props"
+    if version_props.is_file():
+        text = version_props.read_text(encoding="utf-8", errors="replace")
+        if "<VersionPrefix>" not in text:
+            findings.append("build/Version.props does not set VersionPrefix, the single source of the product version")
+        for project in sorted(ROOT.rglob("*.csproj")):
+            if "<VersionPrefix>" in project.read_text(encoding="utf-8", errors="replace"):
+                findings.append(
+                    f"{project.relative_to(ROOT)} sets VersionPrefix itself - the version must come from build/Version.props only"
+                )
+
+    return findings
 
 
 def strip_comments(text: str) -> str:
@@ -122,6 +186,8 @@ def main() -> int:
                 continue
             if not any(used == ns or used.startswith(ns + ".") or ns.startswith(used + ".") for ns in provided):
                 findings.append(f"{project.relative}: uses '{used}' but no referenced project provides it")
+
+    findings.extend(check_build_configuration())
 
     print(f"inspected {len(projects)} project(s), {sum(p.source_count for p in projects)} source file(s)")
     if findings:

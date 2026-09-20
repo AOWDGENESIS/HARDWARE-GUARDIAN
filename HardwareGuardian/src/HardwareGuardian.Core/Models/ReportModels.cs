@@ -114,6 +114,15 @@ public sealed record SystemSnapshot
 
     public bool IsSimulation { get; init; }
 
+    /// <summary>
+    /// Reads that failed during the inventory. A snapshot with failed reads is incomplete, and the
+    /// report and the UI have to say so instead of presenting the missing data as "nothing found".
+    /// </summary>
+    public int InventoryFailedReads { get; init; }
+
+    /// <summary>Plain text notes of the inventory, one line per failed read.</summary>
+    public IReadOnlyList<string> InventoryNotes { get; init; } = Array.Empty<string>();
+
     public string ApplicationVersion { get; init; } = string.Empty;
 
     public ProblemCounts ProblemCounts => ProblemCounts.From(Problems);

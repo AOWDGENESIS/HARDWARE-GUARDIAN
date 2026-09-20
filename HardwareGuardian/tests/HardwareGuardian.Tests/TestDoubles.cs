@@ -1,6 +1,7 @@
 using HardwareGuardian.Core;
 using HardwareGuardian.Core.Abstractions;
 using HardwareGuardian.Core.Models;
+using HardwareGuardian.Simulation;
 
 namespace HardwareGuardian.Tests;
 
@@ -18,8 +19,8 @@ internal sealed class FakeClock : IClock
 }
 
 /// <summary>
-/// Environment double. It reports "not Windows" by default and can be switched to Windows behaviour
-/// without touching the machine - the tests must never depend on the host operating system.
+/// Environment double. It reports Windows behaviour by default and can be switched to a non Windows
+/// host without touching the machine - the tests must never depend on the host operating system.
 /// </summary>
 internal sealed class FakeEnvironmentProbe : IEnvironmentProbe
 {
@@ -150,5 +151,183 @@ internal sealed class TempPathProvider : IPathProvider, IDisposable
         {
             // A leftover temp directory is not a test failure.
         }
+    }
+}
+
+/// <summary>Event bus double that keeps the published events so a test can look at them.</summary>
+internal sealed class RecordingEventBus : IEventBus
+{
+    private readonly List<object> _published = new();
+    private readonly object _gate = new();
+
+    public IReadOnlyList<object> Published
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _published.ToList();
+            }
+        }
+    }
+
+    public int SubscriberCount => 0;
+
+    public void Publish<TEvent>(TEvent @event) where TEvent : notnull
+    {
+        lock (_gate)
+        {
+            _published.Add(@event);
+        }
+    }
+
+    public IDisposable Subscribe<TEvent>(Action<TEvent> handler) where TEvent : notnull =>
+        new NoSubscription();
+
+    public TEvent? Last<TEvent>() where TEvent : class =>
+        Published.OfType<TEvent>().LastOrDefault();
+
+    private sealed class NoSubscription : IDisposable
+    {
+        public void Dispose()
+        {
+        }
+    }
+}
+
+/// <summary>
+/// Service provider double for code paths that look up an optional service. It answers with null,
+/// which is exactly the case the callers have to handle; a test must not need a container for this.
+/// </summary>
+internal sealed class EmptyServiceProvider : IServiceProvider
+{
+    public object? GetService(Type serviceType) => null;
+}
+
+/// <summary>
+/// Hardware provider that behaves like the simulation fixture except for the methods named in
+/// <c>failing</c>: those throw, which is what a missing WMI class or a denied read looks like in
+/// production. It exists to prove that such a failure becomes a visible problem instead of an
+/// empty list that looks like "this machine has no storage".
+/// </summary>
+internal sealed class FailingHardwareProvider : IHardwareProvider
+{
+    private readonly MockHardwareProvider _inner;
+    private readonly HashSet<string> _failing;
+
+    public FailingHardwareProvider(MockHardwareProvider inner, params string[] failing)
+    {
+        _inner = inner;
+        _failing = new HashSet<string>(failing, StringComparer.Ordinal);
+    }
+
+    /// <summary>Lets a read succeed again, so a test can show that a later pass is clean.</summary>
+    public void Heal(string method)
+    {
+        lock (_failing)
+        {
+            _failing.Remove(method);
+        }
+    }
+
+    public string ProviderName => $"FailingHardwareProvider({_inner.ProviderName})";
+
+    public bool IsAvailable => true;
+
+    public bool IsSimulation => true;
+
+    public Task<SystemIdentity> GetSystemIdentityAsync(CancellationToken cancellationToken) =>
+        Fail<SystemIdentity>(nameof(GetSystemIdentityAsync)) ?? _inner.GetSystemIdentityAsync(cancellationToken);
+
+    public Task<IReadOnlyList<ProcessorInfo>> GetProcessorsAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<ProcessorInfo>>(nameof(GetProcessorsAsync)) ?? _inner.GetProcessorsAsync(cancellationToken);
+
+    public Task<MemoryInfo> GetMemoryAsync(CancellationToken cancellationToken) =>
+        Fail<MemoryInfo>(nameof(GetMemoryAsync)) ?? _inner.GetMemoryAsync(cancellationToken);
+
+    public Task<MotherboardInfo> GetMotherboardAsync(CancellationToken cancellationToken) =>
+        Fail<MotherboardInfo>(nameof(GetMotherboardAsync)) ?? _inner.GetMotherboardAsync(cancellationToken);
+
+    public Task<BiosIdentification> GetBiosAsync(CancellationToken cancellationToken) =>
+        Fail<BiosIdentification>(nameof(GetBiosAsync)) ?? _inner.GetBiosAsync(cancellationToken);
+
+    public Task<IReadOnlyList<GraphicsAdapterInfo>> GetGraphicsAdaptersAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<GraphicsAdapterInfo>>(nameof(GetGraphicsAdaptersAsync)) ?? _inner.GetGraphicsAdaptersAsync(cancellationToken);
+
+    public Task<IReadOnlyList<StorageDeviceInfo>> GetStorageDevicesAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<StorageDeviceInfo>>(nameof(GetStorageDevicesAsync)) ?? _inner.GetStorageDevicesAsync(cancellationToken);
+
+    public Task<IReadOnlyList<NetworkAdapterInfo>> GetNetworkAdaptersAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<NetworkAdapterInfo>>(nameof(GetNetworkAdaptersAsync)) ?? _inner.GetNetworkAdaptersAsync(cancellationToken);
+
+    public Task<IReadOnlyList<AudioDeviceInfo>> GetAudioDevicesAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<AudioDeviceInfo>>(nameof(GetAudioDevicesAsync)) ?? _inner.GetAudioDevicesAsync(cancellationToken);
+
+    public Task<IReadOnlyList<MonitorInfo>> GetMonitorsAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<MonitorInfo>>(nameof(GetMonitorsAsync)) ?? _inner.GetMonitorsAsync(cancellationToken);
+
+    public Task<IReadOnlyList<PrinterInfo>> GetPrintersAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<PrinterInfo>>(nameof(GetPrintersAsync)) ?? _inner.GetPrintersAsync(cancellationToken);
+
+    public Task<BatteryInfo?> GetBatteryAsync(CancellationToken cancellationToken) =>
+        Fail<BatteryInfo?>(nameof(GetBatteryAsync)) ?? _inner.GetBatteryAsync(cancellationToken);
+
+    public Task<IReadOnlyList<PnpDeviceInfo>> GetPnpDevicesAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<PnpDeviceInfo>>(nameof(GetPnpDevicesAsync)) ?? _inner.GetPnpDevicesAsync(cancellationToken);
+
+    public Task<IReadOnlyList<DriverRecord>> GetDriversAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<DriverRecord>>(nameof(GetDriversAsync)) ?? _inner.GetDriversAsync(cancellationToken);
+
+    public Task<IReadOnlyList<ThermalZoneReading>> GetThermalZonesAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<ThermalZoneReading>>(nameof(GetThermalZonesAsync)) ?? _inner.GetThermalZonesAsync(cancellationToken);
+
+    public Task<WindowsIdentityInfo> GetWindowsIdentityAsync(CancellationToken cancellationToken) =>
+        Fail<WindowsIdentityInfo>(nameof(GetWindowsIdentityAsync)) ?? _inner.GetWindowsIdentityAsync(cancellationToken);
+
+    public Task<IReadOnlyList<StorageReliabilityCounter>> GetStorageReliabilityAsync(CancellationToken cancellationToken) =>
+        Fail<IReadOnlyList<StorageReliabilityCounter>>(nameof(GetStorageReliabilityAsync)) ?? _inner.GetStorageReliabilityAsync(cancellationToken);
+
+    private Task<T>? Fail<T>(string method)
+    {
+        bool failing;
+        lock (_failing)
+        {
+            failing = _failing.Contains(method);
+        }
+
+        return failing
+            ? Task.FromException<T>(new InvalidOperationException($"the read was refused by this test double: {method}"))
+            : null;
+    }
+}
+
+/// <summary>
+/// Diagnostic module that runs and reports nothing. It exists to exercise the module path of the
+/// orchestrator (progress, problem registry, snapshot) without any analysis of its own.
+/// </summary>
+internal sealed class NoOpDiagnosticModule : IDiagnosticModule
+{
+    public string Id => "noop";
+
+    public string DisplayNameKey => "Module_Driver";
+
+    public ComponentCategory Category => ComponentCategory.System;
+
+    public bool RequiresAdministrator => false;
+
+    public bool RequiresNetwork => false;
+
+    public Task<ModuleResult> RunAsync(DiagnosticContext context, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return Task.FromResult(new ModuleResult
+        {
+            ModuleId = Id,
+            DisplayNameKey = DisplayNameKey,
+            Category = Category,
+            Status = HealthStatus.Healthy,
+            ChecksExecuted = 1,
+            Evidence = new[] { "no-op module executed" },
+        });
     }
 }

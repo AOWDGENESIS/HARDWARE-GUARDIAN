@@ -11,12 +11,19 @@
 set -u
 cd "$(dirname "$0")/.."
 status=0
+incomplete=0
 
 run() {
   echo
   echo "=== $1 ==="
   shift
-  if ! "$@"; then
+  "$@"
+  code=$?
+  if [ "$code" -eq 3 ]; then
+    # The tool could not run (missing dependency). That is not a pass, so the summary below
+    # says so and the exit code is 2 instead of 0.
+    incomplete=$((incomplete + 1))
+  elif [ "$code" -ne 0 ]; then
     status=1
   fi
 }
@@ -31,10 +38,17 @@ run "Solution file is up to date" python3 tools/generate-solution.py --check
 run "The checks themselves (deliberate defects must be reported)" python3 tools/check-mutation.py
 
 echo
-if [ "$status" -eq 0 ]; then
-  echo "all available checks passed"
-  echo "NOT verified: compilation, unit tests, real hardware behaviour - that needs a Windows machine with the .NET 10 SDK."
-else
+if [ "$status" -ne 0 ]; then
   echo "at least one check reported findings (see above)"
+  exit 1
 fi
-exit "$status"
+
+if [ "$incomplete" -gt 0 ]; then
+  echo "checks passed, but $incomplete check(s) did not run (missing dependency, see above) - this is NOT a complete verification"
+  echo "NOT verified: compilation, unit tests, real hardware behaviour - that needs a Windows machine with the .NET 10 SDK."
+  exit 2
+fi
+
+echo "all available checks passed"
+echo "NOT verified: compilation, unit tests, real hardware behaviour - that needs a Windows machine with the .NET 10 SDK."
+exit 0

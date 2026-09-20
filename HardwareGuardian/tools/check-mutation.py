@@ -36,8 +36,11 @@ class Mutation:
     name: str
     tool: str
     path: str
-    original: str
-    broken: str
+    original: str = ""
+    broken: str = ""
+    # Some defects are the absence of a file. `Directory.Build.props` imports `build/Version.props`;
+    # without that file every project fails to load (MSB4019), which is worth a check of its own.
+    delete_file: bool = False
 
 
 MUTATIONS: tuple[Mutation, ...] = (
@@ -82,6 +85,19 @@ MUTATIONS: tuple[Mutation, ...] = (
         "src/HardwareGuardian.Reporting/ReportGenerator.cs",
         "{entry.Kind,-8}",
         "{entry.KindTypo,-8}",
+    ),
+    Mutation(
+        "contract: missing interface member in a test double",
+        "check-contracts",
+        "tests/HardwareGuardian.Tests/InventoryFailureTests.cs",
+        "        public Task<IReadOnlyList<DriverRecord>> GetDriversAsync(CancellationToken cancellationToken) => _inner.GetDriversAsync(cancellationToken);\n\n",
+        "",
+    ),
+    Mutation(
+        "build: imported MSBuild file is missing",
+        "check-projects",
+        "build/Version.props",
+        delete_file=True,
     ),
     Mutation(
         "localisation: key that is not defined",
@@ -131,19 +147,28 @@ def main() -> int:
     for mutation in MUTATIONS:
         source = ROOT / mutation.path
         target = workspace / mutation.path
+        if not source.exists():
+            stale.append(mutation.name)
+            print(f"  STALE  {mutation.name}: {mutation.path} does not exist")
+            continue
+
         text = source.read_text(encoding="utf-8")
-        if mutation.original not in text:
+        if mutation.delete_file:
+            target.unlink()
+        elif mutation.original not in text:
             stale.append(mutation.name)
             print(f"  STALE  {mutation.name}: the original text is no longer in {mutation.path}")
             continue
-
-        target.write_text(text.replace(mutation.original, mutation.broken, 1), encoding="utf-8")
+        else:
+            target.write_text(text.replace(mutation.original, mutation.broken, 1), encoding="utf-8")
         result = subprocess.run(
             [sys.executable, f"tools/{mutation.tool}.py"],
             cwd=workspace,
             capture_output=True,
             text=True,
         )
+        if mutation.delete_file:
+            target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
 
         if result.returncode != 0:

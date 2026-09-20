@@ -3,7 +3,8 @@
 
 This is a grammar check, not a compilation: it catches unbalanced braces, broken string literals
 and similar damage that a text patch can produce. Tree-sitter is optional - when it is not
-installed the check reports that it was skipped instead of pretending to have passed.
+installed the check exits with code 3 ("did not run"), which is neither "passed" nor "failed":
+verify-all.sh reports the run as incomplete instead of printing a green summary.
 """
 
 from __future__ import annotations
@@ -19,8 +20,9 @@ def main() -> int:
         from tree_sitter import Language, Parser
         import tree_sitter_c_sharp as grammar
     except ImportError:
-        print("tree-sitter / tree_sitter_c_sharp not installed - syntax check skipped (not passed)")
-        return 0
+        print("tree-sitter / tree_sitter_c_sharp not installed - syntax check did not run (exit code 3)")
+        print("  install it with:  pip install tree-sitter tree-sitter-c-sharp")
+        return 3
 
     parser = Parser(Language(grammar.language()))
     files = sorted((ROOT / "src").rglob("*.cs")) + sorted((ROOT / "tests").rglob("*.cs")) if (ROOT / "tests").is_dir() else sorted((ROOT / "src").rglob("*.cs"))
