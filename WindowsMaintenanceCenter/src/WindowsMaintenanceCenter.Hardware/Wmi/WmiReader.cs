@@ -1,4 +1,5 @@
 using System.Management;
+using System.Runtime.InteropServices;
 
 namespace WindowsMaintenanceCenter.Hardware.Wmi;
 

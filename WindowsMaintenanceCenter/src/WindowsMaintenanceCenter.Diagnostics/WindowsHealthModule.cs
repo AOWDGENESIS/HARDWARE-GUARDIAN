@@ -101,35 +101,74 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
             });
         }
 
-        if (!report.Defender.IsEnabled || report.Defender.IsSignatureOutdated)
+        // Three outcomes, three different statements. A state that was not read is reported as
+        // "could not be read" - calling it "protection is off" would be a finding without a reading
+        // (chapter 101).
+        var defenderEnabled = report.Defender.IsEnabled;
+        var signaturesOutdated = report.Defender.IsSignatureOutdated;
+        var defenderUnknown = defenderEnabled is null;
+
+        if (defenderUnknown || defenderEnabled == false || signaturesOutdated == true)
         {
             problems.Add(new ProblemDraft
             {
                 IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Security),
                 Category = ComponentCategory.Security,
-                Severity = report.Defender.IsEnabled ? Severity.Warning : Severity.Error,
-                Title = LocalizedText.Of("Problem_DefenderState_Title"),
-                Description = LocalizedText.Of("Problem_DefenderState_Description"),
-                Evidence = $"isEnabled={report.Defender.IsEnabled}; signatureVersion={report.Defender.SignatureVersion.Display}; signatureOutdated={report.Defender.IsSignatureOutdated}",
-                Impact = LocalizedText.Of("Problem_DefenderState_Impact"),
-                RecommendedAction = LocalizedText.Of("Problem_DefenderState_Action"),
+                Severity = defenderUnknown
+                    ? Severity.Info
+                    : defenderEnabled == false
+                        ? Severity.Error
+                        : Severity.Warning,
+                Title = LocalizedText.Of(defenderUnknown
+                    ? "Problem_DefenderStateUnknown_Title"
+                    : "Problem_DefenderState_Title"),
+                Description = LocalizedText.Of(defenderUnknown
+                    ? "Problem_DefenderStateUnknown_Description"
+                    : "Problem_DefenderState_Description"),
+                Evidence = $"isEnabled={TriState(defenderEnabled)}; signatureVersion={report.Defender.SignatureVersion.Display}; signatureAgeDays={report.Defender.SignatureLastUpdated.Display}; signatureOutdated={TriState(signaturesOutdated)}",
+                Impact = LocalizedText.Of(defenderUnknown
+                    ? "Problem_DefenderStateUnknown_Impact"
+                    : "Problem_DefenderState_Impact"),
+                RecommendedAction = LocalizedText.Of(defenderUnknown
+                    ? "Problem_DefenderStateUnknown_Action"
+                    : "Problem_DefenderState_Action"),
                 RequiresAdministrator = true,
                 References = new[] { Id },
             });
         }
 
-        if (report.Updates.Outcome is UpdateStatus.UpdateAvailable or UpdateStatus.Optional)
+        // The outcome of the check says whether the query ran, not whether an update exists. Whether
+        // something is waiting is answered by the count, and only a performed search may say anything
+        // about it at all.
+        if (report.Updates.Outcome == StageOutcome.Succeeded && report.Updates.PendingCount > 0)
         {
             problems.Add(new ProblemDraft
             {
                 IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Update) + "-WINDOWS",
                 Category = ComponentCategory.Windows,
-                Severity = report.Updates.Outcome == UpdateStatus.UpdateAvailable ? Severity.Warning : Severity.Info,
+                Severity = Severity.Warning,
                 Title = LocalizedText.Of("Problem_WindowsUpdates_Title"),
                 Description = report.Updates.Summary,
-                Evidence = $"outcome={report.Updates.Outcome}; pending={report.Updates.PendingCount}",
+                Evidence = $"outcome={report.Updates.Outcome}; searchPerformed={report.Updates.SearchPerformed}; pending={report.Updates.PendingCount}; pendingReboot={report.Updates.PendingReboot}",
                 Impact = LocalizedText.Of("Problem_WindowsUpdates_Impact"),
                 RecommendedAction = LocalizedText.Of("Problem_WindowsUpdates_Action"),
+                References = new[] { Id },
+            });
+        }
+        else if (report.Updates.Outcome is StageOutcome.Skipped or StageOutcome.NotRun or StageOutcome.Blocked)
+        {
+            // "Up to date" is not claimed here: the query did not run, so the state is unknown.
+            problems.Add(new ProblemDraft
+            {
+                IdPrefix = ProblemIdFactory.CategoryPrefix(ComponentCategory.Update) + "-WINDOWS",
+                Category = ComponentCategory.Windows,
+                Severity = Severity.Info,
+                Title = LocalizedText.Of("Problem_WindowsUpdatesUnknown_Title"),
+                Description = report.Updates.Summary,
+                Evidence = $"outcome={report.Updates.Outcome}; searchPerformed={report.Updates.SearchPerformed}; error={report.Updates.ErrorDetail ?? "none"}",
+                Impact = LocalizedText.Of("Problem_WindowsUpdatesUnknown_Impact"),
+                RecommendedAction = LocalizedText.Of("Problem_WindowsCheck_ActionElevated"),
+                RequiresAdministrator = true,
                 References = new[] { Id },
             });
         }
@@ -143,4 +182,7 @@ public sealed class WindowsHealthModule : DiagnosticModuleBase
             SkipReasonCode = performed == 0 ? "NO_WINDOWS_CHECK_PERFORMED" : null,
         };
     }
+
+    /// <summary>Renders a three state reading for the evidence: True, False or UNKNOWN.</summary>
+    private static string TriState(bool? value) => value is null ? "UNKNOWN" : value.Value ? "True" : "False";
 }

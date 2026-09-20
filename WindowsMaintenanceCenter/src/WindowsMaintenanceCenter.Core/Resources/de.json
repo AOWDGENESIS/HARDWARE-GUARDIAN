@@ -784,6 +784,13 @@
     "Action_ChkdskScan": "Datenträger online prüfen (CHKDSK /scan)",
     "Action_Blocked_BackupRequired": "Für diese Aktion liegt keine Sicherung der betroffenen Orte vor. Es wurde nichts geändert - zuerst sichern, dann freigeben.",
     "Action_Blocked_ApprovalMissing": "Für diese Aktion liegt keine Freigabe vor. Es wurde nichts geändert.",
-    "Action_Blocked_ApprovalMismatch": "Die vorliegende Freigabe gehört zu einer anderen Aktion und gilt für diese nicht. Es wurde nichts geändert."
+    "Action_Blocked_ApprovalMismatch": "Die vorliegende Freigabe gehört zu einer anderen Aktion und gilt für diese nicht. Es wurde nichts geändert.",
+    "Problem_DefenderStateUnknown_Title": "Der Schutzstatus von Microsoft Defender konnte nicht gelesen werden",
+    "Problem_DefenderStateUnknown_Description": "Die Abfrage des Schutzstatus hat kein Ergebnis geliefert. Das bedeutet nicht, dass der Schutz aus ist - es bedeutet, dass diese Anwendung es nicht weiß. Sie ändert Defender nicht und liest nur.",
+    "Problem_DefenderStateUnknown_Impact": "Ohne gelesenen Status lässt sich nicht sagen, ob das Gerät geschützt ist. Es wird keine Aussage in die eine oder andere Richtung getroffen.",
+    "Problem_DefenderStateUnknown_Action": "Öffnen Sie die Windows-Sicherheit und prüfen Sie den Schutz dort, oder führen Sie die Prüfung mit den erforderlichen Rechten erneut aus.",
+    "Problem_WindowsUpdatesUnknown_Title": "Der Windows-Update-Stand ist unbekannt",
+    "Problem_WindowsUpdatesUnknown_Description": "Die Abfrage nach verfügbaren Windows-Updates wurde nicht ausgeführt (kein Windows, kein Netz oder fehlende Rechte). \"Alles aktuell\" wird deshalb nicht behauptet.",
+    "Problem_WindowsUpdatesUnknown_Impact": "Ob Updates fehlen, ist mit den vorhandenen Belegen nicht entscheidbar."
   }
 }

@@ -703,7 +703,11 @@ public sealed class WindowsHardwareProvider : IHardwareProvider
         };
     }
 
-    private TextInfo Pc() => ValueOrigin.Wmi(_clock.Now, "root\\cimv2", SensorQuality.High);
+    /// <summary>
+    /// Origin of the values read through root\cimv2. It is a <see cref="ValueOrigin"/>, not a text:
+    /// it is handed to every accessor as the provenance of the reading.
+    /// </summary>
+    private ValueOrigin Pc() => ValueOrigin.Wmi(_clock.Now, "root\\cimv2", SensorQuality.High);
 
     private static TextInfo Text(WmiObject? source, string property, ValueOrigin origin, string? unknownReason = null)
     {

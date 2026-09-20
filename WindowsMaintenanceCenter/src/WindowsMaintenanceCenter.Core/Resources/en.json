@@ -784,6 +784,13 @@
     "Action_ChkdskScan": "Check a volume online (CHKDSK /scan)",
     "Action_Blocked_BackupRequired": "No backup of the affected locations exists for this action. Nothing was changed - secure first, then approve.",
     "Action_Blocked_ApprovalMissing": "No approval exists for this action. Nothing was changed.",
-    "Action_Blocked_ApprovalMismatch": "The approval on record belongs to a different action and does not cover this one. Nothing was changed."
+    "Action_Blocked_ApprovalMismatch": "The approval on record belongs to a different action and does not cover this one. Nothing was changed.",
+    "Problem_DefenderStateUnknown_Title": "The Microsoft Defender protection state could not be read",
+    "Problem_DefenderStateUnknown_Description": "The query for the protection state returned no reading. That does not mean protection is off - it means this application does not know. It never changes Defender; it only reads.",
+    "Problem_DefenderStateUnknown_Impact": "Without a reading, nothing can be said about whether the device is protected, in either direction.",
+    "Problem_DefenderStateUnknown_Action": "Open Windows Security and check the protection there, or run the check again with the required rights.",
+    "Problem_WindowsUpdatesUnknown_Title": "The Windows update state is unknown",
+    "Problem_WindowsUpdatesUnknown_Description": "The query for available Windows updates did not run (not Windows, no network, or missing rights). \"Everything is up to date\" is therefore not claimed.",
+    "Problem_WindowsUpdatesUnknown_Impact": "Whether updates are missing cannot be decided from the evidence at hand."
   }
 }

@@ -268,4 +268,45 @@ public sealed record DefenderStatus
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Defender_Unknown");
 
     public string? ErrorDetail { get; init; }
+
+    /// <summary>
+    /// True when the reported state says "on", false when it says "off", null when it could not be
+    /// read. A state that was not read is never turned into "the protection is off" (chapter 101).
+    /// </summary>
+    public bool? IsEnabled => TextState(AntivirusEnabled);
+
+    /// <summary>
+    /// True when the reported signature age is above three days, false when it is within, null when no
+    /// age was reported. The threshold is the one the assessment uses for its summary text.
+    /// </summary>
+    public bool? IsSignatureOutdated =>
+        int.TryParse(SignatureLastUpdated.Value, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var days)
+            ? days > 3
+            : null;
+
+    private static bool? TextState(TextInfo text)
+    {
+        if (!text.IsKnown)
+        {
+            return null;
+        }
+
+        var value = text.Value!.Trim();
+        if (bool.TryParse(value, out var parsed))
+        {
+            return parsed;
+        }
+
+        return value switch
+        {
+            "1" => true,
+            "0" => false,
+            _ when value.Equals("on", StringComparison.OrdinalIgnoreCase) => true,
+            _ when value.Equals("off", StringComparison.OrdinalIgnoreCase) => false,
+            _ when value.Equals("yes", StringComparison.OrdinalIgnoreCase) => true,
+            _ when value.Equals("no", StringComparison.OrdinalIgnoreCase) => false,
+            _ => null,
+        };
+    }
 }

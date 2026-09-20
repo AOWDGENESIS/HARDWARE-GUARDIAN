@@ -4,6 +4,8 @@ using System.Text.Json.Serialization;
 using System.Globalization;
 using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Values;
+// System.Globalization has a TextInfo as well; the alias makes the intended type unambiguous.
+using TextInfo = WindowsMaintenanceCenter.Core.Values.TextInfo;
 
 namespace WindowsMaintenanceCenter.Infrastructure.Serialization;
 

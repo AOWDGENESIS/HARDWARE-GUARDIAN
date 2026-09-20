@@ -28,7 +28,9 @@ public sealed class WorkloadModule : DiagnosticModuleBase
     protected override async Task<ModuleBody> ExecuteAsync(DiagnosticContext context, CancellationToken cancellationToken)
     {
         var detector = context.GetRequiredService<IWorkloadDetector>();
-        var assessment = await detector.DetectAsync(cancellationToken).ConfigureAwait(false);
+        // The detector reads the live process table; it does not need a snapshot of the last pass.
+        // Passing null is honest about that instead of handing it a stale snapshot to look at.
+        var assessment = await detector.DetectAsync(null, cancellationToken).ConfigureAwait(false);
 
         var problems = new List<ProblemDraft>();
         var evidence = new List<string>

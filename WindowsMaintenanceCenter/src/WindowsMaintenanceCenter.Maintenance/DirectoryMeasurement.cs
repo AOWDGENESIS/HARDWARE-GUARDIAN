@@ -36,6 +36,17 @@ public sealed record DirectoryMeasurement
 /// Reparse points are never followed, the depth is bounded and unreadable entries are counted
 /// instead of throwing (spec sections 77 and 80).
 /// </summary>
+/// <summary>
+/// Counts entries that could not be read. An iterator method cannot take a <c>ref</c> parameter, so
+/// the count lives in an object that the caller owns.
+/// </summary>
+public sealed class SkipTally
+{
+    public int Count { get; private set; }
+
+    public void Add() => Count++;
+}
+
 public static class DirectoryMeasurer
 {
     public static DirectoryMeasurement Measure(string root, string pattern, TimeSpan minimumAge, int maxDepth, DateTimeOffset now, CancellationToken cancellationToken)
@@ -50,10 +61,10 @@ public static class DirectoryMeasurer
         var totalFiles = 0;
         long eligibleBytes = 0;
         var eligibleFiles = 0;
-        var skipped = 0;
+        var tally = new SkipTally();
         var notes = new List<string>();
 
-        foreach (var (path, length, lastWrite) in Enumerate(root, pattern, maxDepth, notes, cancellationToken, ref skipped))
+        foreach (var (path, length, lastWrite) in Enumerate(root, pattern, maxDepth, notes, cancellationToken, tally))
         {
             totalBytes += length;
             totalFiles++;
@@ -74,7 +85,7 @@ public static class DirectoryMeasurer
             TotalFiles = Measured<int>.Known(totalFiles, origin),
             EligibleBytes = Measured<long>.Known(eligibleBytes, origin),
             EligibleFiles = Measured<int>.Known(eligibleFiles, origin),
-            SkippedCount = skipped,
+            SkippedCount = tally.Count,
             Notes = notes,
         };
     }
@@ -86,10 +97,10 @@ public static class DirectoryMeasurer
     public static IReadOnlyList<string> EnumerateFiles(string root, string pattern, TimeSpan minimumAge, int maxDepth, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var notes = new List<string>();
-        var skipped = 0;
+        var tally = new SkipTally();
         var result = new List<string>();
 
-        foreach (var item in Enumerate(root, pattern, maxDepth, notes, cancellationToken, ref skipped))
+        foreach (var item in Enumerate(root, pattern, maxDepth, notes, cancellationToken, tally))
         {
             if (now - item.LastWrite >= minimumAge)
             {
@@ -106,7 +117,7 @@ public static class DirectoryMeasurer
         int maxDepth,
         List<string> notes,
         CancellationToken cancellationToken,
-        ref int skipped)
+        SkipTally skipped)
     {
         var pending = new Stack<(string Path, int Depth)>();
         pending.Push((root, 0));
@@ -124,7 +135,7 @@ public static class DirectoryMeasurer
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException or System.Security.SecurityException)
             {
-                skipped++;
+                skipped.Add();
                 notes.Add($"{current}: {ex.GetType().Name}");
                 files = Array.Empty<string>();
             }
@@ -138,13 +149,13 @@ public static class DirectoryMeasurer
                     info = new FileInfo(file);
                     if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
                     {
-                        skipped++;
+                        skipped.Add();
                         continue;
                     }
                 }
                 catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
                 {
-                    skipped++;
+                    skipped.Add();
                     continue;
                 }
 
@@ -155,7 +166,7 @@ public static class DirectoryMeasurer
                 }
                 catch (IOException)
                 {
-                    skipped++;
+                    skipped.Add();
                     continue;
                 }
 
@@ -174,7 +185,7 @@ public static class DirectoryMeasurer
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException or System.Security.SecurityException)
             {
-                skipped++;
+                skipped.Add();
                 notes.Add($"{current}: {ex.GetType().Name}");
                 continue;
             }
