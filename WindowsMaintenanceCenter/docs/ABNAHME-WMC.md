@@ -10,17 +10,19 @@ Kapitel 2 lässt genau sieben Werte zu, und Kapitel 68 sagt, wann `BLOCKED` gilt
 notwendige Windows-Komponente fehlt, die Testumgebung nicht verfügbar ist oder ein sicherer Test
 nicht möglich ist.
 
-In dieser Entwicklungsumgebung gibt es **kein .NET SDK, kein Windows und keine Windows-11-VM**.
-Damit gilt:
+In dieser Entwicklungsumgebung gibt es **kein .NET SDK, kein Windows und keine Windows-11-VM**. Seit
+dem 2026-09-20 läuft deshalb eine **Windows-VM als CI-Runner** (`docs/VM-CI.md`). Sie hat Bau, Tests
+und die Paketierung wirklich ausgeführt; was sie nicht kann (Sensorik, Akku, UAC-Dialog, Neustart),
+bleibt der Zielmaschine vorbehalten.
 
 | Ebene | Zustand |
 | --- | --- |
-| Build (Gate 1) | nie ausgeführt → `BLOCKED` |
-| Unit-Tests (Gate 2) | 314 Testfälle in 22 Dateien geschrieben, nie ausgeführt → `BLOCKED` |
-| Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | nie ausgeführt → `BLOCKED` |
-| Installer/Uninstaller (Gate 7) | Definition geschrieben, nie kompiliert → `BLOCKED` |
+| Build (Gate 1) | **bestanden auf der CI-VM** (Lauf `35505778032`: 15 Projekte inklusive WPF, 0 Fehler) |
+| Unit-Tests (Gate 2) | **bestanden auf der CI-VM**: 315 Fälle ausgeführt, 0 fehlgeschlagen; TRX und `summary.txt` in `test-results/unit/20260920T104338Z-315-of-315/` |
+| Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | auf der Zielmaschine nicht ausgeführt → `BLOCKED` (Arbeitsliste `docs/TESTMATRIX-VM.md`, Messwerkzeug `docs/VM-TESTKIT.md`) |
+| Installer/Uninstaller (Gate 7) | Installer und Portable-EXE **gebaut und mit SHA-256 gegengeprüft** (Lauf `35505778032`); keine Installation, kein Upgrade, keine Deinstallation ausgeführt → teilweise, im Kern `BLOCKED` |
 | Lokalisierung (Gate 8) | 2 von 4 Sprachen vorhanden; keine Sprachprüfung gelaufen → `BLOCKED` |
-| VM-Abnahme (Gate 10, Modul M46) | keine VM verfügbar → `BLOCKED` |
+| VM-Abnahme (Gate 10, Modul M46) | Ziel-VM nicht verfügbar → `BLOCKED` |
 
 **Folge nach Kapitel 2 und 68: kein Modul ist `PASSED`.** Der Projektstatus ist
 `RELEASE_BLOCKED` (siehe `docs/RELEASE_STATUS.md`). Die Spalte „Funktionsstand" unten sagt nur, wie

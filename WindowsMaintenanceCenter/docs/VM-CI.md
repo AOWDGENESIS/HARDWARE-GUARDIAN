@@ -94,6 +94,23 @@ Fehler des jeweiligen Bau-Schritts:
 
 | 22 | `b08aaea` | Bau ✓, Tests ✓, jetzt bis zum Publish: `NETSDK1047` — das Projekt wurde ohne RuntimeIdentifier wiederhergestellt, `publish --no-restore` verlangt aber ein Asset-Ziel fuer `net10.0-windows/win-x64` | Bau ✓, Tests ✓, Publish ✗ (Restore fehlt) |
 
+| 23 | `8a5c0b9` | **Der komplette Windows-Lauf ist durch**: Bau 0 Fehler, 315/0 Tests, Portable-EXE (62.513.557 Bytes), Inno-Setup-Installer (57.479.929 Bytes), Pruefsummendatei, Release Notes, Artefakt- und SHA-256-Gegenpruefung | **success** |
+
+### Der erste vollstaendig gruene Lauf (35505778032)
+
+Alle 15 Schritte des Windows-Jobs sind gruen. Was das belegt - und was nicht:
+
+| Belegt | Nicht belegt |
+| --- | --- |
+| 15 Projekte uebersetzen im Release-Zuschnitt, inklusive WPF-XAML | dass die Oberflaeche bedienbar ist (niemand hat sie bedient) |
+| 315 Testfaelle laufen und bestehen, TRX und `summary.txt` im Nachweisordner `test-results/unit/` | Tests auf echter Hardware, mit Sensoren, mit UAC-Dialog |
+| Portable-EXE und Installer werden erzeugt und ihre SHA-256 stimmen | dass der Installer auf einer Maschine installiert, repariert und deinstalliert |
+| Der Lauf schreibt seine Nachweise selbst in den Zweig | dass eine Zielmaschine dieselben Ergebnisse liefert |
+
+Der Nachweisordner des Laufs enthaelt: `build.log`, `build-summary.txt`, `restore.log`,
+`environment.txt`, `publish.log`, `innosetup.log`, `release.log`, `test.log`, `test-run.log`,
+`help.log`, die TRX-Datei, den HTML-Bericht und `run.txt`.
+
 ### Die elf echten Testfunde aus Lauf 18
 
 Erstmals lief nicht die Umgebung schief, sondern die Suite fand elf Sachen. Neun davon sind jetzt
