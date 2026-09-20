@@ -421,7 +421,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             {
                 Outcome = StageOutcome.NotRun,
                 SearchPerformed = false,
-                PendingReboot = pendingReboot,
+                PendingReboot = !string.IsNullOrWhiteSpace(pendingReboot),
                 Summary = LocalizedText.Of("WindowsUpdate_NotRun_NoWindows"),
                 RecentUpdates = recent,
             };
@@ -433,7 +433,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             {
                 Outcome = StageOutcome.Skipped,
                 SearchPerformed = false,
-                PendingReboot = pendingReboot,
+                PendingReboot = !string.IsNullOrWhiteSpace(pendingReboot),
                 Summary = LocalizedText.Of("WindowsUpdate_Skipped_Offline"),
                 RecentUpdates = recent,
             };
@@ -445,7 +445,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             {
                 Outcome = StageOutcome.Blocked,
                 SearchPerformed = false,
-                PendingReboot = pendingReboot,
+                PendingReboot = !string.IsNullOrWhiteSpace(pendingReboot),
                 Summary = LocalizedText.Of("WindowsUpdate_Blocked_OfflineMode"),
                 RecentUpdates = recent,
                 ErrorDetail = BlockReasons.OfflineMode,
@@ -562,7 +562,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             {
                 Outcome = StageOutcome.Failed,
                 SearchPerformed = true,
-                PendingReboot = pendingReboot,
+                PendingReboot = !string.IsNullOrWhiteSpace(pendingReboot),
                 Summary = LocalizedText.Of("WindowsUpdate_Error", error),
                 RecentUpdates = recent,
                 ErrorDetail = error,
@@ -575,7 +575,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
             SearchPerformed = true,
             RequiresAdministrator = !_environment.IsElevated,
             PendingCount = pendingCount,
-            PendingReboot = pendingReboot,
+            PendingReboot = !string.IsNullOrWhiteSpace(pendingReboot),
             Summary = pendingCount == 0
                 ? LocalizedText.Of("WindowsUpdate_UpToDate")
                 : LocalizedText.Of("WindowsUpdate_Pending", pendingCount),
@@ -1284,7 +1284,7 @@ public sealed class WindowsHealthService : IWindowsHealthService
     {
         const string displayKey = "WindowsCheck_StorageSpace";
 
-        var volumes = snapshot?.StorageDevices.SelectMany(d => d.Volumes).ToList();
+        var volumes = snapshot?.Storage.SelectMany(d => d.Volumes).ToList();
         if (volumes is null || volumes.Count == 0)
         {
             return Check(WindowsCheckId.StorageSpace, displayKey, HealthStatus.Unknown, StageOutcome.NotRun,
