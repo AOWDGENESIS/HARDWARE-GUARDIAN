@@ -8,9 +8,9 @@ Kapitel 92 lässt genau zwei Zustände zu. Es gibt keinen dritten. Dieser Entsch
 aus tatsächlich ausgeführten Tests gebildet.
 
 Er hat sich geändert: **Bau und Unit-Suite sind jetzt echte, abgelesene Nachweise.** Der
-Windows-Lauf `35505778032` hat alle Schritte bestanden — Bau (0 Fehler), 315 Testfälle (0
+Windows-Lauf `35507347841` hat alle Schritte bestanden — Bau (0 Fehler), 348 Testfälle (0
 fehlgeschlagen), Portable-EXE, Inno-Setup-Installer, Prüfsummendatei und die Gegenprüfung der
-Prüfsummen. Die Nachweise liegen im Zweig (`test-results/unit/20260920T104338Z-315-of-315/`,
+Prüfsummen. Die Nachweise liegen im Zweig (`test-results/unit/20260920T111746Z-348-of-348/`,
 `test-results/ci/run-35505778032-1/`).
 
 Der Entscheid bleibt trotzdem `RELEASE_BLOCKED`, weil die Nachweise fehlen, die **nur die
@@ -28,8 +28,8 @@ ENVIRONMENT: GitHub-Runner "windows-latest" (Windows Server 2025, .NET SDK 10.0.
              Maschine ohne Sensorik, ohne Akku, ohne SMART echter Laufwerke, ohne UAC-Dialog
 
 BUILD:    0 Fehler / 50 Hinweise (CA1826 28, CA1861 22)
-TESTS:    315 ausgeführt, 315 bestanden, 0 fehlgeschlagen, 0 übersprungen (TRX im Nachweisordner)
-PASSED:   315
+TESTS:    348 ausgeführt, 348 bestanden, 0 fehlgeschlagen, 0 übersprungen (TRX im Nachweisordner)
+PASSED:   348
 FAILED:   0
 BLOCKED:  die Fälle, die Zielhardware oder eine interaktive Sitzung brauchen (siehe Matrizen)
 
@@ -51,7 +51,7 @@ BLOCKED
 | Gate | Nachweis | Zustand |
 | --- | --- | --- |
 | Gate 1 Build | `test-results/ci/run-35505778032-1/build.log` und `build-summary.txt`: 15 Projekte inklusive WPF, 0 Fehler; `dotnet build` im Release-Schritt erneut | **bestanden (CI-Umgebung)** |
-| Gate 2 Unit | `test-results/unit/20260920T104338Z-315-of-315/`: TRX mit 315 Ergebnissen, `summary.txt` mit Zeitpunkt, Version, Build, Umgebung, Ergebnis; `scripts/test.ps1` verlangt TRX und mindestens 315 Fälle | **bestanden (CI-Umgebung)** |
+| Gate 2 Unit | `test-results/unit/20260920T111746Z-348-of-348/`: TRX mit 348 Ergebnissen, `summary.txt` mit Zeitpunkt, Version, Build, Umgebung, Ergebnis; `scripts/test.ps1` verlangt TRX und mindestens 348 Fälle | **bestanden (CI-Umgebung)** |
 | Gate 3 Integration (Teil) | `scripts/test.ps1` startet die Anwendung unmittelbar; `-result-trx` und Konsolenprotokoll liegen bei | teilweise: die Oberfläche selbst wurde nicht bedient |
 | Gate 7 Installer (Teil) | `test-results/ci/run-35505778032-1/release.log`: `WindowsMaintenanceCenter-Setup-x64.exe` (57.479.929 Bytes), `WindowsMaintenanceCenter-Portable-x64.exe` (62.513.557 Bytes), Prüfsummendatei (215 Bytes), Release Notes (1.105 Bytes); der Workflow hat alle vier Dateien geprüft und die SHA-256-Gegenprüfung bestanden | teilweise: kompiliert und geprüft, **nicht installiert** |
 

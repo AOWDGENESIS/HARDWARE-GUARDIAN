@@ -18,7 +18,7 @@ bleibt der Zielmaschine vorbehalten.
 | Ebene | Zustand |
 | --- | --- |
 | Build (Gate 1) | **bestanden auf der CI-VM** (Lauf `35505778032`: 15 Projekte inklusive WPF, 0 Fehler) |
-| Unit-Tests (Gate 2) | **bestanden auf der CI-VM**: 315 Fälle ausgeführt, 0 fehlgeschlagen; TRX und `summary.txt` in `test-results/unit/20260920T104338Z-315-of-315/` |
+| Unit-Tests (Gate 2) | **bestanden auf der CI-VM**: 348 Fälle ausgeführt, 0 fehlgeschlagen (Lauf `35507347841`); TRX und `summary.txt` in `test-results/unit/20260920T111746Z-348-of-348/` |
 | Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | auf der Zielmaschine nicht ausgeführt → `BLOCKED` (Arbeitsliste `docs/TESTMATRIX-VM.md`, Messwerkzeug `docs/VM-TESTKIT.md`) |
 | Installer/Uninstaller (Gate 7) | Installer und Portable-EXE **gebaut und mit SHA-256 gegengeprüft** (Lauf `35505778032`); keine Installation, kein Upgrade, keine Deinstallation ausgeführt → teilweise, im Kern `BLOCKED` |
 | Lokalisierung (Gate 8) | 2 von 4 Sprachen vorhanden; keine Sprachprüfung gelaufen → `BLOCKED` |

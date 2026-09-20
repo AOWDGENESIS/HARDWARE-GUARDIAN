@@ -94,6 +94,8 @@ Fehler des jeweiligen Bau-Schritts:
 
 | 22 | `b08aaea` | Bau ✓, Tests ✓, jetzt bis zum Publish: `NETSDK1047` — das Projekt wurde ohne RuntimeIdentifier wiederhergestellt, `publish --no-restore` verlangt aber ein Asset-Ziel fuer `net10.0-windows/win-x64` | Bau ✓, Tests ✓, Publish ✗ (Restore fehlt) |
 
+| 24 | `01a0201` | **Zweiter vollstaendig gruener Lauf, jetzt mit 348 Tests**: Bau 0 Fehler, M34/M35 (Zustandsjournal mit Hashkette, Wiederaufnahme nach Abbruch, SEC-12/SEC-14) sind gebaut und getestet, Portable-EXE, Inno-Setup-Installer und Pruefsummendatei wie im Lauf 23. Nachweisordner `test-results/unit/20260920T111746Z-348-of-348`, CI-Record `run-35507347841-1` | **success** (348/0/0) |
+
 | 23 | `8a5c0b9` | **Der komplette Windows-Lauf ist durch**: Bau 0 Fehler, 315/0 Tests, Portable-EXE (62.513.557 Bytes), Inno-Setup-Installer (57.479.929 Bytes), Pruefsummendatei, Release Notes, Artefakt- und SHA-256-Gegenpruefung | **success** |
 
 ### Der erste vollstaendig gruene Lauf (35505778032)
