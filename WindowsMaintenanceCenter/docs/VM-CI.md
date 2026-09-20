@@ -87,7 +87,8 @@ Fehler des jeweiligen Bau-Schritts:
 | 17 | `1f852a7` | Testschritt startet die Testanwendung statt `dotnet test`; sie laeuft, lehnt aber `--report-trx` ab: die TRX-Erweiterung ist im Lauf nicht registriert | Bau ✓, Testlauf ausgefuehrt, Nachweis unvollstaendig |
 | 18 | `01eda0c` | `test.ps1` fragt die Anwendung selbst (`--help`): sie faehrt den xUnit-eigenen Runner und nimmt `-result-trx`. **Die Suite laeuft: 314 Faelle, 0 Fehler in der Ausfuehrung, 11 inhaltliche Testfehler.** Kein TRX in diesem Lauf, weil die Option erst danach gesetzt wurde | 314 ausgefuehrt, **11 failed**, Exit 1 |
 
-| 19 | `d9f5645` | Der Fix am `SimulationFixtureTests` rief `TextInfo.Display` als Methode auf: **`TextInfo.Display` ist eine Eigenschaft** (`Measured<T>.Display` ist die Methode). Nur der zweite Vergleich brauchte den Aufruf | 4 Fehler (CS1955), mein eigener Fix, behoben im naechsten Commit |
+| 19 | `d9f5645` | Der Fix am `SimulationFixtureTests` rief `TextInfo.Display` als Methode auf: **`TextInfo.Display` ist eine Eigenschaft** (`Measured<T>.Display` ist die Methode). Nur der zweite Vergleich brauchte den Aufruf | 4 Fehler (CS1955), mein eigener Fix, behoben in `bf2e240` |
+| 20 | `bf2e240` | Bau ✓, **Tests ✓: 315 ausgefuehrt, 0 failed, 0 skipped** — und die TRX-Datei wird geschrieben. Der Schritt scheiterte am eigenen Auswerter: das TRX traegt einen XML-Namensraum, `//UnitTestResult` findet darin nichts | Bau ✓, Tests ✓ (315/0), Auswertung ✗ |
 
 ### Die elf echten Testfunde aus Lauf 18
 

@@ -44,10 +44,11 @@ param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [string]$Filter = '',
 
-    # The suite had 314 cases when they were first counted on 2026-09-20. A lower number means tests
-    # were skipped or not discovered, which must fail the run instead of looking like a green suite
-    # (specification chapters 61 and 87). Raise this number whenever cases are added; never lower it.
-    [int]$MinimumTests = 300
+    # The suite had 315 cases when they were first counted on 2026-09-20 (run 35505322775 executed
+    # 315, 0 failed). A lower number means tests were skipped or not discovered, which must fail the
+    # run instead of looking like a green suite (specification chapters 61 and 87). Raise this number
+    # whenever cases are added; never lower it.
+    [int]$MinimumTests = 315
 )
 
 Set-StrictMode -Version Latest
@@ -161,10 +162,14 @@ $passed = 0
 $failed = 0
 $skipped = 0
 $proof = 'TRX'
+$hasTrx = Test-Path $trx
 
-if (Test-Path $trx) {
+if ($hasTrx) {
     [xml]$report = Get-Content -Raw $trx
-    $cases = @($report.SelectNodes('//UnitTestResult'))
+    # The TRX file declares a default XML namespace, so the obvious path //UnitTestResult finds
+    # nothing at all. local-name() matches the element without depending on the namespace, and a run
+    # whose report could not be read must not be mistaken for a run without tests.
+    $cases = @($report.SelectNodes("//*[local-name()='UnitTestResult']"))
     $executed = $cases.Count
     foreach ($node in $cases) {
         switch ($node.GetAttribute('outcome')) {
@@ -173,8 +178,16 @@ if (Test-Path $trx) {
             default { $skipped++ }
         }
     }
-} else {
-    $proof = 'console log only (no TRX file was written)'
+}
+
+if ($executed -eq 0) {
+    # Either no report was written, or it carried nothing readable: then the console log is the only
+    # source of numbers, and the run says so instead of pretending the TRX proved anything.
+    $proof = if ($hasTrx) {
+        'console log only (the TRX file carried no readable test results)'
+    } else {
+        'console log only (no TRX file was written)'
+    }
     $text = $console -join "`n"
     if ($text -match '(?m)\bTotal:\s*(\d+)') { $executed = [int]$Matches[1] }
     if ($text -match '(?m)\bFailed:\s*(\d+)') { $failed = [int]$Matches[1] }
