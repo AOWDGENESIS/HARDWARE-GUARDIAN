@@ -47,7 +47,11 @@ $app = Join-Path $root 'src/WindowsMaintenanceCenter.App/WindowsMaintenanceCente
 $output = Join-Path $root $OutputDirectory
 
 function Invoke-DotNet {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    # The arguments are handed over as one named array on purpose. Written out as separate tokens -
+    # or splatted from an array - PowerShell treats "-p:Version=1.0.0" as a parameter of this
+    # function and refuses with "parameter name 'p' is ambiguous" (run 35505462832, publish step).
+    param([Parameter(Mandatory)][string[]]$Arguments)
+
     Write-Host "dotnet $($Arguments -join ' ')" -ForegroundColor Cyan
     & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) {
@@ -81,11 +85,12 @@ Write-Host "Windows Maintenance Center $version ($revision) - $Configuration $Ru
 Push-Location $root
 try {
     if (-not $NoRestore) {
-        Invoke-DotNet restore $solution
+        Invoke-DotNet -Arguments @('restore', $solution)
     }
 
-    Invoke-DotNet build $solution -c $Configuration --no-restore `
-        -p:Version=$version -p:SourceRevisionId=$revision -p:BuildDate=$buildDate
+    Invoke-DotNet -Arguments @(
+        'build', $solution, '-c', $Configuration, '--no-restore',
+        "-p:Version=$version", "-p:SourceRevisionId=$revision", "-p:BuildDate=$buildDate")
 
     if (-not $SkipPublish) {
         New-Item -ItemType Directory -Force -Path $output | Out-Null
@@ -104,7 +109,7 @@ try {
             "-p:SourceRevisionId=$revision",
             "-p:BuildDate=$buildDate"
         )
-        Invoke-DotNet @publishArguments
+        Invoke-DotNet -Arguments $publishArguments
         Write-Host "published: $(Join-Path $output 'WindowsMaintenanceCenter.exe')" -ForegroundColor Green
     }
 }

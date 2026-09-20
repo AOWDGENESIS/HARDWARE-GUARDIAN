@@ -90,6 +90,8 @@ Fehler des jeweiligen Bau-Schritts:
 | 19 | `d9f5645` | Der Fix am `SimulationFixtureTests` rief `TextInfo.Display` als Methode auf: **`TextInfo.Display` ist eine Eigenschaft** (`Measured<T>.Display` ist die Methode). Nur der zweite Vergleich brauchte den Aufruf | 4 Fehler (CS1955), mein eigener Fix, behoben in `bf2e240` |
 | 20 | `bf2e240` | Bau ✓, **Tests ✓: 315 ausgefuehrt, 0 failed, 0 skipped** — und die TRX-Datei wird geschrieben. Der Schritt scheiterte am eigenen Auswerter: das TRX traegt einen XML-Namensraum, `//UnitTestResult` findet darin nichts | Bau ✓, Tests ✓ (315/0), Auswertung ✗ |
 
+| 21 | `8e10699` | Bau ✓, **Tests ✓ (315/0), TRX gelesen**, Nachweis unter `test-results/unit/20260920T103645Z-315-of-315` im Zweig. Der Publish scheiterte an PowerShell selbst: `-p:Version=…` wurde als Parameter `-p` der Skriptfunktion gebunden ("parameter name 'p' is ambiguous") | Bau ✓, Tests ✓, Publish ✗ |
+
 ### Die elf echten Testfunde aus Lauf 18
 
 Erstmals lief nicht die Umgebung schief, sondern die Suite fand elf Sachen. Neun davon sind jetzt
