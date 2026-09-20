@@ -107,8 +107,8 @@ public sealed class FileStateJournal : IStateJournal
         }
 
         foreach (var line in File.ReadLines(_filePath))
-            {
-                if (string.IsNullOrWhiteSpace(line))
+        {
+            if (string.IsNullOrWhiteSpace(line))
                 {
                     continue;
                 }
@@ -131,7 +131,6 @@ public sealed class FileStateJournal : IStateJournal
                     // that finding instead of presenting a shortened journal as the whole truth.
                     continue;
                 }
-            }
         }
 
         return entries;

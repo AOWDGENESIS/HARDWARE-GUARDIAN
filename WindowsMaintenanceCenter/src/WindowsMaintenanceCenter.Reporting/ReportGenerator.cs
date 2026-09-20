@@ -426,15 +426,15 @@ public sealed class ReportGenerator : IReportGenerator
 
             foreach (var problem in snapshot.Problems)
             {
-                builder.AppendLine(_localizer.Culture, $"[{problem.Id}] {problem.Severity} · {problem.Status} · {_localizer.Resolve(problem.Title)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer.Resolve(problem.Description)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Cause"]}: {_localizer.Resolve(problem.Cause)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Impact"]}: {_localizer.Resolve(problem.Impact)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_RecommendedAction"]}: {_localizer.Resolve(problem.RecommendedAction)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_LogReference"]}: {problem.LogReference ?? _localizer["Report_LogReference_None"]}");
+                builder.AppendLine(_localizer.Culture, $"[{problem.Id}] {problem.Severity} · {problem.Status} · {Safe(_localizer.Resolve(problem.Title))}");
+                builder.AppendLine(_localizer.Culture, $"    {Safe(_localizer.Resolve(problem.Description))}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Cause"]}: {Safe(_localizer.Resolve(problem.Cause))}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Impact"]}: {Safe(_localizer.Resolve(problem.Impact))}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_RecommendedAction"]}: {Safe(_localizer.Resolve(problem.RecommendedAction))}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_LogReference"]}: {Safe(problem.LogReference ?? _localizer["Report_LogReference_None"])}");
                 if (options.IncludeEvidence && !string.IsNullOrWhiteSpace(problem.Evidence))
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Evidence"]}: {problem.Evidence}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Evidence"]}: {Safe(problem.Evidence)}");
                 }
 
                 foreach (var blocked in problem.BlockedOperations)
@@ -449,12 +449,12 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var component in snapshot.Components.OrderBy(c => c.SortOrder).ThenBy(c => c.Name.Display, StringComparer.CurrentCultureIgnoreCase))
             {
-                builder.AppendLine(_localizer.Culture, $"{component.Category,-14} {component.Name.Display}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Manufacturer"]}: {component.Manufacturer.Display}   {_localizer["Report_Model"]}: {component.Model.Display}");
+                builder.AppendLine(_localizer.Culture, $"{component.Category,-14} {Safe(component.Name.Display)}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Manufacturer"]}: {Safe(component.Manufacturer.Display)}   {_localizer["Report_Model"]}: {Safe(component.Model.Display)}");
                 builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Status"]}: {component.Status}   {_localizer["Report_Source"]}: {component.Name.Origin.Token()}");
                 if (component.Driver is { } driver)
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Driver"]}: {driver.Version.Display} ({driver.Provider.Display})  {_localizer["Report_Signature"]}: {driver.SignatureVerification}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Driver"]}: {Safe(driver.Version.Display)} ({Safe(driver.Provider.Display)})  {_localizer["Report_Signature"]}: {driver.SignatureVerification}");
                 }
 
                 if (component.DeviceInstanceId.IsKnown)
@@ -489,7 +489,7 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var update in request.Updates)
             {
-                builder.AppendLine(_localizer.Culture, $"{update.DeviceName.Display}: {update.Status} ({update.Installed.Raw.Display} -> {update.Available.Raw.Display})");
+                builder.AppendLine(_localizer.Culture, $"{Safe(update.DeviceName.Display)}: {update.Status} ({Safe(update.Installed.Raw.Display)} -> {Safe(update.Available.Raw.Display)})");
                 builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Reason"]}: {_localizer.Resolve(update.Reason)}");
                 builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Source"]}: {update.Source.AdapterId} · {update.Source.Trust} · {update.Source.Verification}");
                 if (!string.IsNullOrWhiteSpace(update.BlockedReasonCode))
@@ -538,7 +538,7 @@ public sealed class ReportGenerator : IReportGenerator
                 builder.AppendLine(_localizer.Culture, $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Operation,-14} {entry.Category,-12} {entry.Result,-10} {entry.OperationKey}");
                 if (!string.IsNullOrWhiteSpace(entry.Error))
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Error"]}: {entry.Error}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Error"]}: {Safe(entry.Error)}");
                 }
 
                 if (entry.Approval is { } approval)
@@ -556,7 +556,7 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var note in security.Notes)
             {
-                builder.AppendLine(_localizer.Culture, $"- {note}");
+                builder.AppendLine(_localizer.Culture, $"- {Safe(note)}");
             }
 
             foreach (var hash in security.Hashes)
@@ -566,7 +566,7 @@ public sealed class ReportGenerator : IReportGenerator
 
             foreach (var signature in security.Signatures)
             {
-                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Signature"]}: {signature.Verification} {signature.Signer.Display}  {signature.Path}");
+                builder.AppendLine(_localizer.Culture, $"{_localizer["Report_Signature"]}: {signature.Verification} {Safe(signature.Signer.Display)}  {Safe(signature.Path)}");
             }
 
             foreach (var source in security.Sources)
@@ -926,11 +926,52 @@ public sealed class ReportGenerator : IReportGenerator
         info.IsKnown ? info.Value! : $"UNKNOWN: {info.UnknownReason ?? "reason not reported"}";
 
     /// <summary>Text of a measured number, or UNKNOWN with the reason that was recorded.</summary>
+    /// <summary>
+    /// Makes foreign text safe for the report (SEC-14, report injection).
+    ///
+    /// Every value in this file that comes from outside - a device name, a driver version, a problem's
+    /// evidence, an audit error - ends up in the report. A control character in such a value (an ANSI
+    /// escape, a carriage return, a Unicode line separator) could move the cursor, overwrite a line or
+    /// split a record, so a report could be made to say something the machine never said. Those
+    /// characters are written as their code point (\u001B) instead, which stays one legible line and
+    /// cannot drive anything. Ordinary text is returned unchanged, so nothing correct is shortened.
+    /// </summary>
+    internal static string Safe(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        if (!text.Any(IsUnsafe))
+        {
+            return text;
+        }
+
+        var builder = new StringBuilder(text.Length + 16);
+        foreach (var character in text)
+        {
+            if (IsUnsafe(character))
+            {
+                builder.Append("\\u").Append(((int)character).ToString("X4", CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsUnsafe(char character) =>
+        char.IsControl(character) || character is '\u2028' or '\u2029' or '\u0085';
+
     private static string Show<T>(Measured<T> value, string? format = null)
         where T : struct =>
         value.Value.HasValue
-            ? value.Display(CultureInfo.InvariantCulture, format)
-            : $"UNKNOWN: {value.UnknownReason ?? "reason not reported"}";
+            ? Safe(value.Display(CultureInfo.InvariantCulture, format))
+            : $"UNKNOWN: {Safe(value.UnknownReason ?? "reason not reported")}";
 
     private static string MaskSerial(string value, ReportOptions options) =>
         options.MaskSerialNumbers && value.Length > 4 ? $"…{value[^4..]}" : value;

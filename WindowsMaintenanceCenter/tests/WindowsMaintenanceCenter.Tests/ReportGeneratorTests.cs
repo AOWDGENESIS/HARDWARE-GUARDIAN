@@ -167,6 +167,65 @@ public sealed class ReportGeneratorTests
         Assert.Equal(new FileInfo(artifact.FilePath).Length, artifact.SizeBytes);
     }
 
+    /// <summary>
+    /// SEC-14 (report injection): a value that comes from outside must not be able to steer the
+    /// report. A control character in a device name or in a finding's evidence is shown as its code
+    /// point instead of being obeyed, an HTML report escapes markup instead of running it, and the
+    /// JSON report stays parseable because the serialiser escapes the same characters.
+    /// </summary>
+    [Fact]
+    public async Task A_foreign_value_cannot_steer_the_report()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+        var baseRequest = ReportRequest();
+
+        var injected = baseRequest with
+        {
+            Snapshot = baseRequest.Snapshot with
+            {
+                Components = baseRequest.Snapshot.Components
+                    .Select(component => component with
+                    {
+                        Name = TextInfo.Known("SIM\u001b[2JULATION\r\nWMC-CPU-999", component.Name.Origin),
+                    })
+                    .ToArray(),
+                Problems = new[]
+                {
+                    new Problem
+                    {
+                        Id = "WMC-CPU-001",
+                        Category = ComponentCategory.Cpu,
+                        Severity = Severity.Critical,
+                        Status = ProblemStatus.Open,
+                        Title = LocalizedText.Of("Problem_Unknown_Title"),
+                        Description = LocalizedText.Of("Problem_Unknown_Description"),
+                        Impact = LocalizedText.Of("Problem_Unknown_Impact"),
+                        RecommendedAction = LocalizedText.Of("Problem_Unknown_Action"),
+                        Evidence = "line 1\u001b[31mline 2\u0007<script>alert(1)</script>",
+                        LogReference = "WMC-CPU-001\r\nWMC-FAKE-000",
+                        DetectedAt = new FakeClock().Now,
+                    },
+                },
+            },
+        };
+
+        var text = await generator.GenerateAsync(injected, ReportFormat.Text, Options(), CancellationToken.None);
+        var content = await File.ReadAllTextAsync(text.FilePath);
+
+        // No escape, no bell, no carriage return: the finding cannot move the cursor or fake a line.
+        Assert.DoesNotContain('\u001b', content);
+        Assert.DoesNotContain('\u0007', content);
+        Assert.DoesNotContain('\r', content);
+        Assert.Contains("\\u001B", content);
+
+        var html = await generator.GenerateAsync(injected, ReportFormat.Html, Options(), CancellationToken.None);
+        var markup = await File.ReadAllTextAsync(html.FilePath);
+
+        Assert.DoesNotContain("<script>", markup);
+        Assert.Contains("&lt;script&gt;", markup);
+    }
+
     private static ReportGenerator CreateGenerator(TempPathProvider paths) => new(
         paths,
         new HashService(new FakeClock()),
