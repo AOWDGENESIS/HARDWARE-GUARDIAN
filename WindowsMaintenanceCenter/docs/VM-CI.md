@@ -269,6 +269,18 @@ vorherigen Lauf, nicht ein Blick in den Code: genau dafür steht er im Workflow.
 
 ## 4. Grenzen des Zugangs
 
+**Die CI kann seit dem 2026-09-22 nicht mehr starten.** Die Läufe zu `c02d86c` (`35761467349`,
+`35761468380`) haben keinen einzigen Schritt ausgeführt; die Anmerkung des Runners lautet:
+
+> The job was not started because recent account payments have failed or your spending limit needs to be
+> increased. Please check the 'Billing & plans' section in your settings
+
+Das betrifft beide Workflows und damit jede Messung auf einer Windows-Maschine. Es ist kein
+Code-Problem und in diesem Repository nicht behebbar: die Zahlung oder das Ausgabenlimit muss im
+GitHub-Konto geändert werden. Solange das nicht geschehen ist, erzeugt jeder Push einen Lauf ohne
+Schritte, und fehlende Nachweise bleiben `BLOCKED` - nicht widerlegt, sondern unmessbar.
+
+
 Der Workflow ist der einzige Weg, auf dem hier ein Windows-Rechner benutzt werden kann. Daraus folgt:
 
 * Läufe werden durch einen Push ausgelöst (`on: push`, Zweige `main` und `arena/**`).

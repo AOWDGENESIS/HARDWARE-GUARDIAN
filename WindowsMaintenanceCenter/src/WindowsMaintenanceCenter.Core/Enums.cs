@@ -260,6 +260,17 @@ public enum LanguagePreference
     System,
     German,
     English,
+
+    /// <summary>
+    /// ja-JP. Chapter 63 asks for four languages; this value exists so the interface can offer it, and
+    /// <c>LanguageCatalog</c> decides whether the build really ships the catalogue. A language is never
+    /// offered without its file - an offered language that falls back to English is a wrong statement
+    /// about the product.
+    /// </summary>
+    Japanese,
+
+    /// <summary>ru-RU. See <see cref="Japanese"/>.</summary>
+    Russian,
 }
 
 /// <summary>When the application asks for confirmation (spec section 24).</summary>

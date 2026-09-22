@@ -8,11 +8,23 @@
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{services:Loc Section_Appearance}" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <TextBlock Text="{services:Loc Field_Language}" Width="180" VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumName}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <TextBlock Text="{services:Loc Field_Theme}" Width="180" VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" />
+                    <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource EnumName}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
                 <TextBlock Style="{StaticResource Muted}" Text="{Binding LanguageHint}" />
             </StackPanel>

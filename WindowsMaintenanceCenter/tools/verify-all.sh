@@ -52,6 +52,7 @@ run "XAML (well formed, resource keys, DataTypes, code-behind)" python3 tools/ch
 run "Bindings (every {Binding} root against its data scope)" python3 tools/check-bindings.py
 run "Projects (references, central package versions)" python3 tools/check-projects.py
 run "Solution file is up to date" python3 tools/generate-solution.py --check
+run "Localisation check itself (wrong placeholders must be reported)" python3 tools/check-localization.py --self-test
 run "PowerShell scripts (the measuring instruments of the acceptance kit)" python3 tools/check-powershell.py
 run "PowerShell check itself (a broken script must be reported)" python3 tools/check-powershell.py --self-test
 run "Repository size (the diff has to stay reviewable)" python3 tools/check-repo-size.py

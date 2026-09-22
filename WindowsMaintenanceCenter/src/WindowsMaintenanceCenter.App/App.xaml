@@ -18,6 +18,7 @@
             <services:SeverityBrushConverter x:Key="SeverityBrush" />
             <services:LocalizedTextConverter x:Key="Text" />
             <services:MeasuredConverter x:Key="Measured" />
+            <services:EnumLocalizedNameConverter x:Key="EnumName" />
             <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
             <DataTemplate DataType="{x:Type vm:DashboardViewModel}">

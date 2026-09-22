@@ -160,6 +160,15 @@ MUTATIONS: tuple[Mutation, ...] = (
         "var build = new BuildInfoProvider(paths, paths).Get();\n            var buildVersion = build.Version;",
         expect_clean=True,
     ),
+    # A translation that renumbers a placeholder is a crash at run time (string.Format), and it is
+    # invisible in a diff of prose. The placeholder check has to notice it.
+    Mutation(
+        "localisation: a translation drops a placeholder",
+        "check-localization",
+        "src/WindowsMaintenanceCenter.Core/Resources/de.json",
+        '"Action_Argument_NotANumber": "Wert für {0} ist keine Zahl"',
+        '"Action_Argument_NotANumber": "Wert ist keine Zahl"',
+    ),
     # The scripts of the acceptance kit are the measuring instruments: a broken one fails minutes later
     # inside a CI run and leaves no evidence at all. A forgotten closing bracket is the cheapest way to
     # produce exactly that, and it has to be reported before the run, not during it.

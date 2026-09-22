@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Abstractions;
+using WindowsMaintenanceCenter.Core.Services;
 using WindowsMaintenanceCenter.Core.Values;
 
 namespace WindowsMaintenanceCenter.Infrastructure.Localization;
@@ -38,7 +39,10 @@ public sealed class JsonLocalizer : ILocalizer
         _overrideDirectory = overrideDirectory;
         _settings = settings;
 
-        foreach (var language in new[] { "en", "de" })
+        // Which languages exist is measured, not written down twice: LanguageCatalog reads the embedded
+        // Resources/<code>.json files. Adding a catalogue is therefore enough to ship a language, and a
+        // language without a catalogue can never be offered (chapter 63).
+        foreach (var language in LanguageCatalog.ShippedCodes)
         {
             var strings = LoadEmbedded(language);
             ApplyOverrides(language, strings);
@@ -163,6 +167,8 @@ public sealed class JsonLocalizer : ILocalizer
     {
         LanguagePreference.German => new CultureInfo("de-DE"),
         LanguagePreference.English => new CultureInfo("en-US"),
+        LanguagePreference.Japanese => new CultureInfo("ja-JP"),
+        LanguagePreference.Russian => new CultureInfo("ru-RU"),
         _ => ResolveSystemCulture(),
     };
 
@@ -171,12 +177,16 @@ public sealed class JsonLocalizer : ILocalizer
         var ui = CultureInfo.CurrentUICulture;
         var twoLetter = ui.TwoLetterISOLanguageName;
 
-        // Only the two shipped languages are honoured. Anything else falls back to English
-        // instead of showing a half translated interface.
+        // Only a language whose catalogue is really embedded is honoured, so Windows cannot select a
+        // language that would show markers everywhere. Anything else falls back to English instead of
+        // showing a half translated interface; the marker list in the diagnostics view says which keys
+        // were missing, and `tools/check-localization.py` checks the catalogues themselves.
         return twoLetter switch
         {
-            "de" => new CultureInfo("de-DE"),
-            "en" => new CultureInfo("en-US"),
+            "de" when LanguageCatalog.IsShipped(LanguagePreference.German) => new CultureInfo("de-DE"),
+            "en" when LanguageCatalog.IsShipped(LanguagePreference.English) => new CultureInfo("en-US"),
+            "ja" when LanguageCatalog.IsShipped(LanguagePreference.Japanese) => new CultureInfo("ja-JP"),
+            "ru" when LanguageCatalog.IsShipped(LanguagePreference.Russian) => new CultureInfo("ru-RU"),
             _ => new CultureInfo("en-US"),
         };
     }

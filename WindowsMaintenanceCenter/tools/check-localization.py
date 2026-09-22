@@ -6,6 +6,8 @@ in the resource files. Reports:
 
   * keys used in code but missing in a language file  (would show as a visible marker in the UI)
   * keys defined in one language but not in the other (half translated)
+  * placeholders that do not match between languages ({0} dropped or renumbered by a translation,
+    or an unescaped brace that string.Format would read as a placeholder)
   * keys defined but never used                        (dead strings, reported as information)
 
 The extractor is deliberately conservative: only string literals that look like a key
@@ -21,6 +23,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import re
 from pathlib import Path
@@ -153,6 +157,62 @@ def used_keys() -> tuple[dict[str, set[str]], set[str]]:
     return result, dynamic
 
 
+# A placeholder of the catalogue format: {0}, {1:...}. Braces are literal only when doubled ({{).
+PLACEHOLDER = re.compile(r"\{(?P<index>\d+)(?::[^}]*)?\}")
+# Any single brace, for the report of a brace that string.Format would read as a placeholder.
+SINGLE_BRACE = re.compile(r"(?<!\{)\{(?!\{)|(?<!\})\}(?!\})")
+
+
+def placeholders(text: str) -> set[int]:
+    """The placeholder indices of a template ({} and {name} are not part of this format)."""
+    return {int(match.group("index")) for match in PLACEHOLDER.finditer(text)}
+
+
+def unescaped_brace(text: str) -> bool:
+    """True when a single (unescaped) brace stands in the text - string.Format would fail on it."""
+    stripped = PLACEHOLDER.sub("", text)
+    return bool(SINGLE_BRACE.search(stripped.replace("{{", "").replace("}}", "")))
+
+
+def check_placeholders(resources: dict[str, dict[str, str]], languages: list[str]) -> int:
+    """Compares the placeholders of every key across the languages. Returns the exit code."""
+    exit_code = 0
+    first = languages[0]
+    mismatched: list[str] = []
+    for language in languages[1:]:
+        for key, text in resources[language].items():
+            reference = resources[first].get(key)
+            if reference is None:
+                continue  # a key that exists in one language only is reported by the symmetry check
+            expected, found = placeholders(reference), placeholders(text)
+            if expected != found:
+                mismatched.append(
+                    f"  - [{language}] {key}: placeholders {sorted(expected)} in {first}, {sorted(found)} here"
+                )
+    if mismatched:
+        exit_code = 1
+        print(f"\n{len(mismatched)} key(s) whose placeholders differ between languages:")
+        for line in mismatched[:40]:
+            print(line)
+        if len(mismatched) > 40:
+            print(f"  ... and {len(mismatched) - 40} more")
+
+    # A stray brace is wrong in every language, including the first one: string.Format throws on it.
+    stray: list[str] = []
+    for language in languages:
+        for key, text in resources[language].items():
+            if unescaped_brace(text):
+                stray.append(f"  - [{language}] {key}: `{text}` carries a single brace")
+    if stray:
+        exit_code = 1
+        print(f"\n{len(stray)} string(s) with a brace that string.Format would read as a placeholder:")
+        for line in stray[:40]:
+            print(line)
+        if len(stray) > 40:
+            print(f"  ... and {len(stray) - 40} more")
+    return exit_code
+
+
 def load_resources() -> dict[str, dict[str, str]]:
     resources: dict[str, dict[str, str]] = {}
     for directory in RESOURCE_DIRS:
@@ -172,7 +232,27 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--list", action="store_true", help="list every string")
     parser.add_argument("--emit-en", metavar="FILE", help="write a template with only the missing keys")
+    parser.add_argument("--self-test", action="store_true",
+                        help="prove that a translation with wrong placeholders is reported")
     args = parser.parse_args()
+
+    if args.self_test:
+        # Two languages, one key, one dropped placeholder and one stray brace: both have to be reported.
+        probe = {
+            "en": {"Format_OK": "Copied {0} of {1}", "Format_Clean": "Nothing to replace"},
+            "xx": {"Format_OK": "Copied {1} of {2}", "Format_Clean": "Nothing to replace {"},
+        }
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            code = check_placeholders(probe, ["en", "xx"])
+        output = captured.getvalue()
+        reported = "Format_OK" in output and "Format_Clean" in output
+        print(output.strip())
+        if code != 0 and reported:
+            print("self-test ok: a dropped placeholder and a stray brace are both reported")
+            return 0
+        print("self-test FAILED: the placeholder check stays silent")
+        return 1
 
     used, dynamic_prefixes = used_keys()
     resources = load_resources()
@@ -194,6 +274,10 @@ def main() -> int:
             print(f"  ... and {len(missing) - 60} more")
         if missing:
             exit_code = 1
+
+    placeholder_code = check_placeholders(resources, languages)
+    if placeholder_code:
+        exit_code = 1
 
     if len(languages) > 1:
         first, *rest = languages

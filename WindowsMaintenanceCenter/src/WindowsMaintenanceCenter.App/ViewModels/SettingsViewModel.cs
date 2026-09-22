@@ -4,6 +4,7 @@ using WindowsMaintenanceCenter.App.Mvvm;
 using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Models;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.App.ViewModels;
 
@@ -53,8 +54,13 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public ObservableCollection<AuditEntry> RecentAudit { get; } = new();
 
-    public IReadOnlyList<LanguagePreference> Languages { get; } =
-        new[] { LanguagePreference.System, LanguagePreference.German, LanguagePreference.English };
+    /// <summary>
+    /// The languages this build can really show: read from the embedded catalogues, so a language is
+    /// never offered before its file exists (chapter 63). Recomputed on every read, and the base class
+    /// refreshes every binding when the language changes - that way the names in the list follow the
+    /// language the user just switched to.
+    /// </summary>
+    public IReadOnlyList<LanguagePreference> Languages => LanguageCatalog.OfferedPreferences();
 
     public IReadOnlyList<ThemePreference> Themes { get; } =
         new[] { ThemePreference.System, ThemePreference.Dark, ThemePreference.Light };

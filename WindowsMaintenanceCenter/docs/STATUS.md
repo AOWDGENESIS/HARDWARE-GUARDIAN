@@ -275,6 +275,14 @@ usage, `ApprovalRequestDraft`, `ApprovalRecord`, `ProblemDraft`.
 | **A checker that reports a correct construct.** The contract checker read `var build = new BuildInfoProvider(paths, paths).Get();` as binding `build` to `BuildInfoProvider`, ignored `.Get()` and reported three "has no member 'Version'" findings for `App.xaml.cs` - a false alarm that would have blocked every commit. | `tools/check-contracts.py`, `tools/check-mutation.py` | Constructor chains resolve through the return type of every link (methods now carry their return type, interfaces carried theirs already); an unresolved link ends the resolution instead of guessing, and an unknown receiver is never reported. The mutation self-test got a case for the *other* direction (`expect_clean`: a valid construct must stay silent), so a checker that cries wolf fails the same gate as one that stays silent - 16/16. |
 | **The checkers could not see what a binding engine does at run time.** `check-bindings.py` resolved paths only, `check-mutation.py` knew thirteen defects, and nothing measured the repository itself. | `tools/check-bindings.py`, `tools/check-mutation.py`, new `tools/check-repo-size.py`, `tools/verify-all.sh` | The binding checker now knows the TwoWay defaults of the WPF targets; the mutation file has 16 cases in both directions; a size budget (4 MB per file, 64 MB in total, 4000 files, 48 MB of evidence) with its own self-test keeps the repository reviewable, which is what a diff that never fills up depends on. |
 
+### The language selector was not translated, and there was no second chance to notice (2026-09-22)
+
+| Defect | Location | Fix |
+| --- | --- | --- |
+| **The language and theme selectors showed raw identifiers.** The settings page bound `ComboBox.ItemsSource` straight to `LanguagePreference` values, so a user who had just switched the interface to German was offered a list reading "System", "German", "English" - in every language. The theme list showed "System", "Dark", "Light" the same way. Chapter 63 asks for four languages and chapter 41 for a catalogue, and these two lists were the only place in the product where the *identifier* was shown instead of a translation - because a plain `{Binding}` to an enum needs a converter and nobody had added one. | new `EnumLocalizedNameConverter`, `App.xaml`, `App/Views/SettingsView.xaml`, `Core/Resources/{de,en}.json` | One converter turns the value into a catalogue key (`Language_` + value, `Theme_` + value) and the localizer resolves it; a missing catalogue entry shows the localizer's marker instead of a wrong name. Both selectors use it, and the keys (`Language_System/German/English/Japanese/Russian`, `Theme_System/Dark/Light`) exist in both catalogues. |
+| **A language could be offered without a catalogue, or shipped without being offered.** The loader had `new[] { "en", "de" }` written into it and the settings list had its own copy of the same two values - two places to keep in step, and neither would notice a third catalogue file. | new `Core/Services/LanguageCatalog.cs`, `Infrastructure/Localization/JsonLocalizer.cs`, `App/ViewModels/SettingsViewModel.cs` | Which languages exist is *measured* from the assembly: every embedded `Resources/<code>.json` is a shipped language. The loader loads exactly those, `LanguagePreference` gained `Japanese`/`Russian` so the interface can name them, and the settings list offers a language only when its catalogue is there. Adding `ja.json` and `ru.json` is now the whole remaining work for chapter 63 - no list has to be found and updated. |
+| **Nothing checked whether a translation keeps its placeholders.** `tools/check-localization.py` compared key sets, not the `{0}`/`{1}` inside the texts. A translation that renumbers or drops a placeholder is a `string.Format` failure at run time, and in a diff of prose it is invisible. | `tools/check-localization.py`, `tools/check-mutation.py`, `tools/verify-all.sh` | The checker compares the placeholder set of every key across all languages, reports a single unescaped brace (which `string.Format` would read as a placeholder), and has `--self-test` proving both are reported; mutation case 18 removes a placeholder from the German catalogue and the checker notices. 18/18. |
+
 ### What the checker cannot prove
 
 `tools/check-contracts.py` is a heuristic. It does **not** check method argument types or arity,
@@ -373,3 +381,13 @@ Diese Zeilen stehen hier, damit ein Leser den Zustand nicht aus einem Chat rekon
 * **Was ein neuer Zugang als Erstes tun sollte:** den Lauf zu `4e36846` ablesen und den Nachweisordner
   nach `test-results/` holen; danach `300d0a3` pushen und den nächsten Lauf ablesen. Erst dann darf
   die Messung der Reparaturwerkzeuge als Nachweis gelten.
+* **Die CI kann seit dem 2026-09-22 nicht mehr starten - und zwar nicht wegen des Codes.** Die Läufe
+  zu `c02d86c` (`35761467349`, `35761468380`) haben **keinen einzigen Schritt** ausgeführt; die
+  Anmerkung des Runners lautet im Klartext:
+  `The job was not started because recent account payments have failed or your spending limit needs to
+  be increased. Please check the 'Billing & plans' section in your settings`.
+  Das betrifft **beide** Workflows (den Bau- und den Referenzpaket-Workflow), also jede Form von
+  Nachweiserhebung auf einer Windows-Maschine. **Das kann nur der Kontoinhaber beheben** (Zahlung oder
+  Ausgabenlimit in den GitHub-Einstellungen). Bis dahin gilt: jeder weitere Push erzeugt einen Lauf,
+  der nichts tut, und jeder Nachweis, der noch fehlt, bleibt `BLOCKED` - nicht weil er widerlegt wäre,
+  sondern weil ihn niemand messen konnte. Der Stand ist in `docs/VM-CI.md` Abschnitt 4 festgehalten.

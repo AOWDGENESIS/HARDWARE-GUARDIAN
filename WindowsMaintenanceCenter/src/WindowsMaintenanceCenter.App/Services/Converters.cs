@@ -91,6 +91,49 @@ public sealed class LocalizedTextConverter : IValueConverter
 }
 
 /// <summary>
+/// Shows a setting whose value is an enum as its localized name.
+///
+/// Found on 2026-09-22 while wiring the four languages of chapter 63: the language selector showed the
+/// raw identifiers of the enum - "System", "German", "English" - in *every* language, and the theme
+/// selector showed "System", "Dark", "Light". A user interface that switches to German and then offers
+/// "German" in a drop down has not been translated at that place. The keys are built from a prefix
+/// (chapter 41 keeps keys stable), so the mapping lives in the catalogue and not in this class.
+/// </summary>
+public sealed class EnumLocalizedNameConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is null)
+        {
+            return string.Empty;
+        }
+
+        // Only the two enumerations of the settings page are named here. Anything else keeps its own
+        // text instead of inventing a key that no catalogue has.
+        var key = value switch
+        {
+            LanguagePreference => "Language_" + value,
+            ThemePreference => "Theme_" + value,
+            _ => null,
+        };
+
+        if (key is null)
+        {
+            return value.ToString() ?? string.Empty;
+        }
+
+        var localizer = AppServices.CurrentLocalizer;
+
+        // Without a localizer the identifier is still better than an empty row - and the marker of the
+        // localizer ([[Language_Japanese]]) is better than a name that was never translated.
+        return localizer is null ? value.ToString() ?? string.Empty : localizer[key];
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
 /// Renders a measured value as "value unit" or as the reason why it is unknown. A missing value is
 /// never rendered as 0.
 /// </summary>
