@@ -1,0 +1,19 @@
+PASS      precondition: nothing installed yet no uninstall entry for this product
+PASS      install (silent) setup returned 0
+PASS      uninstall entry Windows Maintenance Center 1.0.0 1.0.0 in HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{9F1C2A34-6F5B-4A72-9E3D-2D7A6A1C5B10}_is1
+PASS      installed program is the built one SHA-256 equals the published program
+PASS      installed version matches the build 1.0.0.0
+PASS      installed copy is not portable no marker and no data folder beside the program
+PASS      Start menu entry C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Uninstall Windows Maintenance Center.lnk; C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Windows Maintenance Center.lnk
+PASS      program starts still running after 20 s (pid 7576)
+PASS      use probe: log written technical-20260922.jsonl (2 log file(s))
+PASS      use probe: start line in the log {"ts":"2026-09-22T08:15:33.7451044+00:00","level":"Information","category":"WindowsMaintenanceCenter.App.App","eventId":0,"message":"started
+PASS      use probe: installed copy stays out of its own folder nothing was written next to the executable
+PASS      program closes exit code 0 after the window was closed
+PASS      uninstall (silent) unins000.exe
+PASS      uninstall entry removed no entry left in the uninstall registry
+PASS      program files removed the program folder is gone
+PASS      Start menu entry removed no shortcut left
+PASS      application data after uninstall C:\ProgramData\WindowsMaintenanceCenter (2 file(s)) - kept on purpose, the uninstaller asks before deleting
+PASS      portable artefact starts still running after 20 s (pid 6040)
+PASS      portable artefact keeps its data next to itself 2 file(s) in data

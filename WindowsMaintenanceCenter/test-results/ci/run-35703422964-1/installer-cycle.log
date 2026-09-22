@@ -1,0 +1,63 @@
+[INS-CI] preparing installer evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\installer\20260922T081524Z-INS-CI
+  sha256:WindowsMaintenanceCenter-Setup-x64.exe = a340cab9ce2065df91b5cb72768cd02ae9875d330f184296f39076f6abc99b03
+  sha256:WindowsMaintenanceCenter-Portable-x64.exe = caabd6fad7db7e7892a9578ae7b046e97d7c0960a6bdc055d310f80b460cd2dd
+  sha256:WindowsMaintenanceCenter.exe = 088bc0e751325c9a5dfb5338473b99bbe9d0bfb9cd58dec9ae4829d6bb14baa9
+  isAdministrator = True
+  PASS      precondition: nothing installed yet no uninstall entry for this product
+[INS-CI] installing silently
+  installExitCode = 0
+  PASS      install (silent) setup returned 0
+  PASS      uninstall entry Windows Maintenance Center 1.0.0 1.0.0 in HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{9F1C2A34-6F5B-4A72-9E3D-2D7A6A1C5B10}_is1
+  installLocation = C:\Users\runneradmin\AppData\Local\Programs\Windows Maintenance Center\
+  displayVersion = 1.0.0
+  publisher = AOWDGENESIS
+  estimatedSizeKb = 65396
+  installedExeSha256 = 088bc0e751325c9a5dfb5338473b99bbe9d0bfb9cd58dec9ae4829d6bb14baa9
+  installedFileVersion = 1.0.0.0
+  PASS      installed program is the built one SHA-256 equals the published program
+  PASS      installed version matches the build 1.0.0.0
+  PASS      installed copy is not portable no marker and no data folder beside the program
+  PASS      Start menu entry C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Uninstall Windows Maintenance Center.lnk; C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Windows Maintenance Center.lnk
+  PASS      program starts still running after 20 s (pid 7576)
+  startedProcessId = 7576
+  workingSetBytes = 246497280
+  dataFolderAfterStart = C:\ProgramData\WindowsMaintenanceCenter (2 file(s))
+  dataFile:technical-20260922.jsonl = 769 bytes, 2026-09-22T08:15:44
+  dataFile:state-journal.jsonl = 468 bytes, 2026-09-22T08:15:44
+  PASS      use probe: log written technical-20260922.jsonl (2 log file(s))
+[INS-CI] evidence: logs/technical-20260922.jsonl sha256=500501814f645cb034bc3b81f471f15e2c24bc28ed2dde197a9405e9182962dc
+[INS-CI] evidence: logs/startup-log-tail.txt sha256=500501814f645cb034bc3b81f471f15e2c24bc28ed2dde197a9405e9182962dc
+  PASS      use probe: start line in the log {"ts":"2026-09-22T08:15:33.7451044+00:00","level":"Information","category":"WindowsMaintenanceCenter.App.App","eventId":0,"message":"started
+  PASS      use probe: installed copy stays out of its own folder nothing was written next to the executable
+  PASS      program closes exit code 0 after the window was closed
+  PASS      uninstall (silent) unins000.exe
+  PASS      uninstall entry removed no entry left in the uninstall registry
+  PASS      program files removed the program folder is gone
+  PASS      Start menu entry removed no shortcut left
+  dataKeptAfterUninstall = C:\ProgramData\WindowsMaintenanceCenter
+  PASS      application data after uninstall C:\ProgramData\WindowsMaintenanceCenter (2 file(s)) - kept on purpose, the uninstaller asks before deleting
+  PASS      portable artefact starts still running after 20 s (pid 6040)
+  PASS      portable artefact keeps its data next to itself 2 file(s) in data
+  portableDataFiles = 2
+  portableDataFolder = C:\Users\runneradmin\AppData\Local\Temp\wmc-portable-cb0b4362\data
+[INS-CI] evidence: logs/steps.txt sha256=076a1abe1ca4e80a0779dc4f273bac1ee1c95b865adaa2ad65a19dd97d828724
+[INS-CI] evidence: logs/install.log sha256=8a5b0d8928d600595cb7a61049cf61b1b54e3044a847e32be3b6952262c0fd22
+[INS-CI] evidence: logs/uninstall.log sha256=87a929980842836e1f9df959ed78c4bda7a4ff627005ab1419f3483827ba957f
+the run report could not be completed: Exception: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1:413
+Line |
+ 413 |          throw "Complete-WmcEvidenceRun failed in line $($where.Script …
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Complete-WmcEvidenceRun failed in line 340: $report = [pscustomobject]@{ - Argument types do not match (stack:
+     | at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1:
+     | line 340 <- at <ScriptBlock>,
+     | D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-InstallerCycle.ps1: line 531)
+
+
+Exception: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1:413
+Line |
+ 413 |          throw "Complete-WmcEvidenceRun failed in line $($where.Script …
+     |          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Complete-WmcEvidenceRun failed in line 340: $report = [pscustomobject]@{ - Argument types do not match (stack:
+     | at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1:
+     | line 340 <- at <ScriptBlock>,
+     | D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-InstallerCycle.ps1: line 531)

@@ -1,0 +1,24 @@
+Evidence library self-test (chapter 71)
+[M00-E-001] preparing integration evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T081519Z-M00-E-001
+[M00-E-001] evidence: logs/selftest.txt sha256=f9fa7af8df33e10dabcb4c31c7813aeb64281b8528004e712d3087a6e981fb54
+  selftest.marker = 1
+  FAIL      the library completes a run - Complete-WmcEvidenceRun failed in line 340: $report = [pscustomobject]@{ - Argument types do not match (stack: at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1: line 340 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 83) | at line 413:         throw "Complete-WmcEvidenceRun failed in line $($where.ScriptLineNumber): $line - $($_.Exception.Message) (stack: $stack)" | stack: at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1: line 413 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 83
+  FAIL      report.json exists - D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T081519Z-M00-E-001\report.json
+  FAIL      report.txt exists - D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T081519Z-M00-E-001\report.txt
+  PASS      a PASSED report without evidence is refused - run M00-E-002 claims PASSED without a single piece of evidence or measurement
+
+Bisect: the same structures, built one at a time
+  PASS      plain [ordered] literal
+  PASS      a string value
+  PASS      a formatted timestamp value
+  PASS      a nested [ordered] dictionary
+  PASS      a nested pscustomobject
+  FAIL      a nested List[object] in an [ordered] literal - Argument types do not match | at line 161:         'a nested List[object] in an [ordered] literal' = { $null = [ordered]@{ l = @($run.Evidence) } } | stack: at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 161 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 188
+  FAIL      a nested List[object] in a pscustomobject - Argument types do not match | at line 163:         'a nested List[object] in a pscustomobject'    = { $null = [pscustomobject]@{ l = @($run.Evidence) } } | stack: at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 163 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 188
+  FAIL      a nested List[object] in a pscustomobject, written and read back - Argument types do not match | at line 165:             $probe = [pscustomobject]@{ id = 'M00-E-003'; l = @($run.Evidence) } | stack: at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 165 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 188
+  PASS      the version record of the run
+  PASS      a hashtable assigned to a variable
+  FAIL      all of it together - Argument types do not match | at line 173:             $null = [ordered]@{ | stack: at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 173 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 188
+
+  - Complete-WmcEvidenceRun failed: Complete-WmcEvidenceRun failed in line 340: $report = [pscustomobject]@{ - Argument types do not match (stack: at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1: line 340 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 83) | at line 413:         throw "Complete-WmcEvidenceRun failed in line $($where.ScriptLineNumber): $line - $($_.Exception.Message) (stack: $stack)" | stack: at Complete-WmcEvidenceRun, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1: line 413 <- at <ScriptBlock>, D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\vm\Test-EvidenceLibrary.ps1: line 83
+the run folder of the failed self-test: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T081519Z-M00-E-001
