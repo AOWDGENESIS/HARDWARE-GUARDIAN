@@ -32,8 +32,8 @@ Therefore, for the current revision:
 
 | Project | Files | Lines | Purpose | State |
 | --- | --- | --- | --- | --- |
-| `WindowsMaintenanceCenter.Core` | 45 | 7 900 | Domain + contracts + services, no Windows APIs, embedded `Resources/en.json` + `de.json` | Written; contract-checked; localisation 726/726 keys |
-| `WindowsMaintenanceCenter.Infrastructure` | 24 | 4 173 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
+| `WindowsMaintenanceCenter.Core` | 57 | 11 322 | Domain + contracts + services, no Windows APIs, embedded `Resources/{de,en,ja,ru}.json` (939 keys each) | Written; contract-checked; localisation 939/939 keys in four languages |
+| `WindowsMaintenanceCenter.Infrastructure` | 27 | 4 981 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
 | `WindowsMaintenanceCenter.Hardware` | 5 | 1 542 | WMI provider for real hardware, Secure Boot variable, TPM state, firewall profiles | Written; contract-checked |
 | `WindowsMaintenanceCenter.Sensors` | 2 | 524 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
 | `WindowsMaintenanceCenter.Drivers` | 1 | 277 | Driver inventory + PnP problem-code analysis | Written; contract-checked |
@@ -45,10 +45,10 @@ Therefore, for the current revision:
 | `WindowsMaintenanceCenter.Simulation` | 1 | 419 | `MockHardwareProvider` fixture, clearly labelled as simulation | Written; contract-checked |
 | `WindowsMaintenanceCenter.Reporting` | 1 | 939 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
 | `WindowsMaintenanceCenter.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
-| `WindowsMaintenanceCenter.App` | 17 | 2 701 | WPF shell: DI root, MVVM, Dark/Light theme, DE/EN at runtime, 5 pages | Written; XAML-checked |
-| `tests/WindowsMaintenanceCenter.Tests` | 19 | 3 035 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting, Windows update result codes and command-line safety | Written; contract-checked; **NOT EXECUTED** |
+| `WindowsMaintenanceCenter.App` | 21 | 3 709 | WPF shell: DI root, MVVM, Dark/Light theme, four languages at runtime, 7 pages | Written; XAML-checked; **NOT EXECUTED** |
+| `tests/WindowsMaintenanceCenter.Tests` | 28 | 6 317 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting, Windows update result codes and command-line safety, **one-click maintenance (19 cases: phase order, approval gate, deselect rule, backup order, measurement honesty, cancellation)** | Written; contract-checked; **NOT EXECUTED** |
 
-Total: **131 C# files, 26 647 lines (18 of them test files) + 10 XAML files** in 15 projects, all
+Total: **160 C# files, 35 646 lines (28 of them test files) + 12 XAML files** in 15 projects, all
 listed in `WindowsMaintenanceCenter.sln`.
 
 Delivery layer:
@@ -152,7 +152,7 @@ after the action is measured again by a new search instead of being assumed (UPD
 interface for selection and installation is **not built yet**.
 
 Tool numbers after this session: 133 C# files (19 of them test files) / 413 declared types,
-**742 localisation keys per language**, 10 XAML files with 151 bindings, 15 projects, and **13/13**
+**939 localisation keys per language**, 10 XAML files with 151 bindings, 15 projects, and **13/13**
 deliberate defects reported by the mutation self-test. What did **not** change: nothing here was compiled, no test was executed, and
 no machine was measured - the new readers have never seen a real TPM or a real firewall.
 
@@ -177,7 +177,7 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 | --- | --- | --- |
 | `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 154 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
 | `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 154 files / 455 types, 0 findings |
-| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 847 keys per language (de, en, ja, ru), 0 missing, 0 dead, placeholders equal across languages, single unescaped braces reported, `--self-test` for both, every catalogue must be embedded by its project | 4 languages, 0 findings |
+| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 939 keys per language (de, en, ja, ru), 0 missing, 0 dead, placeholders equal across languages, single unescaped braces reported, `--self-test` for both, every catalogue must be embedded by its project | 4 languages, 0 findings |
 | `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 11 files, 0 findings |
 | `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 11 files, 167 bindings, 0 findings |
 | `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 154 sources, 0 findings |
@@ -196,10 +196,13 @@ the views:
   the language, and selects **exactly one** hardware provider - `WindowsHardwareProvider`, or
   `MockHardwareProvider` when the application is started with `--simulation`. Simulation is never
   chosen automatically, and a banner stays visible while it is active.
-* Five pages exist and work against the real services: Overview (status, findings, sensors, modules,
+* Seven pages exist and work against the real services: Overview (status, findings, sensors, modules,
   report export), Hardware (components, details, origin of every value), Windows (checks, DISM, SFC,
   Defender, updates), Maintenance (scan, selection, **mandatory dry run**, approval, execute),
-  Settings (language, theme, offline mode, privacy of reports, locations, audit log).
+  One-click maintenance (the eight phases of chapter 33 with category deselection, risk display,
+  waiting approval, cancel button, before/after measurement and report), Recovery (the interrupted run
+  and its restoration) and Settings (language, theme, offline mode, privacy of reports, locations,
+  audit log).
 * Theme: Dark is the default, Light and System are selectable; colours live only in
   `Themes/Dark.xaml` and `Themes/Light.xaml`, so switching a theme changes open windows immediately.
 * Language: every visible string is resolved through `ILocalizer`; a change raises one notification
@@ -279,7 +282,13 @@ usage, `ApprovalRequestDraft`, `ApprovalRecord`, `ProblemDraft`.
 
 | Defect | Location | Fix |
 | --- | --- | --- |
-| **Chapter 63 asks for de-DE, en-US, ja-JP and ru-RU; the product shipped two.** The loader had `new[] { "en", "de" }`, the settings list had its own copy of the same two values, and `LanguagePreference` had only `German` and `English` - so there was no way to even *name* a third language. | new `Core/Resources/ja.json` and `Core/Resources/ru.json`, `Core/WindowsMaintenanceCenter.Core.csproj`, `tests/.../LocalizationTests.cs` | Both catalogues exist with **847 keys each**, the same keys as English and German, and the placeholders of every key are identical across all four languages (checked by `tools/check-localization.py` and by new unit tests that take the language list from the assembly instead of naming it). The project embeds `Resources/*.json` by glob, so a catalogue cannot sit in the folder without shipping. **Not claimed:** that the translations are linguistically reviewed - they are machine written and a native speaker review is an open point, named in `docs/RELEASE_STATUS.md`. Nor is the chapter 63 proof on a machine (`test-results/localization/` is empty): the interface cannot be started here. |
+| **Chapter 63 asks for de-DE, en-US, ja-JP and ru-RU; the product shipped two.** The loader had `new[] { "en", "de" }`, the settings list had its own copy of the same two values, and `LanguagePreference` had only `German` and `English` - so there was no way to even *name* a third language. | new `Core/Resources/ja.json` and `Core/Resources/ru.json`, `Core/WindowsMaintenanceCenter.Core.csproj`, `tests/.../LocalizationTests.cs` | Both catalogues exist with **939 keys each** (847 at the time of that fix, plus the keys the one-click page added later), the same keys as English and German, and the placeholders of every key are identical across all four languages (checked by `tools/check-localization.py` and by new unit tests that take the language list from the assembly instead of naming it). The project embeds `Resources/*.json` by glob, so a catalogue cannot sit in the folder without shipping. **Not claimed:** that the translations are linguistically reviewed - they are machine written and a native speaker review is an open point, named in `docs/RELEASE_STATUS.md`. Nor is the chapter 63 proof on a machine (`test-results/localization/` is empty): the interface cannot be started here. |
+
+### An M27 that only existed in the acceptance table (2026-09-23)
+
+| Defect | Location | Fix |
+| --- | --- | --- |
+| **Chapter 33 was listed as a P0 module and did not exist.** `docs/ABNAHME-WMC.md` named M27 under "nothing implemented", and nothing in the product offered the specified sequence. The maintenance page did the individual steps, but the run as a whole - discovery, diagnostic, plan, approval, backup, execution, validation, report - had no conductor, so no run could ever be checked against the specification. | new `Core/Services/OneClickMaintenanceService.cs`, `Core/Models/OneClickModels.cs`, `App/ViewModels/OneClickViewModel.cs`, `App/Views/OneClickView.xaml`, `tests/.../OneClickMaintenanceTests.cs` | The conductor runs exactly the eight phases in the specified order and refuses to skip a gate: without an approval of exactly this plan nothing is executed, a plan that needs a backup is secured first, and the final state is `SUCCESS` only when execution **and** validation happened. It writes every phase with what/why/risk/result to the live protocol, the audit log and the report, and it measures free space before and after. **Measured, not assumed:** a missing reading stays `UNKNOWN` (the delta is computed only when both readings exist, and the sum refuses to compare two different sets of volumes), and 19 unit tests pin the order, the approval gate, the deselect rule, the backup order, the state journal and the cancellation path. **Not claimed:** that this ran on Windows - it cannot here, because the CI is stopped by a billing problem, so `test-results/` stays empty for M27 and `docs/RELEASE_STATUS.md` keeps the gate open. |
 
 ### The language selector was not translated, and there was no second chance to notice (2026-09-22)
 

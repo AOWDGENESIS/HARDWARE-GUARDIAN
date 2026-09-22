@@ -33,6 +33,9 @@
             <DataTemplate DataType="{x:Type vm:MaintenanceViewModel}">
                 <views:MaintenanceView />
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:OneClickViewModel}">
+                <views:OneClickView />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
                 <views:RecoveryView />
             </DataTemplate>

@@ -55,6 +55,7 @@ public sealed class MainViewModel : ViewModelBase
         HardwareViewModel hardware,
         WindowsHealthViewModel windows,
         MaintenanceViewModel maintenance,
+        OneClickViewModel oneClick,
         RecoveryViewModel recoveryViewModel,
         SettingsViewModel settingsViewModel)
         : base(localizer)
@@ -75,6 +76,7 @@ public sealed class MainViewModel : ViewModelBase
         Hardware = hardware;
         WindowsHealth = windows;
         Maintenance = maintenance;
+        OneClick = oneClick;
         Recovery = recoveryViewModel;
         SettingsPage = settingsViewModel;
 
@@ -97,6 +99,7 @@ public sealed class MainViewModel : ViewModelBase
         Navigation.Add(new NavigationEntry("Navigation_Hardware", Hardware));
         Navigation.Add(new NavigationEntry("Navigation_Windows", WindowsHealth));
         Navigation.Add(new NavigationEntry("Navigation_Maintenance", Maintenance));
+        Navigation.Add(new NavigationEntry("Navigation_OneClick", OneClick));
         Navigation.Add(new NavigationEntry("Navigation_Recovery", Recovery));
         Navigation.Add(new NavigationEntry("Navigation_Settings", SettingsPage));
 
@@ -115,6 +118,9 @@ public sealed class MainViewModel : ViewModelBase
     public WindowsHealthViewModel WindowsHealth { get; }
 
     public MaintenanceViewModel Maintenance { get; }
+
+    /// <summary>One-click maintenance (module M27): the guided run through all eight phases.</summary>
+    public OneClickViewModel OneClick { get; }
 
     /// <summary>Recovery after an interrupted run (module M35).</summary>
     public RecoveryViewModel Recovery { get; }

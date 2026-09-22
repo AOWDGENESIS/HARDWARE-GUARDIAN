@@ -113,6 +113,27 @@ vier Situationen:
 | UI-02 | Fehlerbild WHAT/WHY/IMPACT/ACTION/LOG mit ID `WMC-<MODUL>-<Nr>` | vollständig sichtbar und kopierbar | Screenshot + Logauszug | NOT_STARTED |
 | UI-03 | Skalierung 100 % / 150 % / 200 %, Hochkontrast | keine abgeschnittenen Elemente | Screenshots | NOT_STARTED |
 
+## 8a. Ein-Klick-Wartung (Kapitel 33, Modul M27)
+
+Der Ablauf ist auf Codeebene gepinnt (19 Testfälle in `OneClickMaintenanceTests`), aber **kein
+Testfall ist ein ausgeführter Lauf**. Diese Fälle erheben den Nachweis auf der Maschine. Sie brauchen
+einen Menschen, weil die Freigabe ein Dialog ist - genau das ist M27-S-002/M27-S-003 in der Praxis.
+
+| ID | Fall | Erwartung | Nachweis | Zustand |
+| --- | --- | --- | --- | --- |
+| M27-01 | Lauf auf sauberer VM (VM-01), Standardkonto | acht Phasen in der Reihenfolge; ohne Freigabe wird nichts geändert; Abbruch ist möglich | Screenshot der Phasenliste + Bericht + Auszug des Journals (Zustandswechsel) | NOT_STARTED |
+| M27-02 | Abwahl einer Kategorie vor dem Start | die Kategorie steht im Plan als ausgelassen („left out: 1 by you"), sie wird nicht angefasst; ihre Dateien sind danach unverändert | Screenshot + Vorher/Nachher-Dateiliste des Prüfordners | NOT_STARTED |
+| M27-03 | Geschützte Kategorie ohne Häkchen | Phase Sicherung nennt „Sicherung erforderlich", die Freigabe zeigt den Plan, die Sicherung entsteht **vor** der Ausführung | Screenshot + Sicherungsordner mit Zeitstempel + Journal | NOT_STARTED |
+| M27-04 | Freigabe abgelehnt | Ergebnis `BLOCKED`, nichts gelöscht, offener Punkt genannt | Screenshot + Dateiliste unverändert | NOT_STARTED |
+| M27-05 | Freier Speicher vorher/nachher | gemessene Zahl, Delta gerechnet; ein nicht gemeldetes Laufwerk ergibt `UNKNOWN`, niemals 0 | Screenshot der Messzeile + Protokolleintrag mit Quelle | NOT_STARTED |
+| M27-06 | Abbruch während der Ausführung (Stopp-Knopf) | Ergebnis `CANCELLED`, die Operation ist im Journal benannt, die Recovery-Seite erkennt sie | Screenshot + Journalauszug + Recovery-Seite | NOT_STARTED |
+| M27-07 | Lauf im Leerlauf (keine auswählbare Kategorie) | Ergebnis `BLOCKED` mit Begründung, keine erfundene Erfolgsmeldung | Screenshot | NOT_STARTED |
+| M27-08 | Lauf ohne Netz (VM-03) | der lokale Ablauf läuft; Online-Teile melden „nicht verfügbar" | Protokoll + Netzstatus | NOT_STARTED |
+
+Nachweisordner: `test-results/safety/<Zeitstempel>-M27-<ID>/` mit Screenshot, Bericht, Journalauszug
+und `environment.json` (Kapitel 71). Ohne diese Dateien bleibt der Fall `NOT VERIFIED`, und ein
+fehlender Nachweis ist `BLOCKED`, nicht `PASSED` (Kapitel 2/68).
+
 ## 9. Was diese Matrix nicht ersetzt
 
 * Den Nachweis auf **physischer** Hardware für Temperatur, Lüfter, SMART, Akku und Gehäuse

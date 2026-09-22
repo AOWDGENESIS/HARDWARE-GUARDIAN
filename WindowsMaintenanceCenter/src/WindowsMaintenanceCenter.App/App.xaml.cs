@@ -267,6 +267,19 @@ public partial class App : Application
             sp.GetRequiredService<ISettingsService>(),
             sp.GetRequiredService<IClock>(),
             sp.GetRequiredService<IBackupService>()));
+        // One-click maintenance (module M27). The conductor gets the maintenance engine, the approval
+        // service and the report generator as they are wired above - it implements neither of them.
+        services.AddSingleton<IOneClickMaintenanceService>(sp => new OneClickMaintenanceService(
+            sp.GetRequiredService<ISystemStateMachine>(),
+            sp.GetRequiredService<IScanOrchestrator>(),
+            sp.GetRequiredService<IMaintenanceService>(),
+            sp.GetRequiredService<IApprovalService>(),
+            sp.GetRequiredService<IAuditLog>(),
+            sp.GetRequiredService<IReportGenerator>(),
+            sp.GetRequiredService<ILiveProtocol>(),
+            sp.GetRequiredService<IElevationService>(),
+            sp.GetRequiredService<IClock>(),
+            sp.GetRequiredService<ILogger<OneClickMaintenanceService>>()));
         services.AddSingleton<ISoftwareInventoryService, Maintenance.SoftwareInventoryService>();
         services.AddSingleton<IProcessInventoryService, Maintenance.ProcessInventoryService>();
         services.AddSingleton<IWorkloadDetector, Maintenance.WorkloadDetector>();
@@ -321,6 +334,7 @@ public partial class App : Application
         services.AddSingleton<HardwareViewModel>();
         services.AddSingleton<WindowsHealthViewModel>();
         services.AddSingleton<MaintenanceViewModel>();
+        services.AddSingleton<OneClickViewModel>();
         services.AddSingleton<RecoveryViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindow>();
