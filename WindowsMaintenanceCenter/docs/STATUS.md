@@ -17,12 +17,12 @@ Last updated: 2026-09-20 (seventh session)
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
 | Syntax check (tree-sitter C# grammar) | AVAILABLE | All 131 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
-| Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 348 cases, 0 failed, run `35507347841`; the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260920T111746Z-348-of-348/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
+| Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 359 cases, 0 failed, run `35694300454`; the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260922T062120Z-359-of-359/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
 
 Therefore, for the current revision:
 
 - Build status: **BUILT ON THE WINDOWS CI MACHINE** (run `35505778032`, 0 errors, 50 warnings); **never built in this container**
-- Test status: **348 cases executed, 348 passed on the Windows CI machine**; nothing verified on the target machine
+- Test status: **359 cases executed, 359 passed on the Windows CI machine**; nothing verified on the target machine
 - Type correctness: **NOT VERIFIED** (no compiler available)
 - Runtime behaviour on Windows: **NOT VERIFIED** (no Windows, no hardware)
 
