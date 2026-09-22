@@ -247,9 +247,17 @@ jobs:
       # runner busy until it was cancelled. With a limit the run ends, the record step below still
       # writes the log into the branch, and the log says where it stood.
       - name: Installation cycle on this machine (gate 7)
+        # Runs independently of the test step on purpose: the installation and the portable artefact
+        # are separate proofs, and run 35696805257 showed what it costs when a failed unit test step
+        # swallows them. A run without a release ends here with a sentence instead of an error.
+        if: always()
         timeout-minutes: 15
         shell: pwsh
         run: |
+          if (-not (Test-Path 'artifacts/release/WindowsMaintenanceCenter-Setup-x64.exe')) {
+            Write-Host 'this run produced no installer - the installation cycle has nothing to test'
+            exit 0
+          }
           $log = 'artifacts/ci/installer-cycle.log'
           pwsh ./scripts/vm/Test-InstallerCycle.ps1 -StartedBy "ci-runner $env:GITHUB_RUN_ID" *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "the installation cycle found problems (see artifacts/ci/installer-cycle.log and test-results/installer)" }

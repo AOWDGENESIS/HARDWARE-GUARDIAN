@@ -220,6 +220,8 @@ public sealed class ReportGeneratorTests
         var lines = content.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
         // The line break of the document itself ends a line; what must not appear is a line break
         // or escape *inside* a value.
+        // Ordinal, not culture-aware: a control character is an ignorable character for a
+        // culture-aware comparison, and an all-ignorable search text matches every line.
         Assert.All(lines, line => Assert.DoesNotContain('\u001b', line));
         Assert.All(lines, line => Assert.DoesNotContain('\u0007', line));
         Assert.All(lines, line => Assert.DoesNotContain('\r', line));
@@ -289,18 +291,56 @@ public sealed class ReportGeneratorTests
         var json = await generator.GenerateAsync(injected, ReportFormat.Json, Options(), CancellationToken.None);
         var payload = await File.ReadAllTextAsync(json.FilePath);
 
-        foreach (var document in new[] { content, markup, payload })
-        {
-            Assert.DoesNotContain("\u202E", document);
-            Assert.DoesNotContain("\u200B", document);
-            Assert.DoesNotContain("\uFEFF", document);
-            Assert.DoesNotContain("\uDB40", document);
-            Assert.Contains("\\u202E", document);
-        }
+        AssertNoRawSteeringCharacter("text report", content);
+        AssertNoRawSteeringCharacter("HTML report", markup);
+        AssertNoRawSteeringCharacter("JSON report", payload);
 
         // What is unusual but harmless stays: the value must still be recognisable, not removed.
         Assert.Contains("GPU", content);
         Assert.Contains("KO", content);
+    }
+
+    /// <summary>
+    /// Checks one document and names the position and the surroundings of the first raw character that
+    /// steers a reader.
+    ///
+    /// Two findings of the run 35696805257 are baked into this helper:
+    ///
+    /// 1. **The comparison has to be ordinal.** `Assert.DoesNotContain("\u202E", document)` reports a
+    ///    hit even in a clean document: xUnit compares strings culture-aware by default, and a search
+    ///    text that consists *only* of an ignorable character matches at position 0 of every text. The
+    ///    failure message said exactly that - "(pos 0)" with the beginning of the document as the
+    ///    "found" context. The code was right; the assertion was wrong. Found on 2026-09-22.
+    /// 2. **A test that does not say where leaves the reader searching.** The window below names the
+    ///    position, the total length and the surroundings, so the next failure needs no guessing.
+    ///
+    /// The report is written in three formats and the HTML report carries the text report inside it,
+    /// so a hole in one format appears in two documents - hence the label.
+    /// </summary>
+    private static void AssertNoRawSteeringCharacter(string label, string document)
+    {
+        // The byte order mark of the file itself is not a steering character: the text report is
+        // written with a BOM on purpose so that an editor recognises the encoding. What must not
+        // appear is a mark in the middle of a value.
+        var searchFrom = document.Length > 0 && document[0] == '\uFEFF' ? 1 : 0;
+
+        foreach (var character in new[] { '\u202E', '\u200B', '\uFEFF', '\uDB40' })
+        {
+            var index = document.IndexOf(character, searchFrom);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            var from = Math.Max(0, index - 90);
+            var window = document.Substring(from, Math.Min(220, document.Length - from))
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n");
+            Assert.Fail(
+                $"{label}: the raw character U+{(int)character:X4} stands at position {index} of {document.Length} characters, in: ...{window}...");
+        }
+
+        Assert.Contains("\\u202E", document, StringComparison.Ordinal);
     }
 
     private static ReportGenerator CreateGenerator(TempPathProvider paths) => new(

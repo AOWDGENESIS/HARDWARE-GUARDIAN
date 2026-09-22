@@ -412,7 +412,7 @@ public sealed class ReportGenerator : IReportGenerator
                 builder.AppendLine(_localizer.Culture, $"{_localizer["Report_FailedReads"]}: {snapshot.InventoryFailedReads}");
                 foreach (var note in snapshot.InventoryNotes)
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {note}");
+                    builder.AppendLine(_localizer.Culture, $"    {Safe(note)}");
                 }
             }
             builder.AppendLine();
@@ -461,7 +461,7 @@ public sealed class ReportGenerator : IReportGenerator
 
                 if (component.DeviceInstanceId.IsKnown)
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_DeviceInstanceId"]}: {MaskSerial(component.DeviceInstanceId.Display, options)}");
+                    builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_DeviceInstanceId"]}: {Safe(MaskSerial(component.DeviceInstanceId.Display, options))}");
                 }
             }
 
@@ -493,7 +493,7 @@ public sealed class ReportGenerator : IReportGenerator
             {
                 builder.AppendLine(_localizer.Culture, $"{Safe(update.DeviceName.Display)}: {update.Status} ({Safe(update.Installed.Raw.Display)} -> {Safe(update.Available.Raw.Display)})");
                 builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Reason"]}: {_localizer.Resolve(update.Reason)}");
-                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Source"]}: {update.Source.AdapterId} · {update.Source.Trust} · {update.Source.Verification}");
+                builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Source"]}: {Safe(update.Source.AdapterId)} · {update.Source.Trust} · {update.Source.Verification}");
                 if (!string.IsNullOrWhiteSpace(update.BlockedReasonCode))
                 {
                     builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Blocked"]}: {update.BlockedReasonCode}");
@@ -512,7 +512,7 @@ public sealed class ReportGenerator : IReportGenerator
                 builder.AppendLine(_localizer.Culture, $"{result.PlanId} [{result.Mode}] {result.StartedAt:yyyy-MM-dd HH:mm:ss} — {_localizer.Resolve(result.Summary)}");
                 foreach (var item in result.Items)
                 {
-                    builder.AppendLine(_localizer.Culture, $"    {item.Category,-28} {item.Outcome,-10} {(item.Message is null ? string.Empty : _localizer.Resolve(item.Message))}");
+                    builder.AppendLine(_localizer.Culture, $"    {item.Category,-28} {item.Outcome,-10} {Safe(item.Message is null ? string.Empty : _localizer.Resolve(item.Message))}");
                 }
             }
 
@@ -537,7 +537,7 @@ public sealed class ReportGenerator : IReportGenerator
             builder.AppendLine(new string('-', 78));
             foreach (var entry in request.Audit)
             {
-                builder.AppendLine(_localizer.Culture, $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Operation,-14} {entry.Category,-12} {entry.Result,-10} {entry.OperationKey}");
+                builder.AppendLine(_localizer.Culture, $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}  {entry.Operation,-14} {entry.Category,-12} {entry.Result,-10} {Safe(entry.OperationKey)}");
                 if (!string.IsNullOrWhiteSpace(entry.Error))
                 {
                     builder.AppendLine(_localizer.Culture, $"    {_localizer["Report_Error"]}: {Safe(entry.Error)}");
