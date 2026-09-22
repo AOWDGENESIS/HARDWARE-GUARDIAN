@@ -213,7 +213,8 @@ jobs:
             'WindowsMaintenanceCenter-Portable-x64.exe',
             'WindowsMaintenanceCenter-Setup-x64.exe',
             'WindowsMaintenanceCenter-Checksums.txt',
-            'WindowsMaintenanceCenter-ReleaseNotes.txt'
+            'WindowsMaintenanceCenter-ReleaseNotes.txt',
+            'WindowsMaintenanceCenter-Portable-README.txt'
           )
           foreach ($name in $required) {
             $path = Join-Path $release $name
@@ -235,6 +236,16 @@ jobs:
             if ($actual -ne $parts[0]) { throw "checksum mismatch for $($parts[1])" }
           }
           Write-Host 'all checksums match the artefacts'
+
+      # Gate 7 (chapter 62): install, start, probe that it really ran, uninstall, and prove that the
+      # portable artefact keeps its data next to itself. The evidence lands in test-results/installer
+      # and is recorded with the run like every other proof.
+      - name: Installation cycle on this machine (gate 7)
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/installer-cycle.log'
+          pwsh ./scripts/vm/Test-InstallerCycle.ps1 -StartedBy "ci-runner $env:GITHUB_RUN_ID" *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the installation cycle found problems (see artifacts/ci/installer-cycle.log and test-results/installer)" }
 
       # The runner is the only machine that can see the build output, and its own log download is not
       # reachable from where this project is developed. So the run writes its logs and its test results
@@ -268,6 +279,17 @@ jobs:
           git config user.email 'ci@users.noreply.github.com'
           git add --force $target
           $staged = git status --porcelain $target
+          # The installation cycle files its own proof under test-results/installer; it belongs into the
+          # record for the same reason as the unit proof.
+          $installerEvidence = 'test-results/installer'
+          if (Test-Path $installerEvidence) {
+            Get-ChildItem -Path $installerEvidence -Recurse -File | Where-Object { $_.Length -gt 8MB } | ForEach-Object {
+              Write-Host "not keeping $($_.Name): $($_.Length) bytes"
+              Remove-Item $_.FullName
+            }
+            git add --force $installerEvidence
+            $staged += git status --porcelain $installerEvidence
+          }
           if (Test-Path $unitEvidence) {
             # The TRX file is the proof of the unit run; only something implausibly large is left out,
             # and then the console log next to it still names every case.

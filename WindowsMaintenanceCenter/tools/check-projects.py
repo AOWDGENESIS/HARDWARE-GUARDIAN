@@ -132,6 +132,38 @@ class Project:
             self.usings.update(USING.findall(content))
 
 
+def check_portable_marker() -> list[str]:
+    """The build switch and the reader of the marker have to name the same thing.
+
+    Why this check exists (found 2026-09-22): the portable artefact was published as one executable,
+    but its portability depended on a marker file the release wrote into the *build* folder. Nothing
+    failed - and the delivered executable wrote its data into %ProgramData%. The name of the marker is
+    therefore written in two places (the project that puts it into the assembly and PortableMode that
+    reads it), and this check keeps the two in step.
+    """
+    findings: list[str] = []
+    constant = 'public const string EmbeddedMarkerKey = "WmcPortableDefault"'
+    declaring = [
+        path for path in (ROOT / "src").rglob("*.cs")
+        if constant in path.read_text(encoding="utf-8", errors="replace")
+    ]
+    projects = [
+        path for path in ROOT.rglob("*.csproj")
+        if 'Include="WmcPortableDefault"' in path.read_text(encoding="utf-8", errors="replace")
+    ]
+
+    if not declaring:
+        findings.append(
+            "no source declares PortableMode.EmbeddedMarkerKey = \"WmcPortableDefault\" - the published "
+            "executable would carry a marker nobody reads")
+    if not projects:
+        findings.append(
+            "no project puts the assembly metadata WmcPortableDefault into a build - the portable "
+            "publish switch -Portable would have no effect")
+
+    return findings
+
+
 def main() -> int:
     project_files = sorted(SRC.rglob("*.csproj"))
     if TESTS.is_dir():
@@ -188,6 +220,7 @@ def main() -> int:
                 findings.append(f"{project.relative}: uses '{used}' but no referenced project provides it")
 
     findings.extend(check_build_configuration())
+    findings.extend(check_portable_marker())
 
     print(f"inspected {len(projects)} project(s), {sum(p.source_count for p in projects)} source file(s)")
     if findings:

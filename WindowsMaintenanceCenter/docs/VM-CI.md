@@ -31,10 +31,32 @@ Windows-Umgebung dort, wo sie wirklich existiert: als **Windows-VM eines GitHub-
 | Installer | Inno Setup (`iscc`) | `WindowsMaintenanceCenter-Setup-x64.exe` |
 | Prüfsummen | `scripts/release.ps1` | SHA-256 über alle Artefakte, Gegensprüfung durch den Workflow |
 | Umgebung | `Get-CimInstance`, `dotnet --info` | Betriebssystem, Hypervisor, CPU, RAM, SDK, Runtimes und **was fehlt** |
+| Installationszyklus (Gate 7) | `scripts/vm/Test-InstallerCycle.ps1` | installieren, Layout und SHA-256 gegen den Bau prüfen, starten, **Nutzungssonde** (Datenordner und Logdatei entstehen), beenden, deinstallieren, prüfen was weg ist und was bewusst bleibt — und zum Schluss das portable Artefakt in einen **leeren Ordner** kopieren und nachweisen, dass es seine Daten **neben sich** ablegt. Nachweis unter `test-results/installer/` |
 
 Die Logs jedes Schritts und die TRX-Datei werden vom Lauf zurück in den Zweig geschrieben
 (`test-results/ci/run-<Laufnummer>/`). Das ist nötig, weil der Log-Download des Runners von hier aus
 nicht erreichbar ist; der Nachweis steht damit im Repository, nicht nur im Runner.
+
+### 2a. Warum der Installationszyklus im CI läuft (Befund vom 2026-09-22)
+
+Bis zum 2026-09-22 stand hier, der CI könne „installieren, reparieren und deinstallieren" **nicht**
+belegen. Das war zu streng: die CI-VM *kann* installieren, starten und deinstallieren, sie kann nur
+nicht *bedienen*. Die einzige Sache, die bis dahin niemandem auffiel, war genau die, die sie hätte
+auffallen lassen: **das ausgelieferte Portable-Artefakt war nicht portabel.** Es besteht aus *einer*
+Datei, aber der Portabel-Modus hing an einer Markierungsdatei *daneben* — die der Bau in den
+Ausgabebordner schrieb, nicht auf die ausgelieferte Datei. Baulog und Prüfsummen waren korrekt, und
+„ist portabel" stand in einem Bericht, der nie ausgeführt wurde. Gefunden wurde das zu Fuß beim Lesen
+von `release.ps1`; gefunden hätte es ein einziger Start der ausgelieferten Datei in einem leeren
+Ordner. Genau diesen Start macht `Test-InstallerCycle.ps1` jetzt in jedem Lauf.
+
+Was der Zyklus im CI **belegt**: dass der Installer auf einer echten Windows-Maschine installiert,
+dass die installierte Datei byteweise die gebaute ist, dass das Programm startet und wirklich läuft
+(Datenordner, Logzeile), dass die installierte Kopie ihre Daten **nicht** neben sich schreibt, dass
+die Deinstallation Eintrag, Programmdateien und Verknüpfung entfernt und die Daten nach Rückfrage
+behält — und dass das portable Artefakt seine Daten neben sich ablegt.
+Was er **nicht** belegt: Reparaturinstallation, Upgrade über eine Vorgängerversion, Neustart,
+Installation auf D:, E:, F: und „USE" im Sinne von Kapitel 62 (ein Mensch, der die Oberfläche
+bedient). Diese Punkte bleiben offen und werden im Bericht des Zyklus als offene Punkte genannt.
 
 ## 3. Was dieser Rechner **nicht** belegen kann
 

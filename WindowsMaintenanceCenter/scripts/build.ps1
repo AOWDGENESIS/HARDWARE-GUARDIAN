@@ -22,6 +22,10 @@
 .PARAMETER OutputDirectory
     Publish output (default: artifacts/portable).
 
+.PARAMETER Portable
+    Publishes an executable that carries the portable marker inside (PortableMode). Without it the
+    published program uses the installed layout and keeps its data in %ProgramData%.
+
 .EXAMPLE
     pwsh ./scripts/build.ps1 -Configuration Release
 
@@ -35,6 +39,11 @@ param(
     [bool]$SelfContained = $true,
     [string]$OutputDirectory = 'artifacts/portable',
     [switch]$SkipPublish,
+
+    # Marks the published executable as portable: it then keeps its data next to itself without any
+    # extra file. Only the portable artefact is built with this switch - an installed copy must use
+    # the installed layout (chapter 82).
+    [switch]$Portable,
     [switch]$NoRestore
 )
 
@@ -118,6 +127,11 @@ try {
             "-p:SourceRevisionId=$revision",
             "-p:BuildDate=$buildDate"
         )
+
+        if ($Portable) {
+            $publishArguments += '-p:WmcPortableDefault=true'
+        }
+
         Invoke-DotNet -Arguments $publishArguments
         Write-Host "published: $(Join-Path $output 'WindowsMaintenanceCenter.exe')" -ForegroundColor Green
     }

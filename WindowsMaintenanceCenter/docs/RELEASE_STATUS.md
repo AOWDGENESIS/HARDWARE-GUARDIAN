@@ -13,6 +13,12 @@ fehlgeschlagen), Portable-EXE, Inno-Setup-Installer, Prüfsummendatei und die Ge
 Prüfsummen. Die Nachweise liegen im Zweig (`test-results/unit/20260922T062120Z-359-of-359/`,
 `test-results/ci/run-35505778032-1/`).
 
+Ein Befund des 2026-09-22 gehört zum Entscheid dazu: **das ausgelieferte Portable-Artefakt war nicht
+portabel** — der Portabel-Modus hing an einer Datei *neben* der ausgelieferten Einzeldatei, die es dort
+nie gab. Der Fehler ist behoben (Marker in der Assembly, `-Portable` beim Publish, Kompilierzeitprüfung
+im Installer, Nachweis im Installationszyklus), aber die Auslieferungsform ist damit **von neuem zu
+prüfen**: bis der Zyklus gelaufen ist, trägt keine Zeile dieses Dokuments einen Nachweis dafür.
+
 Der Entscheid bleibt trotzdem `RELEASE_BLOCKED`, weil die Nachweise fehlen, die **nur die
 Zielmaschine** liefern kann: kein einziger der vierzehn Sicherheitsangriffe ist ausgeführt, keine
 Installation, kein Offline-Betrieb, kein Neustart-/Recovery-Fall, keine Sensorik, kein UAC-Abbruch,
@@ -62,9 +68,9 @@ BLOCKED
 | Gate 4 Security | M32, M33, M44 | Keiner der 14 Pflichtangriffe (Command Injection, Path Traversal, Argument Injection, Privilege Escalation, Tampered Config, Tampered Update, Invalid Signature, Corrupt Backup, No Admin, UAC Cancel, Process Abort, Log Manipulation, Database Corruption, Report Injection) ist ausgeführt | `test-results/security/` ist leer | Angriffe auf isolierter Windows-VM ausführen (`docs/TESTMATRIX-VM.md`, Abschnitt 7) und belegen |
 | Gate 5 Safety | M04, M24, M25, M27, M31, M34 | Approval-, Backup-, Rollback- und Admin-Grenze sind implementiert und unit-getestet, aber nicht auf einer Maschine durchlaufen | `test-results/safety/` ist leer | Matrizen Kapitel 76/77 auf Standardnutzer- und Adminkonto (`scripts/vm/Test-UacMatrix.ps1`) |
 | Gate 6 Offline | M29 | Offline-Betrieb aller lokalen Module nie gemessen | `test-results/offline/` ist leer | VM ohne Netz, Kapitel 61 |
-| Gate 7 Installer (Rest) | M40, M41 | Keine Installation, kein Upgrade, keine Reparatur, keine Deinstallation, keine erneute Installation ausgeführt | `installer/WindowsMaintenanceCenter.iss`; `test-results/installer/` leer | Kapitel 62/74 auf sauberer VM |
+| Gate 7 Installer (Rest) | M40, M41 | Neuinstallation, Deinstallation und der portable Datenspeicherort laufen jetzt im CI-Zyklus (`scripts/vm/Test-InstallerCycle.ps1`, Kapitel 62) — bis zu dessen erstem grünen Lauf steht hier **kein** Nachweis. Es fehlen weiterhin Reparatur, Upgrade, Neustart, Installation auf weiteren Laufwerken und „USE" (Kapitel 74) | `test-results/installer/` | Kapitel 62/74 auf sauberer VM, Einzelpunkte wie im Zyklusbericht aufgeführt |
 | Gate 8 Localization | M37 | Japanisch und Russisch fehlen vollständig | `src/WindowsMaintenanceCenter.Core/Resources/` | ja-JP und ru-RU übersetzen, dann Kapitel 63 prüfen |
-| Gate 9 Recovery | M35, M34 | Recovery-Engine nicht implementiert; Testfälle A/B/C nicht gelaufen | `test-results/recovery/` leer | M35 umsetzen, Kapitel 64 nachweisen |
+| Gate 9 Recovery | M35, M34 | Die Recovery-Engine ist umgesetzt und unit-getestet (11 Testfälle, Zustandsbuchhaltung im Journal), aber Kapitel 64 verlangt den Lauf auf der Maschine: keine Unterbrechung, kein Rollback über einen Neustart, kein Nachweis mit echten Dateien | `test-results/recovery/` leer | Recovery-Fälle A/B/C auf der Ziel-VM fahren (`scripts/vm/`, `docs/TESTMATRIX-VM.md`) und belegen |
 | Gate 10 Final VM | M46 | Keine Windows-11-x64-VM mit UEFI, Secure Boot und TPM verfügbar | `test-results/release/` leer | Kapitel 52/65 auf sauberer VM |
 | P0-MUSS | M34, M35 | Zustandsmodell ist an Kapitel 40 angeglichen, aber der Zustand wird noch nicht persistiert (M34-F-001) und unterbrochene Jobs werden nicht erkannt (M34-R-001/M35) | `Core/Services/SystemStateMachine.cs` (nur Arbeitsspeicher) | Persistenz plus Recovery-Engine nach Kapitel 40/41 |
 | P0-Umfang | M35, M26, M27, M05, M11, M14, M20, M42 | Module fehlen ganz oder überwiegend | `docs/ABNAHME-WMC.md` Abschnitt 1 | Module umsetzen |

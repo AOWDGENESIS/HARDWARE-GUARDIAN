@@ -11,7 +11,9 @@
   #define AppVersion "1.0.0"
 #endif
 #ifndef SourceDirectory
-  #define SourceDirectory "..\artifacts\portable"
+  ; Whoever compiles this file by hand gets the program folder of the release, not the portable one:
+  ; the portable artefact carries its marker inside and would be refused below.
+  #define SourceDirectory "..\artifacts\install"
 #endif
 #ifndef OutputDirectory
   #define OutputDirectory "..\artifacts\release"
@@ -20,6 +22,16 @@
 #define AppName "Windows Maintenance Center"
 #define AppPublisher "AOWDGENESIS"
 #define AppExeName "WindowsMaintenanceCenter.exe"
+
+; A source folder that contains the portable marker file would install a program that keeps its data
+; next to the executable - inside the program folder. That is refused while the setup is compiled.
+;
+; Until 2026-09-22 this was a runtime check inside InitializeSetup, and it could never fire: the guard
+; tested the relative source path of the build machine against the working directory of the machine
+; that started the setup. A guard that cannot fire is worse than no guard, because it looks like one.
+#if FileExists(SourceDirectory + "\WindowsMaintenanceCenter.portable")
+  #error The installer source folder contains the portable marker file. An installed copy must not be portable: publish the program folder without -Portable.
+#endif
 
 [Setup]
 AppId={{9F1C2A34-6F5B-4A72-9E3D-2D7A6A1C5B10}
@@ -57,13 +69,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startupcheck"; Description: "Start {#AppName} after the setup"; GroupDescription: "Optional"; Flags: unchecked
 
 [Files]
-; The published portable build is the single source for both delivery forms.
+; The program folder is published without the portable marker (scripts/release.ps1 publishes it with
+; -OutputDirectory artifacts/install and without -Portable), so the installed copy uses the installed
+; layout: data below %ProgramData%\WindowsMaintenanceCenter, never next to the executable.
 Source: "{#SourceDirectory}\WindowsMaintenanceCenter.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDirectory}\README.txt"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-; The portable marker file next to the exe switches the application to portable mode (data below
-; the executable). An installed copy must keep its data in %ProgramData%\WindowsMaintenanceCenter, so the
-; marker is deliberately NOT installed and the installer refuses a source folder that contains it.
-Source: "{#SourceDirectory}\WindowsMaintenanceCenter.portable"; DestDir: "{tmp}"; Flags: dontcopy skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -78,20 +88,6 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 ; only removed after the user confirmed it - settings and audit trail are evidence, not waste.
 
 [Code]
-function InitializeSetup(): Boolean;
-var
-  MarkerInSource: String;
-begin
-  Result := True;
-  MarkerInSource := ExpandConstant('{#SourceDirectory}\WindowsMaintenanceCenter.portable');
-  if FileExists(MarkerInSource) then
-  begin
-    MsgBox('The source folder contains the portable marker file "WindowsMaintenanceCenter.portable".' + #13#10 +
-           'That build stores its data next to the executable, which conflicts with an installed copy.' + #13#10#13#10 +
-           'Build the installer from a source folder without the marker.', mbError, MB_OK);
-    Result := False;
-  end;
-end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var

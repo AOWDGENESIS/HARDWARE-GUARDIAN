@@ -38,6 +38,8 @@ diese Angaben im Umgebungsrecord fest; ein abweichendes System wird nicht als er
 | INS-04 | Reparaturinstallation | fehlende Dateien werden wiederhergestellt | Installer-Log | NOT_STARTED |
 | INS-05 | Deinstallation | keine Reste: keine Dienst-, Task- oder Autostarteinträge, kein Datenverzeichnis ohne Hinweis | Registry-/Dateisystem-Vergleich vorher/nachher | NOT_STARTED |
 | INS-06 | Erneute Installation nach der Deinstallation | vollständige Funktion wie bei INS-01 | Installer-Log | NOT_STARTED |
+| INS-CI | **Installationszyklus auf der CI-Maschine** (Gate 7, Kapitel 62/71): Silent-Installation → Layout, Version und SHA-256 gegen den Bau → Start → Nutzungssonde (Datenordner + Logdatei) → Silent-Deinstallation → Restprüfung (Eintrag, Dateien, Verknüpfung weg; Daten bewusst behalten) | der Zyklus läuft durch und findet nichts; offen bleiben Reparatur, Upgrade, Neustart, weitere Laufwerke und „USE" (Kapitel 62) — der Bericht nennt sie als offene Punkte | `test-results/installer/` | NOT_STARTED |
+| INS-07 | **Portables Artefakt in einem leeren Ordner**, ohne jede Beigabedatei | legt `data\` neben der Datei an; die Portabilität darf nicht von einer zweiten Datei abhängen (Befund vom 2026-09-22) | `test-results/installer/` (Schritt „portable artefact keeps its data next to itself") | NOT_STARTED |
 
 ## 3. Backup-Testmatrix (Kapitel 75)
 

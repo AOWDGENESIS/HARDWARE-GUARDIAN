@@ -1,5 +1,6 @@
 using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Abstractions;
+using WindowsMaintenanceCenter.Core.Services;
 
 namespace WindowsMaintenanceCenter.Infrastructure.Platform;
 
@@ -12,7 +13,6 @@ namespace WindowsMaintenanceCenter.Infrastructure.Platform;
 public sealed class PathProvider : IPathProvider, IEnvironmentProbe
 {
     private const string ProductFolderName = "WindowsMaintenanceCenter";
-    private const string PortableMarkerFileName = "WindowsMaintenanceCenter.portable";
 
     private readonly Lazy<string> _applicationRoot;
     private readonly Lazy<bool> _isPortable;
@@ -31,26 +31,14 @@ public sealed class PathProvider : IPathProvider, IEnvironmentProbe
     public bool IsPortable => _isPortable.Value;
 
     /// <summary>
-    /// Portable when the portable marker file exists next to the executable or the process was
-    /// started with <c>--portable</c>. Portable layouts must never write to ProgramData.
+    /// Portable when the command line asks for it, when the executable carries the marker inside its
+    /// own metadata (the single-file artefact does) or when the marker file lies next to the
+    /// executable (the folder form). Portable layouts must never write to ProgramData. The decision
+    /// lives in <see cref="PortableMode"/> because it is the part a delivered artefact can get wrong
+    /// without anything failing, and a decision nobody tests is a decision nobody knows.
     /// </summary>
-    private bool ResolvePortable()
-    {
-        if (IsPortableRequested)
-        {
-            return true;
-        }
-
-        try
-        {
-            var marker = Path.Combine(_applicationRoot.Value, PortableMarkerFileName);
-            return File.Exists(marker);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
+    private bool ResolvePortable() =>
+        PortableMode.IsActive(CommandLineArguments, _applicationRoot.Value, PortableMode.IsEmbedded());
 
     private string ResolveApplicationRoot()
     {
