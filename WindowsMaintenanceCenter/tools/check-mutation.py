@@ -43,6 +43,10 @@ class Mutation:
     delete_file: bool = False
     # Tools that need arguments (for example to stay offline) get them here.
     args: tuple[str, ...] = ()
+    # Some cases check the *other* direction: a construct that is perfectly valid must NOT be reported.
+    # A checker that reports a false finding is as broken as one that stays silent - the blind spot with
+    # the constructor chain (`new X(...).Y()`) produced exactly such a false finding on 2026-09-22.
+    expect_clean: bool = False
 
 
 MUTATIONS: tuple[Mutation, ...] = (
@@ -146,6 +150,25 @@ MUTATIONS: tuple[Mutation, ...] = (
         'ItemsSource="{Binding Components}"',
         'ItemsSource="{Binding ComponentsTypo}"',
     ),
+    # The other direction: a valid constructor chain must not be reported. Without the chain handling
+    # in check-contracts this produced three false findings ("BuildInfoProvider has no member 'Version'").
+    Mutation(
+        "contract: a constructor chain is valid and must stay silent",
+        "check-contracts",
+        "src/WindowsMaintenanceCenter.App/App.xaml.cs",
+        "var build = new BuildInfoProvider(paths, paths).Get();",
+        "var build = new BuildInfoProvider(paths, paths).Get();\n            var buildVersion = build.Version;",
+        expect_clean=True,
+    ),
+    # The defect that made the delivered program fail on its very first start (run 35697744225): a
+    # binding without a mode to a read-only property, on a target that is TwoWay by default.
+    Mutation(
+        "binding: read-only property on a TwoWay-by-default target without a mode",
+        "check-bindings",
+        "src/WindowsMaintenanceCenter.App/Views/MainWindow.xaml",
+        'Value="{Binding ProgressPercent, Mode=OneWay}"',
+        'Value="{Binding ProgressPercent}"',
+    ),
 )
 
 
@@ -158,10 +181,11 @@ def copy_workspace() -> Path:
 def main() -> int:
     workspace = copy_workspace()
     print(f"mutation self-test in {workspace}")
-    print(f"{len(MUTATIONS)} deliberate defect(s), every one has to be reported by its tool\n")
+    print(f"{len(MUTATIONS)} case(s): every defect has to be reported, every valid construct has to stay silent\n")
 
     undetected: list[str] = []
     stale: list[str] = []
+    false_alarms: list[str] = []
 
     for mutation in MUTATIONS:
         source = ROOT / mutation.path
@@ -190,7 +214,15 @@ def main() -> int:
             target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
 
-        if result.returncode != 0:
+        if mutation.expect_clean:
+            if result.returncode == 0:
+                print(f"  ok     {mutation.name}  ->  {mutation.tool} stays silent")
+            else:
+                false_alarms.append(mutation.name)
+                print(f"  FALSE  {mutation.name}  ->  {mutation.tool} reports a valid construct")
+                for line in (result.stdout or "").strip().splitlines()[-4:]:
+                    print(f"           {line}")
+        elif result.returncode != 0:
             print(f"  ok     {mutation.name}  ->  {mutation.tool} reports it")
         else:
             undetected.append(mutation.name)
@@ -199,11 +231,13 @@ def main() -> int:
     shutil.rmtree(workspace.parent, ignore_errors=True)
 
     print()
-    if not undetected and not stale:
-        print(f"every mutation was reported ({len(MUTATIONS)}/{len(MUTATIONS)}) - the checkers still work")
+    if not undetected and not stale and not false_alarms:
+        print(f"every defect was reported and no valid construct was ({len(MUTATIONS)}/{len(MUTATIONS)}) - the checkers still work")
         return 0
     if undetected:
         print(f"{len(undetected)} mutation(s) not reported: the rule behind them is broken")
+    if false_alarms:
+        print(f"{len(false_alarms)} false finding(s): the checker reports a construct that is correct")
     if stale:
         print(f"{len(stale)} mutation(s) are stale: update the anchor or the tool")
     return 1

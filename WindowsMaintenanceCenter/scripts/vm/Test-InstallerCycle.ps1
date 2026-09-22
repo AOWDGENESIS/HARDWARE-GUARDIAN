@@ -331,6 +331,19 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
                 Write-WmcEvidenceText -Run $run -Name 'startup-log-tail.txt' `
                     -Lines @(Get-Content -Path $newest.FullName -Tail 40 -ErrorAction SilentlyContinue) `
                     -Description 'last lines of the log the started program wrote' | Out-Null
+
+                # A file that exists and a process that runs are not the same as a program that came up:
+                # in run 35697744225 the process stayed alive while only an invisible error dialog was
+                # open, and the log held a single "Unhandled exception" line. The application writes a
+                # start line of its own (App.OnStartup), so its presence is the proof that the program
+                # really started instead of merely surviving.
+                $startLine = Select-String -Path $newest.FullName -Pattern '"message":"started' -SimpleMatch -ErrorAction SilentlyContinue
+                if ($startLine) {
+                    Add-Step 'use probe: start line in the log' 'PASS' ([string]$startLine.Line).Substring(0, [Math]::Min(140, ([string]$startLine.Line).Length))
+                } else {
+                    Add-Step 'use probe: start line in the log' 'FAIL' 'the log holds no start line - the program did not reach its own startup'
+                    $findings.Add('the technical log contains no start line, so the program did not come up (a running process alone is not a start; see App.OnStartup)')
+                }
             } else {
                 Add-Step 'use probe: log written' 'FAIL' 'no log file appeared'
                 $findings.Add('the program created no log file, so its startup work is not documented')
@@ -511,8 +524,17 @@ Write-WmcEvidenceText -Run $run -Name 'steps.txt' -Lines @($transcript) -Descrip
 if (Test-Path $installLog) { Add-WmcEvidenceFile -Run $run -Path $installLog -Description 'Inno Setup install log' | Out-Null }
 if (Test-Path $uninstallLog) { Add-WmcEvidenceFile -Run $run -Path $uninstallLog -Description 'Inno Setup uninstall log' | Out-Null }
 
-Complete-WmcEvidenceRun -Run $run -Status $status -Summary $summary `
-    -Findings $findings.ToArray() -OpenPoints $openPoints.ToArray() | Out-Null
+[string[]]$findingList = $findings.ToArray()
+[string[]]$openList = $openPoints.ToArray()
+
+try {
+    Complete-WmcEvidenceRun -Run $run -Status $status -Summary $summary -Findings $findingList -OpenPoints $openList | Out-Null
+} catch {
+    # The evidence must never be lost because the report writer stumbled: the reason is printed and the
+    # raw files (steps.txt, logs) stay in the folder, and the run ends as a failure either way.
+    Write-Host "the run report could not be completed: $($_ | Out-String)" -ForegroundColor Red
+    throw
+}
 
 if ($status -eq 'FAILED') { exit 1 }
 exit 0

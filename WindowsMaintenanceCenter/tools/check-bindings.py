@@ -39,6 +39,58 @@ TAG = re.compile(r'''<(?P<closing>/)?(?P<name>[A-Za-z_][\w:.]*)(?P<attributes>(?
 DATA_TYPE = re.compile(r'DataType\s*=\s*"(?:\{x:Type\s+)?(?:[\w]+:)?(?P<name>[A-Za-z_][\w]*)\}?"')
 ITEMS_SOURCE = re.compile(r'ItemsSource\s*=\s*"\{Binding\s+(?:Path=)?(?P<path>[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)')
 BINDING = re.compile(r"\{Binding\s+(?:Path=)?(?P<path>[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)?\s*(?:,|\})")
+BINDING_BODY = re.compile(r"\{\s*Binding\s*(?P<body>[^{}]*)\}")
+TARGET_ATTRIBUTE = re.compile(r"(?P<attribute>[A-Za-z_][\w.]*)\s*=\s*\"\s*$")
+PROPERTY_BLOCK = re.compile(r"(?P<header>\b(?:public|internal|protected|private)\s[^;{}()]*?\b(?P<name>[A-Za-z_]\w*)\s*)\{(?P<body>[^{}]*)\}")
+
+# Properties whose *default* binding mode is TwoWay. This is the trap that made the delivered program
+# crash on its first start (run 35697744225): ProgressBar.Value inherits RangeBase.Value, whose
+# metadata carries BindsTwoWayByDefault, so "{Binding ProgressPercent}" demands a settable property -
+# and the view model offers a private setter. The build does not care, the XAML compiler does not
+# care, and the designer does not care; only a start does. Hence this table.
+TWO_WAY_DEFAULT = {
+    ("Value", "ProgressBar"), ("Value", "Slider"), ("Value", "ScrollBar"), ("Value", "RangeBase"),
+    ("Text", "TextBox"), ("Password", "PasswordBox"),
+    ("IsChecked", "CheckBox"), ("IsChecked", "RadioButton"), ("IsChecked", "ToggleButton"),
+    ("SelectedIndex", "ListBox"), ("SelectedIndex", "ComboBox"), ("SelectedIndex", "TabControl"),
+    ("SelectedIndex", "ListView"), ("SelectedIndex", "DataGrid"), ("SelectedIndex", "Selector"),
+    ("SelectedItem", "ListBox"), ("SelectedItem", "ComboBox"), ("SelectedItem", "TabControl"),
+    ("SelectedItem", "ListView"), ("SelectedItem", "DataGrid"), ("SelectedItem", "Selector"),
+    ("SelectedValue", "ComboBox"), ("SelectedValue", "ListBox"), ("SelectedValue", "Selector"),
+    ("SelectedDate", "DatePicker"),
+}
+
+
+def read_only_properties(files) -> set[tuple[str, str]]:
+    """(type, property) for every property without a public setter.
+
+    A property block is read here as text: the header in front of the braces and the body between
+    them. `private set`, no setter at all and expression bodies without `set` all count as read-only -
+    a TwoWay binding cannot write to any of them.
+    """
+    found: set[tuple[str, str]] = set()
+    type_declaration = re.compile(r"\b(?:class|record|struct)\s+(?P<name>[A-Za-z_]\w*)")
+    for path in files:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        current = None
+        for match in PROPERTY_BLOCK.finditer(text):
+            holder = type_declaration.search(text, 0, match.start())
+            # The last type declared before the property is the holder, as long as no other type
+            # declaration sits between; tracking it by scanning abbreviations keeps this simple.
+            for candidate in type_declaration.finditer(text, 0, match.start()):
+                holder = candidate
+            if holder is not None:
+                current = holder.group("name")
+            if current is None:
+                continue
+            body = match.group("body")
+            if "set" not in body and "init" not in body:
+                found.add((current, match.group("name")))
+                continue
+            setter = re.search(r"(?P<modifier>private|protected|internal)\s+set\b", body)
+            if setter and "init" not in body:
+                found.add((current, match.group("name")))
+    return found
 ITEMS_CONTROL_KINDS = {"ListView", "ListBox", "ItemsControl", "DataGrid", "DataGridTemplateColumn"}
 
 
@@ -149,6 +201,7 @@ def main() -> int:
         return 2
     types = contracts.collect_types(files)
 
+    readonly = read_only_properties(files)
     view_models = [name for name in types if name.endswith("ViewModel")]
     findings: list[str] = []
     checked = 0
@@ -169,6 +222,7 @@ def main() -> int:
                 view_model = "MainViewModel"
 
         scopes = scopes_of(text, types, view_model)
+        tags = list(TAG.finditer(text))
         for match in BINDING.finditer(text):
             binding_path = match.group("path")
             if not binding_path:
@@ -199,6 +253,29 @@ def main() -> int:
                 findings.append(
                     f"{path.relative_to(ROOT)}: '{root}' (binding '{binding_path}') does not exist on {scope_type}"
                 )
+
+            # A binding without a mode on a property that is TwoWay by default demands a settable
+            # property. WPF throws at runtime - "A TwoWay or OneWayToSource binding cannot work on the
+            # read-only property ..." - which is how the delivered program failed on its first start
+            # (run 35697744225). Nothing before the start of the program reports it, so it is checked
+            # here.
+            element = next((tag for tag in reversed(tags) if tag.start() < match.start()), None)
+            attribute_match = TARGET_ATTRIBUTE.search(text[:match.start()])
+            body_match = BINDING_BODY.match(text, match.start())
+            if element is not None and attribute_match is not None and body_match is not None:
+                element_name = element.group("name").split(":")[-1]
+                attribute = attribute_match.group("attribute")
+                body = body_match.group("body")
+                if (
+                    (attribute, element_name) in TWO_WAY_DEFAULT
+                    and not re.search(r"\bMode\s*=", body)
+                    and (scope_type, root) in readonly
+                ):
+                    findings.append(
+                        f"{path.relative_to(ROOT)}: {element_name}.{attribute} binds '{binding_path}' without "
+                        f"a mode, and {attribute} is TwoWay by default while {scope_type}.{root} has no public "
+                        f"setter - this throws when the control is loaded. Add Mode=OneWay."
+                    )
 
     print(f"inspected {len(list(XAML.rglob('*.xaml')))} XAML file(s): {checked} binding(s) resolved, {skipped} skipped (no DataType/view model information)")
     if findings:

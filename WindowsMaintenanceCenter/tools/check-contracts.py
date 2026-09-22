@@ -69,7 +69,7 @@ MEMBER = re.compile(
 METHOD = re.compile(
     r"^\s*(?:public|internal|protected|private)?\s*(?:static\s+|virtual\s+|abstract\s+|override\s+|"
     r"sealed\s+|partial\s+|async\s+|new\s+)*"
-    r"(?:[\w\.\<\>\[\]\?\,]+\s+)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(",
+    r"(?:(?P<type>[\w\.\<\>\[\]\?\,]+)\s+)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(",
     re.M,
 )
 
@@ -392,6 +392,12 @@ def collect_types(files: list[Path]) -> dict[str, TypeInfo]:
                     info.member_types[member.group("name")] = member.group("type")
                 for method in METHOD.finditer(body):
                     info.members.add(method.group("name"))
+                    # The return type belongs to the member: without it a chain through a method call
+                    # cannot be resolved, and `new X(...).Get()` was therefore typed as X (false finding
+                    # of 2026-09-22). A junk match ("return Something(") only ever yields a type name
+                    # that is not a known type, and an unknown type means "not checked", never a finding.
+                    if method.group("type"):
+                        info.member_types.setdefault(method.group("name"), method.group("type"))
                 for method in METHOD_FALLBACK.finditer(body):
                     info.members.add(method.group("name"))
                 # records: positional parameters are properties as well
@@ -518,6 +524,29 @@ SEQUENCE_LAMBDA = re.compile(
 )
 
 VAR_DECL = re.compile(r"\bvar\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*=\s*(?P<rhs>[^;\n]*)")
+
+
+def simple_name(type_name: str) -> str:
+    """`BulkObservableCollection<Problem>?` becomes `BulkObservableCollection`."""
+    return re.sub(r"<.*", "", type_name).strip().rstrip("?").strip()
+
+
+def type_of_constructor_expression(expression: str, types: dict[str, "TypeInfo"]) -> str | None:
+    """The type a `new ...` expression yields, including a chain after the constructor.
+
+    `new BuildInfoProvider(paths, paths).Get()` holds an `AppBuildInfo`, not a `BuildInfoProvider`.
+    Reading it the other way produced three *false* findings on 2026-09-22, which is why this is one
+    function used by both consumers instead of a line in each of them. A link that cannot be resolved
+    ends the resolution: nothing is guessed, and an unknown receiver is not reported.
+    """
+    base = simple_name(expression[4:].split("(")[0])
+    for link in re.findall(r"\)\s*\??\.\s*([A-Za-z_][A-Za-z0-9_]*)", expression):
+        info = types.get(base) if base else None
+        resolved = info.member_types.get(link) if info else None
+        if resolved is None:
+            return None
+        base = unwrap(resolved)
+    return base if base in types else None
 
 
 def var_initialiser(text: str, match: "re.Match[str]") -> str:
@@ -869,7 +898,7 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
         for m in VAR_DECL.finditer(files_text):
             expression = var_initialiser(files_text, m)
             if expression.startswith("new "):
-                type_name = expression[4:].split("(")[0]
+                type_name = type_of_constructor_expression(expression, types)
             else:
                 type_name = evaluate(expression, types, effective(bindings, m.start(), fallback))
             if type_name is None:
@@ -914,8 +943,8 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
         for m in VAR_DECL.finditer(text):
             expression = var_initialiser(text, m)
             if expression.startswith("new "):
-                base = simple_name(expression[4:].split("(")[0])
-                if base in types:
+                base = type_of_constructor_expression(expression, types)
+                if base:
                     combined.setdefault(m.group("name"), set()).add(base)
         return {k: next(iter(v)) for k, v in combined.items() if len(v) == 1}
 

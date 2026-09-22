@@ -52,6 +52,8 @@ run "XAML (well formed, resource keys, DataTypes, code-behind)" python3 tools/ch
 run "Bindings (every {Binding} root against its data scope)" python3 tools/check-bindings.py
 run "Projects (references, central package versions)" python3 tools/check-projects.py
 run "Solution file is up to date" python3 tools/generate-solution.py --check
+run "Repository size (the diff has to stay reviewable)" python3 tools/check-repo-size.py
+run "The size check itself (an oversized file must be reported)" python3 tools/check-repo-size.py --self-test
 run "The checks themselves (deliberate defects must be reported)" python3 tools/check-mutation.py
 run_optional "Manufacturer sources (official vendor pages answer over HTTPS)" python3 tools/check-source-urls.py --quiet
 

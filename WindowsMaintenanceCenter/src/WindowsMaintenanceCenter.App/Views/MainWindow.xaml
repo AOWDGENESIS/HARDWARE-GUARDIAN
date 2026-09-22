@@ -73,7 +73,12 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <ProgressBar Value="{Binding ProgressPercent}" Maximum="100" />
+                        <!-- Mode=OneWay is not decoration: ProgressBar.Value inherits RangeBase.Value, whose metadata
+                         carries BindsTwoWayByDefault. A binding without a mode therefore demands a settable
+                         property, and ProgressPercent belongs to the view model - the first start of the delivered
+                         program threw "A TwoWay or OneWayToSource binding cannot work on the read-only property
+                         'ProgressPercent'" (run 35697744225). -->
+                        <ProgressBar Value="{Binding ProgressPercent, Mode=OneWay}" Maximum="100" />
                         <TextBlock Style="{StaticResource Muted}" Text="{Binding StepText}" Margin="0,4,0,0" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">

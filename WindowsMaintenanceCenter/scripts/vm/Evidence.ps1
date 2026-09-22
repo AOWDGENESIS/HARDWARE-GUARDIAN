@@ -309,6 +309,11 @@ function Complete-WmcEvidenceRun {
         throw "run $($Run.TestId) claims PASSED without a single piece of evidence or measurement"
     }
 
+    # Everything below runs inside a guard that names the *statement* which failed. Run 35697744225
+    # ended with "Argument types do not match" and the position of the call, not of the cause - a tool
+    # that reports a failure has to say where it happened, otherwise the reader has to guess.
+    try {
+
     $finished = (Get-Date).ToUniversalTime()
     $result = [ordered]@{
         status   = $Status
@@ -382,4 +387,10 @@ function Complete-WmcEvidenceRun {
     Write-Host "[$($Run.TestId)] $Status - $Summary" -ForegroundColor $colour
     Write-Host "  report: $jsonPath" -ForegroundColor DarkGray
     return [pscustomobject]@{ Status = $Status; Report = $jsonPath; Text = $textPath }
+
+    } catch {
+        $where = $_.InvocationInfo
+        $line = if ($where -and -not [string]::IsNullOrWhiteSpace($where.Line)) { $where.Line.Trim() } else { '<no statement information>' }
+        throw "Complete-WmcEvidenceRun failed in line $($where.ScriptLineNumber): $line - $($_.Exception.Message)"
+    }
 }

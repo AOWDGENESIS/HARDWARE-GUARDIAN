@@ -71,6 +71,21 @@ public partial class App : Application
                 builder.AddProvider(new TechnicalFileLoggerProvider(paths.LogDirectory, ParseLevel(settings.LogLevel), settings.LogRetentionDays));
             });
 
+            // Every start leaves a trace (chapters 42, 71). Without this line a start that failed before
+            // the window appeared left a log containing nothing but the error, and nobody could tell
+            // whether the program had come up at all - exactly the situation the installation cycle hit
+            // in run 35697744225: the log held one single "Unhandled exception" line. The line names the
+            // version, the commit, the mode (portable or installed) and the data root, so the evidence of
+            // a start is complete on its own.
+            var build = new BuildInfoProvider(paths, paths).Get();
+            _loggerFactory.CreateLogger<App>().LogInformation(
+                "started: version {Version} commit {Commit} built {BuildDate} portable {Portable} dataRoot {DataRoot}",
+                build.Version,
+                build.Commit,
+                build.BuildDate,
+                paths.IsPortable,
+                paths.DataRoot);
+
             var localizer = new JsonLocalizer(paths.ConfigurationDirectory, settingsService, settings.Language);
             AppServices.CurrentLocalizer = localizer;
             LocalizationProxy.Instance.Attach(localizer);
