@@ -315,14 +315,29 @@ function Complete-WmcEvidenceRun {
     try {
 
     $finished = (Get-Date).ToUniversalTime()
-    $result = [ordered]@{
+
+    # Why these are pscustomobject literals and not `[ordered]@{...}`:
+    # Run 35701860625 ended with "Argument types do not match" at exactly this place, and the self-test
+    # of this library (scripts/vm/Test-EvidenceLibrary.ps1) narrowed it down on the same machine - the
+    # construct that breaks is an `[ordered]` literal holding an array that came from a
+    # `System.Collections.Generic.List[object]`:
+    #
+    #   $null = [ordered]@{ l = @($Run.Evidence) }        -> Argument types do not match
+    #   $null = [ordered]@{ e = $Run.Environment }        -> fine
+    #   $null = [ordered]@{ v = $Run.Version.version }    -> fine
+    #
+    # A pscustomobject literal takes the same values without complaint (the run object of this very
+    # library is built that way and works). The property order of a pscustomobject is kept by
+    # ConvertTo-Json, so the report stays readable in the same order. Both literals are checked by the
+    # self-test on every run: a report that cannot be written is not a report.
+    $result = [pscustomobject]@{
         status   = $Status
         summary  = $Summary
         findings = @($Findings)
         open     = @($OpenPoints)
     }
 
-    $report = [ordered]@{
+    $report = [pscustomobject]@{
         timestamp   = $finished.ToString('yyyy-MM-ddTHH:mm:ssZ')
         testId      = $Run.TestId
         title       = $Run.Title

@@ -318,6 +318,14 @@ jobs:
             git add --force $installerEvidence
             $staged += git status --porcelain $installerEvidence
           }
+          # A failed self-test of the evidence library keeps its run folder (a passed one removes it
+          # again). That folder is kept as well: it holds the bisect output that names the construct
+          # which broke, and without it the next reader would have to reproduce the failure from a log.
+          $selfTestEvidence = 'test-results/integration'
+          if (Test-Path $selfTestEvidence) {
+            git add --force $selfTestEvidence
+            $staged += git status --porcelain $selfTestEvidence
+          }
           if (Test-Path $unitEvidence) {
             # The TRX file is the proof of the unit run; only something implausibly large is left out,
             # and then the console log next to it still names every case.

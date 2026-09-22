@@ -155,7 +155,18 @@ if ($completeError) {
         'a formatted timestamp value'             = { $null = [ordered]@{ t = $stamp } }
         'a nested [ordered] dictionary'            = { $null = [ordered]@{ inner = $inner } }
         'a nested pscustomobject'                  = { $null = [ordered]@{ e = $run.Environment } }
-        'a nested List[object]'                    = { $null = [ordered]@{ l = @($run.Evidence) } }
+        # The construct that actually broke in run 35701860625: an [ordered] literal holding an array
+        # that came from a List[object]. Kept here as a probe, so a reader sees which form breaks
+        # instead of taking it on faith - and so the next PowerShell version can be checked against it.
+        'a nested List[object] in an [ordered] literal' = { $null = [ordered]@{ l = @($run.Evidence) } }
+        # The form the report uses now. This one has to stay green.
+        'a nested List[object] in a pscustomobject'    = { $null = [pscustomobject]@{ l = @($run.Evidence) } }
+        'a nested List[object] in a pscustomobject, written and read back' = {
+            $probe = [pscustomobject]@{ id = 'M00-E-003'; l = @($run.Evidence) }
+            $text = $probe | ConvertTo-Json -Depth 8
+            $back = $text | ConvertFrom-Json
+            if (@($back.l).Count -ne @($run.Evidence).Count) { throw "the list did not survive the round trip" }
+        }
         'the version record of the run'            = { $null = [ordered]@{ v = $run.Version.version } }
         'a hashtable assigned to a variable'       = { $h = [ordered]@{ a = 1; b = 2 }; $null = $h }
         'all of it together'                       = {
