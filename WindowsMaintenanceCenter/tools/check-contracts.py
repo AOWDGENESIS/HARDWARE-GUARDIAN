@@ -373,7 +373,11 @@ def collect_types(files: list[Path]) -> dict[str, TypeInfo]:
                 # collect nothing - that made the implementation check silently ineffective.
                 body = body_of(text, decl.end())
                 body = re.sub(r"\bevent\s+", "", body)
-                info.members.update(m.group("name") for m in INTERFACE_MEMBER.finditer(body))
+                for member in INTERFACE_MEMBER.finditer(body):
+                    info.members.add(member.group("name"))
+                    # The declared type is what makes a chain through an interface resolvable:
+                    # `var x = _service.DoAsync(...)` then knows the type of `x`.
+                    info.member_types.setdefault(member.group("name"), member.group("type"))
                 types[name] = info
                 continue
 
@@ -514,6 +518,28 @@ SEQUENCE_LAMBDA = re.compile(
 )
 
 VAR_DECL = re.compile(r"\bvar\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*=\s*(?P<rhs>[^;\n]*)")
+
+
+def var_initialiser(text: str, match: "re.Match[str]") -> str:
+    """The initialiser of a `var` declaration, including a chain broken over several lines.
+
+    `var outcome = await _coordinator` and the call on the next line is one expression in C#, but the
+    line based pattern only saw the receiver. The local was then bound to the *receiver* type, and a
+    finding about the wrong type is a finding that does not exist. Continuation lines that start with
+    a member access belong to the declaration and are appended here.
+    """
+    rhs = match.group("rhs").strip()
+    position = match.end()
+    # `await` is part of the statement, not of the chain: a chain that is awaited and broken over two
+    # lines starts with it.
+    while re.fullmatch(r"(?:await\s+)?(?:[A-Za-z_][A-Za-z0-9_]*)(?:\??\.[A-Za-z_][A-Za-z0-9_]*)*", rhs):
+        rest = text[position:]
+        m = re.match(r"\s*\??\.[^;\n]*", rest)
+        if not m:
+            break
+        rhs += m.group(0).strip()
+        position += m.end()
+    return rhs
 WRAPPER = re.compile(r"^(?:Task|ValueTask|IReadOnlyList|IEnumerable|IList|List|ICollection|HashSet|IReadOnlyCollection)<\s*(?P<inner>[A-Za-z0-9_]+)\s*>$")
 METHOD_START = re.compile(
     r"^[ \t]*(?:\[[^\]]*\]\s*)*"
@@ -841,7 +867,7 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
             start, end = enclosing_block(files_text, m.start())
             bind(bindings, start, end, m.group("name"), m.group("type"))
         for m in VAR_DECL.finditer(files_text):
-            expression = m.group("rhs").strip()
+            expression = var_initialiser(files_text, m)
             if expression.startswith("new "):
                 type_name = expression[4:].split("(")[0]
             else:
@@ -886,7 +912,7 @@ def check_typed_member_access(files: list[Path], types: dict[str, TypeInfo]) -> 
             if base in types:
                 combined.setdefault(m.group("name"), set()).add(base)
         for m in VAR_DECL.finditer(text):
-            expression = m.group("rhs").strip()
+            expression = var_initialiser(text, m)
             if expression.startswith("new "):
                 base = simple_name(expression[4:].split("(")[0])
                 if base in types:

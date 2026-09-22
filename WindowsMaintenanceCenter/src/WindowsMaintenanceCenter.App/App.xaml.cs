@@ -209,6 +209,16 @@ public partial class App : Application
             sp.GetRequiredService<IRollbackService>(),
             sp.GetRequiredService<IAuditLog>()));
 
+        // What turns the engine into something a user can act on: the interrupted operation becomes a
+        // finding in the problem centre, the recovery gets its approval draft, and the verdict of the
+        // run is written to protocol, finding and audit (chapter 41/85).
+        services.AddSingleton<IRecoveryCoordinator>(sp => new RecoveryCoordinator(
+            sp.GetRequiredService<IRecoveryEngine>(),
+            sp.GetRequiredService<IProblemRegistry>(),
+            sp.GetRequiredService<ILiveProtocol>(),
+            sp.GetRequiredService<ISystemStateMachine>(),
+            sp.GetRequiredService<IClock>()));
+
         // Hardware: exactly one provider, chosen explicitly. Simulation is never the default on Windows.
         services.AddSingleton<WmiReader>();
         if (IsSimulationRequested)
@@ -296,6 +306,7 @@ public partial class App : Application
         services.AddSingleton<HardwareViewModel>();
         services.AddSingleton<WindowsHealthViewModel>();
         services.AddSingleton<MaintenanceViewModel>();
+        services.AddSingleton<RecoveryViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<MainWindow>();
 

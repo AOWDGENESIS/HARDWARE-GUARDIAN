@@ -68,6 +68,15 @@ MUTATIONS: tuple[Mutation, ...] = (
         '_clock.NowX.ToString("o"',
     ),
     Mutation(
+        # The blind spot found on 2026-09-22: a member chain broken over two lines was read as its
+        # receiver, so a wrong member on the awaited result stayed invisible.
+        "contract: member on an awaited call broken over two lines",
+        "check-contracts",
+        "src/WindowsMaintenanceCenter.App/ViewModels/RecoveryViewModel.cs",
+        "        ResultLines.Add(L(outcome.Summary));",
+        "        ResultLines.Add(L(outcome.SummaryTypo));",
+    ),
+    Mutation(
         "contract: member on a method parameter",
         "check-contracts",
         "src/WindowsMaintenanceCenter.Reporting/ReportGenerator.cs",

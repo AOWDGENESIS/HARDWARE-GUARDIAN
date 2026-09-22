@@ -55,6 +55,7 @@ public sealed class MainViewModel : ViewModelBase
         HardwareViewModel hardware,
         WindowsHealthViewModel windows,
         MaintenanceViewModel maintenance,
+        RecoveryViewModel recoveryViewModel,
         SettingsViewModel settingsViewModel)
         : base(localizer)
     {
@@ -74,6 +75,7 @@ public sealed class MainViewModel : ViewModelBase
         Hardware = hardware;
         WindowsHealth = windows;
         Maintenance = maintenance;
+        Recovery = recoveryViewModel;
         SettingsPage = settingsViewModel;
 
         ScanCommand = new AsyncRelayCommand(RunFullScanAsync, () => !IsScanning);
@@ -95,6 +97,7 @@ public sealed class MainViewModel : ViewModelBase
         Navigation.Add(new NavigationEntry("Navigation_Hardware", Hardware));
         Navigation.Add(new NavigationEntry("Navigation_Windows", WindowsHealth));
         Navigation.Add(new NavigationEntry("Navigation_Maintenance", Maintenance));
+        Navigation.Add(new NavigationEntry("Navigation_Recovery", Recovery));
         Navigation.Add(new NavigationEntry("Navigation_Settings", SettingsPage));
 
         _isProtocolVisible = _settings.Current.LiveProtocolVisible;
@@ -112,6 +115,9 @@ public sealed class MainViewModel : ViewModelBase
     public WindowsHealthViewModel WindowsHealth { get; }
 
     public MaintenanceViewModel Maintenance { get; }
+
+    /// <summary>Recovery after an interrupted run (module M35).</summary>
+    public RecoveryViewModel Recovery { get; }
 
     public SettingsViewModel SettingsPage { get; }
 
@@ -241,6 +247,11 @@ public sealed class MainViewModel : ViewModelBase
                     Severity.Warning,
                     string.Join(" | ", assessment.Evidence));
             }
+
+            // The recovery page is filled before it is opened: an interrupted operation is a finding
+            // that has to stand in the problem centre from the start, not only after somebody happens
+            // to click on the page (chapter 96).
+            await Recovery.RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
