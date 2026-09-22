@@ -391,6 +391,10 @@ function Complete-WmcEvidenceRun {
     } catch {
         $where = $_.InvocationInfo
         $line = if ($where -and -not [string]::IsNullOrWhiteSpace($where.Line)) { $where.Line.Trim() } else { '<no statement information>' }
-        throw "Complete-WmcEvidenceRun failed in line $($where.ScriptLineNumber): $line - $($_.Exception.Message)"
+        # The stack is part of the message on purpose: the same text ("Argument types do not match")
+        # came back in two runs with only the line number changed, and a message that does not say
+        # *which* frame threw costs a whole run to narrow down.
+        $stack = if ($_.ScriptStackTrace) { $_.ScriptStackTrace -replace "`r?`n", ' <- ' } else { '<no stack>' }
+        throw "Complete-WmcEvidenceRun failed in line $($where.ScriptLineNumber): $line - $($_.Exception.Message) (stack: $stack)"
     }
 }

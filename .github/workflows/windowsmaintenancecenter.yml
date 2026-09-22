@@ -246,6 +246,19 @@ jobs:
       # The step has a hard upper limit: the first attempt (run 35695298315) never finished and kept a
       # runner busy until it was cancelled. With a limit the run ends, the record step below still
       # writes the log into the branch, and the log says where it stood.
+      # The tool that writes the proof has to be checked before it is trusted with the proof: two runs
+      # ended with every step of the installation cycle PASS and no report, because the report writer
+      # itself threw. This step runs early (it needs no build) and fails the run when the library that
+      # produces report.json and report.txt does not do its job. If it breaks, it bisects the failing
+      # construct so the next reader sees the cause and not only a line number.
+      - name: Evidence library self-test (chapter 71)
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/evidence-selftest.log'
+          New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
+          pwsh ./scripts/vm/Test-EvidenceLibrary.ps1 *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "the evidence library self-test failed (see artifacts/ci/evidence-selftest.log)" }
+
       - name: Installation cycle on this machine (gate 7)
         # Runs independently of the test step on purpose: the installation and the portable artefact
         # are separate proofs, and run 35696805257 showed what it costs when a failed unit test step

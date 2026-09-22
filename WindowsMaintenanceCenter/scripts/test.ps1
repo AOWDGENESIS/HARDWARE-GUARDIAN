@@ -48,10 +48,12 @@ param(
     # 315, 0 failed). The journal and the recovery engine (M34/M35) added 14 cases, the hash chain of
     # the journal (SEC-12) another 5, report injection (SEC-14) one, the injection attacks of the
     # security matrix (SEC-01 to SEC-03) thirteen and the recovery coordinator (the page a user
-    # reaches, with finding, approval and journal bookkeeping) eleven, so the floor is 359. A lower number means tests were skipped or
-    # not discovered, which must fail the run instead of looking like a green suite (specification
-    # chapters 61 and 87). Raise this number whenever cases are added; never lower it.
-    [int]$MinimumTests = 359
+    # reaches, with finding, approval and journal bookkeeping) eleven. That is 359; the portable mode
+    # cases (10) and the report format case of SEC-14 (1) bring the measured number of run 35701860625
+    # to 370, which is what its TRX file carries. A lower number means tests were skipped or were not
+    # discovered, which must fail the run instead of looking like a green suite (chapters 61 and 87).
+    # Raise this number whenever cases are added; never lower it.
+    [int]$MinimumTests = 370
 )
 
 Set-StrictMode -Version Latest

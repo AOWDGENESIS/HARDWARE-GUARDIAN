@@ -175,14 +175,15 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 
 | Tool | What it proves | Current result |
 | --- | --- | --- |
-| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 131 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
-| `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 131 files / 403 types, 0 findings |
-| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 726 keys, 0 missing, 0 dead, 4 keys reachable through the prefix `Safety_` |
-| `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 10 files, 0 findings |
-| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 10 files, 151 bindings, 0 findings |
-| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 131 sources, 0 findings |
+| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 154 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
+| `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 154 files / 455 types, 0 findings |
+| `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 839 keys per language, 0 missing, 0 dead, 4 keys reachable through a built prefix |
+| `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 11 files, 0 findings |
+| `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 11 files, 167 bindings, 0 findings |
+| `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 154 sources, 0 findings |
 | `tools/generate-solution.py --check` | `WindowsMaintenanceCenter.sln` matches the projects on disk | up to date |
-| `tools/check-mutation.py` | the checkers above actually fail: thirteen deliberate defects (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a missing MSBuild import target, a third-party driver portal in the source list) are injected into a temporary copy one at a time | 13/13 reported, exit code 0 |
+| `tools/check-mutation.py` | the checkers above actually work, in both directions: every deliberate defect (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a binding without a mode to a read-only property on a TwoWay-by-default target, a missing MSBuild import target, a third-party driver portal in the source list) has to be **reported**, and one valid construct (`new X(...).Y()`) has to stay **silent** - a checker that cries wolf is as broken as a silent one | 16/16, exit code 0 |
+| `tools/check-repo-size.py` | the repository stays reviewable: no file over 4 MB, no more than 64 MB tracked in total, no more than 4000 files, `test-results/` no more than 48 MB; `--self-test` proves an oversized file is reported | 579 files / 19.8 MB, evidence 17.9 MB of 48 MB, 0 findings |
 | `tools/check-source-urls.py` | every manufacturer landing page answers over HTTPS and matches its claim in the source file; policy rules (HTTPS only, no credentials, no IP, no localhost, no third-party portal) hold | **did not run** in this environment: no direct outbound network (exit 3, "this is NOT a pass"). The four sources marked `SourceReachable` were confirmed by fetching them through the sandbox's page fetcher on 2026-09-20; `verify-all.sh` reports the skipped network check without calling the offline run incomplete |
 
 ### The application shell
@@ -211,11 +212,12 @@ the views:
 ## 3. Defects found and fixed in this session (continued and extended)
 
 Checks that run without a .NET SDK (`bash tools/verify-all.sh`): syntax, contracts, localisation,
-XAML, bindings, project references, solution freshness and a mutation self-test of the checkers
-themselves. Last result: 118 files / 370 types,
-659 localisation keys in both languages, 15 projects, 10 XAML files with 139 resolved bindings -
-all clean (0 findings, every key used in code is defined, no unused key left behind, every binding
-path resolves against its data scope). **This is not a build.**
+XAML, bindings, project references, solution freshness, a size budget and a mutation self-test of the
+checkers themselves. Last result: 154 files / 455 types, 839 localisation keys per language, 15
+projects, 11 XAML files with 167 resolved bindings, 579 tracked files / 19.8 MB - all clean (0
+findings, every key used in code is defined, no unused key left behind, every binding path resolves
+against its data scope, every deliberate defect is still reported by its checker). **This is not a
+build.**
 
 A contract checker (`tools/check-contracts.py`) was written and used to compare every module
 against the real Core contracts. Findings that were fixed:
@@ -262,6 +264,15 @@ against the real Core contracts. Findings that were fixed:
 Verified as **already correct** against the real contracts (no change needed): `BackupService`
 (`IBackupService` signature and `BackupRequest` usage), all hardware/sensor/BIOS/manufacturer model
 usage, `ApprovalRequestDraft`, `ApprovalRecord`, `ProblemDraft`.
+
+### The first start, and the proof that could not be written (runs 35697744225 and 35701860625)
+
+| Defect | Location | Fix |
+| --- | --- | --- |
+| **The delivered program could not start at all.** The installation cycle of run 35697255686 started the installed program for the first time in this project's history and it ended with exit code 1. The log that run 35697744225 filed as evidence held exactly one line: `Critical · App · A TwoWay or OneWayToSource binding cannot work on the read-only property 'ProgressPercent'`. `MainWindow.xaml` bound `ProgressBar.Value` without a mode, and `ProgressBar.Value` inherits `RangeBase.Value`, whose metadata carries `BindsTwoWayByDefault`; WPF therefore demanded a settable property, `MainViewModel.ProgressPercent` has a private setter, and the exception came up while the window was loading. Every start of the program on every machine failed - the build was green, the XAML compiler was happy, the binding checker was happy (it checks paths, not modes), and nothing had ever started the program. | `App/Views/MainWindow.xaml`, `tools/check-bindings.py`, `tools/check-mutation.py` | The binding carries `Mode=OneWay` with the reason next to it. `check-bindings.py` knows the targets that are TwoWay by default (`RangeBase.Value`, `TextBox.Text`, `Selector.SelectedItem/Index/Value`, `ToggleButton.IsChecked`, `DatePicker.SelectedDate`, `ComboBox.Text`) and reports a binding without a mode to a property without a public setter; the message names control, property and fix. Mutation case 15 produces exactly this defect and the checker reports it. **Proof that it is fixed:** run 35701860625, `test-results/ci/run-35701860625-1/installer-cycle.log` line 32 - `PASS program closes exit code 0 after the window was closed`. |
+| **The report writer of the evidence kit never worked.** `Complete-WmcEvidenceRun` ended with `Argument types do not match` in two runs; every step of the installation cycle had passed, and the run folder still held no `report.json` and no `report.txt` - a complete cycle without a report. Run 35697744225 named a line number, run 35701860625 the statement (`$report = [ordered]@{`), and neither said which frame threw. | `scripts/vm/Evidence.ps1`, new `scripts/vm/Test-EvidenceLibrary.ps1`, workflow step "Evidence library self-test" | The error text carries the stack now, and the library has a self-test that runs before the cycle: it walks the real path (new run, measurement, evidence file, complete), checks that `report.json` and `report.txt` exist and that the JSON holds the five fields of chapter 71, refuses a `PASSED` report without a single measurement (chapter 86, negative on purpose), and - when the real path fails - bisects the same structures one at a time so the log names the construct instead of a line. The defect itself is **open** until an edit is proven by that self-test; the tooling that writes the proof is checked before it is trusted with the proof. |
+| **A checker that reports a correct construct.** The contract checker read `var build = new BuildInfoProvider(paths, paths).Get();` as binding `build` to `BuildInfoProvider`, ignored `.Get()` and reported three "has no member 'Version'" findings for `App.xaml.cs` - a false alarm that would have blocked every commit. | `tools/check-contracts.py`, `tools/check-mutation.py` | Constructor chains resolve through the return type of every link (methods now carry their return type, interfaces carried theirs already); an unresolved link ends the resolution instead of guessing, and an unknown receiver is never reported. The mutation self-test got a case for the *other* direction (`expect_clean`: a valid construct must stay silent), so a checker that cries wolf fails the same gate as one that stays silent - 16/16. |
+| **The checkers could not see what a binding engine does at run time.** `check-bindings.py` resolved paths only, `check-mutation.py` knew thirteen defects, and nothing measured the repository itself. | `tools/check-bindings.py`, `tools/check-mutation.py`, new `tools/check-repo-size.py`, `tools/verify-all.sh` | The binding checker now knows the TwoWay defaults of the WPF targets; the mutation file has 16 cases in both directions; a size budget (4 MB per file, 64 MB in total, 4000 files, 48 MB of evidence) with its own self-test keeps the repository reviewable, which is what a diff that never fills up depends on. |
 
 ### What the checker cannot prove
 

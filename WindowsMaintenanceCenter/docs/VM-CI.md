@@ -226,6 +226,22 @@ Nicht alles war Formalismus. Diese Funde hätten in der Anwendung zu falschen Au
 | `InMemoryStores.LoadAsync` las `.Snapshot` von einem `FirstOrDefault`, das null sein kann | Ein nicht gefundener Pfad hätte eine Ausnahme geworfen statt `null` zu liefern. |
 | `WindowsHardwareProvider.Pc()` lieferte `ValueOrigin` unter dem Rückgabetyp `TextInfo` | Rund 300 Folgefehler; jede gelesene Herkunft war für den Übersetzer unbrauchbar. |
 
+## 3c. Lauf 35701860625 (2026-09-22, Commit `d759180`) - der erste Lauf mit dem Installationszyklus
+
+| Schritt | Ergebnis | Nachweis |
+| --- | --- | --- |
+| Bauen und Testen | 15 Projekte, 0 Fehler; **370 von 370 Testfällen bestanden** | `test-results/ci/run-35701860625-1/{build.log,test.log,windowsmaintenancecenter.trx}` |
+| Paketieren | Setup, Portable-EXE, Prüfsummendatei, Release Notes | `run-35701860625-1/{release.log,innosetup.log}` |
+| Nachweiskit | Selbsttest existiert noch nicht (er entsteht aus diesem Befund) | - |
+| Installationszyklus (Gate 7) | **alle Kriterien PASS**: stille Installation Exit-Code 0; installierte Datei SHA-256-identisch mit dem Bau; Startmenüeintrag; installierte Kopie nicht portabel; Programm startet, Datenordner und Logzeile entstehen; **Programm schließt mit Exit-Code 0**; Deinstallation entfernt Eintrag, Programmordner und Verknüpfung und behält die Daten; portables Artefakt startet und legt seine Daten neben sich ab | `run-35701860625-1/installer-cycle.log`, `test-results/installer/20260922T075623Z-INS-CI/` |
+| Bericht des Zyklus | **fehlt**: `Complete-WmcEvidenceRun` bricht mit `Argument types do not match` ab (`$report = [ordered]@{`, Zeile 325) - der Lauf ist deshalb rot, obwohl jeder Schritt PASS meldet | `run-35701860625-1/installer-cycle.log` (Ende) |
+| Zweiter Befund | Die Fehlermeldung nannte nur die Zeile. Der Fehlertext trägt jetzt den Aufrufstapel, und `scripts/vm/Test-EvidenceLibrary.ps1` prüft die Bibliothek vor dem Zyklus und grenzt bei einem Fehlschlag den brechenden Ausdruck selbst ein | Workflow-Schritt „Evidence library self-test (chapter 71)" |
+
+Was dieser Lauf belegt: der Startabsturz ist behoben (Exit-Code 0, vorher 1), das portable Artefakt speichert
+seine Daten neben sich, die Deinstallation lässt den Rechner sauber zurück, und die Testsuite steht bei 370
+Fällen. Was er **nicht** belegt: den Reparatur- und Upgrade-Weg, den Neustart, weitere Laufwerke und die
+Bedienung der Oberfläche - und bis der Report-Schreiber läuft, auch keinen vollständigen Nachweisordner.
+
 ## 4. Grenzen des Zugangs
 
 Der Workflow ist der einzige Weg, auf dem hier ein Windows-Rechner benutzt werden kann. Daraus folgt:
