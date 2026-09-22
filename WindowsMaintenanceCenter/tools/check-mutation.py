@@ -169,6 +169,15 @@ MUTATIONS: tuple[Mutation, ...] = (
         '"Action_Argument_NotANumber": "Wert für {0} ist keine Zahl"',
         '"Action_Argument_NotANumber": "Wert ist keine Zahl"',
     ),
+    # A catalogue in the folder that the project does not embed is not shipped: nothing in the build
+    # complains, and the interface simply never offers that language. The check has to notice it.
+    Mutation(
+        "localisation: a catalogue the project does not embed",
+        "check-localization",
+        "src/WindowsMaintenanceCenter.Core/WindowsMaintenanceCenter.Core.csproj",
+        '<EmbeddedResource Include="Resources\\*.json" />',
+        '<EmbeddedResource Include="Resources\\de.json" />',
+    ),
     # The scripts of the acceptance kit are the measuring instruments: a broken one fails minutes later
     # inside a CI run and leaves no evidence at all. A forgotten closing bracket is the cheapest way to
     # produce exactly that, and it has to be reported before the run, not during it.

@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using WindowsMaintenanceCenter.Core;
+using WindowsMaintenanceCenter.Core.Services;
 using WindowsMaintenanceCenter.Core.Values;
 using WindowsMaintenanceCenter.Infrastructure.Localization;
 using Xunit;
@@ -99,6 +101,88 @@ public sealed class LocalizationTests
         Assert.NotEqual(english, localizer["Report_Title_System"]);
     }
 
+    /// <summary>
+    /// Chapter 63 asks for four languages (de-DE, en-US, ja-JP, ru-RU). This test does not name them:
+    /// it takes the languages the build really ships from <see cref="LanguageCatalog"/> and requires the
+    /// same key set in every one of them. That is what turns "a catalogue was added" into "a catalogue is
+    /// complete" - and it would have failed for the four-language requirement just as loudly as for a
+    /// single missing key. The check that every catalogue is also *embedded* lives in the tooling
+    /// (`tools/check-localization.py`), because a file that is not embedded is not in the assembly and
+    /// therefore invisible here.
+    /// </summary>
+    [Fact]
+    public void Every_shipped_language_defines_exactly_the_same_keys()
+    {
+        var shipped = LanguageCatalog.ShippedCodes;
+        Assert.True(shipped.Count >= 4, $"only {shipped.Count} language(s) are shipped: {string.Join(", ", shipped)}");
+
+        var reference = shipped[0];
+        var expected = ResourceKeys(reference);
+        foreach (var language in shipped.Skip(1))
+        {
+            var actual = ResourceKeys(language);
+            var missing = expected.Except(actual).OrderBy(k => k).ToList();
+            var surplus = actual.Except(expected).OrderBy(k => k).ToList();
+            Assert.True(missing.Count == 0, $"{language} is missing: " + string.Join(", ", missing));
+            Assert.True(surplus.Count == 0, $"{language} has keys that {reference} does not have: " + string.Join(", ", surplus));
+        }
+    }
+
+    /// <summary>
+    /// A translation that renumbers or drops a placeholder is a string.Format failure at run time and is
+    /// invisible in a diff of prose. The same rule as in tools/check-localization.py, executed here so a
+    /// broken catalogue fails the test suite and not only the tooling.
+    /// </summary>
+    [Fact]
+    public void Every_shipped_language_keeps_the_placeholders_of_the_reference_language()
+    {
+        var shipped = LanguageCatalog.ShippedCodes;
+        var reference = ResourceStrings(shipped[0]).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        var problems = new List<string>();
+
+        foreach (var language in shipped.Skip(1))
+        {
+            foreach (var (key, text) in ResourceStrings(language))
+            {
+                if (!reference.TryGetValue(key, out var expected))
+                {
+                    continue; // a key that only one language has is reported by the symmetry test
+                }
+
+                var expectedIndices = Placeholders(expected);
+                var actualIndices = Placeholders(text);
+                if (!expectedIndices.SetEquals(actualIndices))
+                {
+                    problems.Add($"{language}.{key}: {{{string.Join(",", expectedIndices.OrderBy(i => i))}}} vs {{{string.Join(",", actualIndices.OrderBy(i => i))}}}");
+                }
+            }
+        }
+
+        Assert.True(problems.Count == 0, string.Join(" | ", problems));
+    }
+
+    [Fact]
+    public void Only_a_language_whose_catalogue_is_embedded_can_be_offered()
+    {
+        foreach (var preference in LanguageCatalog.OfferedPreferences())
+        {
+            if (preference == LanguagePreference.System)
+            {
+                continue;
+            }
+
+            Assert.True(LanguageCatalog.IsShipped(preference), $"{preference} is offered without a catalogue");
+            Assert.NotNull(LanguageCatalog.CodeOf(preference));
+        }
+
+        // The other direction: every shipped catalogue belongs to a preference the interface can name.
+        foreach (var code in LanguageCatalog.ShippedCodes)
+        {
+            var named = Enum.GetValues<LanguagePreference>().Any(preference => LanguageCatalog.CodeOf(preference) == code);
+            Assert.True(named, $"the catalogue '{code}' has no LanguagePreference value");
+        }
+    }
+
     [Fact]
     public void System_preference_falls_back_to_english_for_unknown_ui_cultures()
     {
@@ -106,6 +190,12 @@ public sealed class LocalizationTests
         var culture = localizer.ResolveCulture(LanguagePreference.System);
         Assert.Contains(culture.TwoLetterISOLanguageName, new[] { "en", "de" });
     }
+
+    /// <summary>Placeholder indices of a template: {0}, {1:...}. Doubled braces are literal.</summary>
+    private static HashSet<int> Placeholders(string text) =>
+        Regex.Matches(text, @"(?<!\{)\{(?<index>\d+)(?::[^}]*)?\}")
+            .Select(match => int.Parse(match.Groups["index"].Value, CultureInfo.InvariantCulture))
+            .ToHashSet();
 
     private static HashSet<string> ResourceKeys(string language) =>
         ResourceStrings(language).Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal);

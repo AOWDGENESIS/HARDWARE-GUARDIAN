@@ -13,8 +13,12 @@
   <ItemGroup>
     <!-- Default localisation is embedded so a portable exe always carries both languages.
          The resource files stay the only place that holds user visible text. -->
-    <EmbeddedResource Include="Resources\en.json" />
-    <EmbeddedResource Include="Resources\de.json" />
+    <!-- A glob, not a list: LanguageCatalog reads the embedded Resources/<code>.json files, and a list
+         here would be the second place to keep in step. A catalogue that is added but not embedded
+         would simply not ship - the same class of defect as the portable marker file that never
+         reached the delivered artefact in this project. tools/check-localization.py checks that every
+         file in Resources/ is really matched by this Include. -->
+    <EmbeddedResource Include="Resources\*.json" />
   </ItemGroup>
 
 </Project>

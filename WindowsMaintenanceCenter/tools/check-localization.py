@@ -24,7 +24,10 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fnmatch
 import io
+import shutil
+import tempfile
 import json
 import re
 from pathlib import Path
@@ -213,6 +216,51 @@ def check_placeholders(resources: dict[str, dict[str, str]], languages: list[str
     return exit_code
 
 
+EMBEDDED_RESOURCE = re.compile(
+    r"<EmbeddedResource[^>]*Include\s*=\s*\"(?P<pattern>[^\"]+)\"", re.IGNORECASE)
+
+
+def embedded_patterns(project: Path) -> list[str]:
+    """The EmbeddedResource patterns of a project file, with forward slashes."""
+    text = project.read_text(encoding="utf-8", errors="replace")
+    return [match.group("pattern").replace("\\", "/") for match in EMBEDDED_RESOURCE.finditer(text)]
+
+
+def check_embedding() -> int:
+    """Every catalogue must be embedded by the project it sits in.
+
+    A resource file that exists in the source tree but is not matched by an `EmbeddedResource` entry is
+    not shipped: `LanguageCatalog` would not see it, the interface would not offer the language, and
+    nothing in the build would complain. That is the `en.json`/`de.json` list problem in its original
+    form - this check is what keeps the project file and the folder in step.
+    """
+    exit_code = 0
+    problems: list[str] = []
+    for directory in RESOURCE_DIRS:
+        project = next((candidate for candidate in directory.parent.glob("*.csproj")), None)
+        if project is None:
+            problems.append(f"  - {directory}: no .csproj next to it, so nothing can be checked")
+            continue
+        patterns = embedded_patterns(project)
+        for path in sorted(directory.glob("*.json")):
+            relative = path.relative_to(project.parent).as_posix()
+            matched = any(
+                fnmatch.fnmatch(relative, pattern) or fnmatch.fnmatch(relative.lower(), pattern.lower())
+                for pattern in patterns
+            )
+            if not matched:
+                problems.append(
+                    f"  - {relative}: not matched by any EmbeddedResource entry of {project.name} "
+                    f"(patterns: {', '.join(patterns) or 'none'}) - this catalogue would not ship"
+                )
+    if problems:
+        exit_code = 1
+        print(f"\n{len(problems)} catalogue(s) that the build does not embed:")
+        for line in problems:
+            print(line)
+    return exit_code
+
+
 def load_resources() -> dict[str, dict[str, str]]:
     resources: dict[str, dict[str, str]] = {}
     for directory in RESOURCE_DIRS:
@@ -250,9 +298,37 @@ def main() -> int:
         print(output.strip())
         if code != 0 and reported:
             print("self-test ok: a dropped placeholder and a stray brace are both reported")
-            return 0
-        print("self-test FAILED: the placeholder check stays silent")
-        return 1
+        else:
+            print("self-test FAILED: the placeholder check stays silent")
+            return 1
+
+        # The embedding check: a project that does not match the catalogue has to be reported.
+        probe_root = Path(tempfile.mkdtemp(prefix="wmc-l10n-selftest-"))
+        try:
+            project_dir = probe_root / "src" / "Probe"
+            resources = project_dir / "Resources"
+            resources.mkdir(parents=True)
+            (resources / "en.json").write_text('{"language": "en", "strings": {}}', encoding="utf-8")
+            (resources / "xy.json").write_text('{"language": "xy", "strings": {}}', encoding="utf-8")
+            (project_dir / "Probe.csproj").write_text(
+                '<Project><ItemGroup><EmbeddedResource Include="Resources\\en.json" /></ItemGroup></Project>',
+                encoding="utf-8",
+            )
+            global RESOURCE_DIRS
+            original_dirs = RESOURCE_DIRS
+            RESOURCE_DIRS = [resources]
+            captured = io.StringIO()
+            with contextlib.redirect_stdout(captured):
+                embedding_code = check_embedding()
+            RESOURCE_DIRS = original_dirs
+        finally:
+            shutil.rmtree(probe_root, ignore_errors=True)
+        print(captured.getvalue().strip())
+        if embedding_code == 0 or "xy.json" not in captured.getvalue():
+            print("self-test FAILED: a catalogue the project does not embed was accepted")
+            return 1
+        print("self-test ok: a catalogue the project does not embed is reported")
+        return 0
 
     used, dynamic_prefixes = used_keys()
     resources = load_resources()
@@ -277,6 +353,9 @@ def main() -> int:
 
     placeholder_code = check_placeholders(resources, languages)
     if placeholder_code:
+        exit_code = 1
+
+    if check_embedding():
         exit_code = 1
 
     if len(languages) > 1:

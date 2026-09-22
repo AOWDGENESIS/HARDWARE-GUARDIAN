@@ -71,7 +71,7 @@ weit die Umsetzung ist - sie ist **kein** Abnahmenachweis.
 | M34 State Machine | P0 | **umgesetzt**: genau die vierzehn Zustände des Kapitels 40; aus DISCOVERY führt kein Weg in EXECUTING, aus EXECUTING keiner direkt nach SUCCESS. `M34-F-001` jeder Zustandswechsel **wird gespeichert**: das Zustandsjournal (`StateJournal`, `FileStateJournal`) schreibt jede Transition unter demselben Lock auf die Platte (flush-to-disk), jeder Eintrag trägt Vorgang, Aktion, Position und Hashkette; RECOVERING ist aus jedem unterbrechbaren Zustand erreichbar und führt nie direkt in eine Ausführung | `M34-R-001` „unterbrochene Jobs werden erkannt" ist in der Software belegt (Unit-Tests, CI-Lauf), aber **auf keiner Zielmaschine mit echtem Absturz** geprüft → bis dahin `BLOCKED` (Gate 9/10, `docs/TESTMATRIX-VM.md` REC-01/02) |
 | M35 Recovery Engine | P0 | **umgesetzt und bedienbar**: `RecoveryEngine` beantwortet M35-F-001…F-003 aus Aufzeichnungen (letzter Vorgang aus dem Journal, Backup über die OperationId gematcht, Rollbackfähigkeit über `IRollbackService`), `RecoveryCoordinator` macht daraus einen Befund `WMC-M35-###` im Problem Center mit Freigabeentwurf `Recovery:<backupId>` (Risiko hoch), und die Seite „Wiederherstellung" zeigt RECOVERY AVAILABLE, Werkzeug und Ergebnis. Ohne Freigabe für genau dieses Backup wird nichts ausgeführt (M35-S-001); verweigerte Anfragen sind kein Zustandswechsel, eine ausgeführt Wiederherstellung steht als RECOVERING→ROLLBACK→VALIDATING→SUCCESS/BLOCKED im Journal; Erfolg nur bei Ausführung **und** Validierung (Kapitel 86) | `M35-R-001` „Recovery wird getestet" verlangt einen echten Abbruch-/Wiederanlauf auf der Zielmaschine → `BLOCKED`, bis REC-01/02 im Kit gelaufen sind |
 | M36 Configuration | P0 | Laden, Speichern, Schema-Version, Schutz vor ungültiger Konfiguration | `M36-F-003` Migration inklusive Sicherung vor der Migration |
-| M37 Localization | P1 | Deutsch und Englisch vollständig (742 Schlüssel je Sprache), Prüfwerkzeug sauber | **Japanisch und Russisch fehlen**; Datums-/Zahlenformate belegen; Fallback definieren und prüfen |
+| M37 Localization | P1 | **Vier Kataloge liegen bei: de, en, ja, ru - je 847 Schlüssel, 0 fehlend, Platzhalter über alle Sprachen gleich** (Prüfwerkzeug und vier Testfälle sichern das), Auswahl zeigt übersetzte Sprachnamen, eine Sprache wird nur angeboten, wenn ihr Katalog im Bau ist | **Die Kataloge sind maschinell erstellt und nicht von Muttersprachlern geprüft**; Datums-/Zahlenformate und der sichtbare Nachweis je Sprache (Kapitel 63, LOC-01/LOC-02 mit Screenshots) fehlen weiterhin |
 | M38 Logging | P0 | Dateilog, Audit-Protokoll, Exit-Codes | Level TRACE…CRITICAL als steuerbare Stufen; Nachweis, dass keine Passwörter und keine Dokumentinhalte im Log stehen |
 | M39 Privacy | P0 | Telemetrie standardmäßig aus, keine Cloudpflicht | `M39-S-005` Prüfung des Diagnoseexports auf sensible Daten |
 | M40 Installer | P0 | Inno-Definition geschrieben (Startmenü, Desktop, saubere Deinstallation) | **nie kompiliert, nie ausgeführt**; Artefaktname auf `WindowsMaintenanceCenter-Setup-x64.exe` umstellen |
@@ -109,9 +109,12 @@ Die folgenden Punkte waren vorher offen und sind damit beantwortet:
 | Datenhaltung | SQLite als Kernbestandteil (Kapitel 100) und eigenes Modul für Datenbanksicherheit (Kapitel 82) | Konfiguration und Audit heute als JSON-Dateien, kein SQLite | **entschieden: beides** - JSON bleibt Standard, SQLite kommt für Journal und Historie hinzu und ist umschaltbar. Arbeitsschritt: Paket aufnehmen, Journal in SQLite spiegeln, Schema-Version/Migration/Integritätsprüfung/Backup/Recovery umsetzen |
 | Fehler-IDs | `WMC-UPDATE-0042` (Kapitel 85) | Problemregister vergibt `{Präfix}-{n:D3}` | Präfixschema auf `WMC-<MODUL>-<Nr>` angleichen |
 
-Sprachen: Die Spezifikation verlangt vier Sprachen (Kapitel 37, 43, 63). Deutsch und Englisch sind
-vollständig; Japanisch und Russisch sind **nicht vorhanden**. Die Übersetzung von 742 Schlüsseln je
-Sprache ist ein eigener Arbeitsschritt und muss für Gate 8 vollständig sein.
+Sprachen: Die Spezifikation verlangt vier Sprachen (Kapitel 37, 43, 63). Alle vier Kataloge liegen vor
+(de, en, ja, ru, je 847 Schlüssel); Symmetrie, Platzhaltergleichheit und die Einbettung in den Bau
+werden geprüft. Offen und ausdrücklich **nicht** als erledigt zu lesen: die ja- und ru-Texte sind
+maschinell erstellt und nicht von Muttersprachlern geprüft, und der sichtbare Nachweis je Sprache auf
+einer Maschine (Screenshots, Datums- und Zahlenformate) fehlt - die Oberfläche lässt sich in dieser
+Umgebung nicht starten.
 
 Struktur der Nachweise ist angelegt: `test-results/` mit den zehn Unterordnern aus Kapitel 71. Alle
 Ordner sind leer, weil kein Test ausgeführt wurde - genau das schreibt die Spezifikation vor
