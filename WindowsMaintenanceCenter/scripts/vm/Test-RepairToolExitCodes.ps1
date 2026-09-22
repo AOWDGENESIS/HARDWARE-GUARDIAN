@@ -24,6 +24,11 @@
     Optional table of expected exit codes, for example @{ DismScanHealth = 0 }. A different code
     turns the run into FAILED.
 
+.PARAMETER Skip
+    Names of tools to leave out. They are recorded as open points with the reason, never silently
+    dropped: SFC and CHKDSK can need a quarter of an hour on a cold machine, which belongs on the
+    target machine and not in a build pipeline. The CI runner measures the rest.
+
 .EXAMPLE
     pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1
     pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1 -Volume 'D:' -Expect @{ ChkdskScan = 0 }
@@ -36,6 +41,7 @@
 param(
     [string]$Volume = "$env:SystemDrive",
     [hashtable]$Expect = @{},
+    [string[]]$Skip = @(),
     [ValidateSet('unit', 'integration', 'safety', 'security', 'recovery', 'installer',
         'localization', 'offline', 'regression', 'release')][string]$Area = 'security'
 )
@@ -67,6 +73,13 @@ $text = New-Object System.Collections.Generic.List[string]
 
 foreach ($tool in $tools) {
     $label = $tool.Name
+
+    if ($Skip -contains $label) {
+        # A skipped measurement is an open point, not a zero and not a pass (chapter 5).
+        $openPoints.Add("$label was skipped on this machine (-Skip): it needs a machine whose operator can wait for it")
+        $text.Add("$label : SKIPPED (-Skip)")
+        continue
+    }
 
     if ($tool.NeedsAdmin -and -not $isAdmin) {
         $blocked.Add("$label needs administrator rights and this session does not have them")

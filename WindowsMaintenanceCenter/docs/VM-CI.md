@@ -259,6 +259,14 @@ läuft durch. Der Bericht wird jetzt über `OrderedDictionary.Add()` gefüllt, u
 als .NET-Liste hinein, die `ConvertTo-Json` als Array schreibt. Gefunden hat das der Selbsttest aus dem
 vorherigen Lauf, nicht ein Blick in den Code: genau dafür steht er im Workflow.
 
+## 3e. Was die CI-Maschine zusätzlich messen kann (ab 2026-09-22)
+
+| Messung | Warum sie hier läuft | Was sie nicht ersetzt |
+| --- | --- | --- |
+| Selbsttest der Nachweisbibliothek (`Test-EvidenceLibrary.ps1`) | Der Schreiber des Nachweises ist Werkzeug, nicht Ergebnis - er wird vor dem Zyklus geprüft (Kapitel 71) | nichts; der Selbsttest ist vollständig |
+| Exit-Codes der Reparaturwerkzeuge (`Test-RepairToolExitCodes.ps1`, nur lesende Schalter) | Die Registrierung einer Aktion ist keine Freigabe: solange niemand gemessen hat, was DISM/SFC/CHKDSK antworten, darf kein Code als „Lauf fehlgeschlagen" gedeutet werden. Messen kann das jede echte Windows-Maschine | SFC und CHKDSK (auf der Zielmaschine, dort kann ein Mensch warten) und die Reparatur selbst (`/RestoreHealth`, `/scannow`) - die bleibt auf der Zielmaschine |
+| Installationszyklus (`Test-InstallerCycle.ps1`) | Installieren, starten, benutzen (maschinell), deinstallieren und der portable Datenspeicherort sind auf einer echten Maschine messbar | die Bedienung der Oberfläche, Reparatur, Upgrade, Neustart, weitere Laufwerke |
+
 ## 4. Grenzen des Zugangs
 
 Der Workflow ist der einzige Weg, auf dem hier ein Windows-Rechner benutzt werden kann. Daraus folgt:

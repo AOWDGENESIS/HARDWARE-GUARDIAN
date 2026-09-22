@@ -275,6 +275,22 @@ jobs:
           pwsh ./scripts/vm/Test-InstallerCycle.ps1 -StartedBy "ci-runner $env:GITHUB_RUN_ID" *>&1 | Tee-Object -FilePath $log
           if ($LASTEXITCODE -ne 0) { throw "the installation cycle found problems (see artifacts/ci/installer-cycle.log and test-results/installer)" }
 
+      # What the repair tools answer - measured instead of assumed. The catalogs keep every repair
+      # action Allowed=false and this step is the reason it is a measurement and not caution: DISM
+      # answers 0 even when it finds corruption, so a non-zero code may not be reported as "the run
+      # failed". Only the read-only switches run here (/ScanHealth, /verifyonly, /scan); SFC and CHKDSK
+      # are skipped on purpose (they can need a quarter of an hour) and the report names them as open
+      # points. Whatever the numbers are, the step records them; it does not decide that a tool is safe.
+      - name: Measure the repair tools (chapter 32/77, read-only switches)
+        if: always()
+        timeout-minutes: 20
+        shell: pwsh
+        run: |
+          $log = 'artifacts/ci/repair-exitcodes.log'
+          New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
+          pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1 -Skip @('SfcVerifyOnly', 'ChkdskScan') *>&1 | Tee-Object -FilePath $log
+          if ($LASTEXITCODE -ne 0) { throw "measuring the repair tools failed (see artifacts/ci/repair-exitcodes.log)" }
+
       # The runner is the only machine that can see the build output, and its own log download is not
       # reachable from where this project is developed. So the run writes its logs and its test results
       # into the branch: that is the evidence, and it stays readable after the runner is gone.
@@ -321,6 +337,14 @@ jobs:
           # A failed self-test of the evidence library keeps its run folder (a passed one removes it
           # again). That folder is kept as well: it holds the bisect output that names the construct
           # which broke, and without it the next reader would have to reproduce the failure from a log.
+          # The repair tool measurement of chapter 32/77 files its numbers under test-results/security.
+          # It is one measured piece of module M32 - not the fourteen attacks of chapter 78-82, and the
+          # report says so itself.
+          $securityEvidence = 'test-results/security'
+          if (Test-Path $securityEvidence) {
+            git add --force $securityEvidence
+            $staged += git status --porcelain $securityEvidence
+          }
           $selfTestEvidence = 'test-results/integration'
           if (Test-Path $selfTestEvidence) {
             git add --force $selfTestEvidence
