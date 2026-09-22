@@ -19,6 +19,25 @@ public static class JsonOptions
 
     public static JsonSerializerOptions Compact { get; } = Create(writeIndented: false);
 
+    /// <summary>
+    /// The options of the JSON report: the same options plus the sanitation of
+    /// <see cref="SafeText"/>, which the text and HTML report have always applied (chapter 80,
+    /// SEC-14).
+    ///
+    /// Why only the report carries the cleaner and not the audit log or the settings: those are read
+    /// back by this application and have to come out as they went in. The report is written once and
+    /// read by people and by external tools - that is where a value from outside could steer what
+    /// somebody sees.
+    /// </summary>
+    public static JsonSerializerOptions Report { get; } = CreateReportOptions();
+
+    private static JsonSerializerOptions CreateReportOptions()
+    {
+        var options = Create(writeIndented: true);
+        options.Converters.Insert(0, new SafeTextJsonConverter());
+        return options;
+    }
+
     private static JsonSerializerOptions Create(bool writeIndented)
     {
         var options = new JsonSerializerOptions
@@ -39,6 +58,20 @@ public static class JsonOptions
         options.Converters.Add(new MeasuredJsonConverterFactory());
         return options;
     }
+}
+
+/// <summary>
+/// Writes every string value of a report through <see cref="SafeText.Sanitise"/>. A property *name* is
+/// written by the writer itself and comes from this code, so it needs no cleaning; a property *value*
+/// can come from a device name, a driver string or a log line and therefore does.
+/// </summary>
+public sealed class SafeTextJsonConverter : JsonConverter<string>
+{
+    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType == JsonTokenType.Null ? string.Empty : reader.GetString() ?? string.Empty;
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(SafeText.Sanitise(value));
 }
 
 /// <summary>Serialises <see cref="ValueOrigin"/> including the retrieval timestamp.</summary>

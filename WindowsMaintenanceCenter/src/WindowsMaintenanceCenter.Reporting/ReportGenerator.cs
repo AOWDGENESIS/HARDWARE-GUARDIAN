@@ -379,7 +379,9 @@ public sealed class ReportGenerator : IReportGenerator
             };
         }
 
-        return JsonSerializer.Serialize(payload, JsonOptions.Default);
+        // The same rule as in the text and HTML report: a report is one document in three formats,
+        // and a format that cleans less than the others is the one an injection survives in.
+        return JsonSerializer.Serialize(payload, JsonOptions.Report);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -936,36 +938,13 @@ public sealed class ReportGenerator : IReportGenerator
     /// characters are written as their code point (\u001B) instead, which stays one legible line and
     /// cannot drive anything. Ordinary text is returned unchanged, so nothing correct is shortened.
     /// </summary>
-    internal static string Safe(string? text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return string.Empty;
-        }
-
-        if (!text.Any(IsUnsafe))
-        {
-            return text;
-        }
-
-        var builder = new StringBuilder(text.Length + 16);
-        foreach (var character in text)
-        {
-            if (IsUnsafe(character))
-            {
-                builder.Append("\\u").Append(((int)character).ToString("X4", CultureInfo.InvariantCulture));
-            }
-            else
-            {
-                builder.Append(character);
-            }
-        }
-
-        return builder.ToString();
-    }
-
-    private static bool IsUnsafe(char character) =>
-        char.IsControl(character) || character is '\u2028' or '\u2029' or '\u0085';
+    /// <summary>
+    /// The one sanitation rule of all delivered documents (chapter 80, SEC-14). It lives in
+    /// <see cref="SafeText"/> because the HTML and the JSON report need exactly the same rule - and
+    /// until 2026-09-22 the JSON report had none at all, while this method let every bidi and
+    /// zero-width character through. The tests of SEC-14 check all three formats.
+    /// </summary>
+    internal static string Safe(string? text) => SafeText.Sanitise(text);
 
     private static string Show<T>(Measured<T> value, string? format = null)
         where T : struct =>

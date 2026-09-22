@@ -69,6 +69,9 @@ jobs:
   windows:
     name: Build, test and package (Windows, .NET 10)
     runs-on: windows-latest
+    # A run that hangs has to end by itself. The first attempt of the installation cycle did not, and
+    # the job then held a runner until it was cancelled by hand (which this access cannot do).
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -240,7 +243,11 @@ jobs:
       # Gate 7 (chapter 62): install, start, probe that it really ran, uninstall, and prove that the
       # portable artefact keeps its data next to itself. The evidence lands in test-results/installer
       # and is recorded with the run like every other proof.
+      # The step has a hard upper limit: the first attempt (run 35695298315) never finished and kept a
+      # runner busy until it was cancelled. With a limit the run ends, the record step below still
+      # writes the log into the branch, and the log says where it stood.
       - name: Installation cycle on this machine (gate 7)
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $log = 'artifacts/ci/installer-cycle.log'

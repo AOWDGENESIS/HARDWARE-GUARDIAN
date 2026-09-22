@@ -234,6 +234,73 @@ public sealed class ReportGeneratorTests
 
         Assert.DoesNotContain("<script>", markup);
         Assert.Contains("&lt;script&gt;", markup);
+
+        var json = await generator.GenerateAsync(injected, ReportFormat.Json, Options(), CancellationToken.None);
+        var payload = await File.ReadAllTextAsync(json.FilePath);
+
+        // The JSON report has to carry the same rule as the other two - and it has to stay parseable
+        // while doing so.
+        Assert.DoesNotContain('\u001b', payload);
+        Assert.DoesNotContain('\u0007', payload);
+        Assert.DoesNotContain("\r\nWMC-FAKE-000", payload);
+        Assert.Contains("\\u001B", payload);
+        using (var document = JsonDocument.Parse(payload))
+        {
+            Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
+        }
+    }
+
+    /// <summary>
+    /// SEC-14, second half, found on 2026-09-22: a **format** character is not a control character.
+    /// The bidi override U+202E, the isolate U+2066, the zero width space U+200B, the BOM U+FEFF and
+    /// the invisible tag characters U+E0001/U+E007F are legal JSON and legal HTML, no serialiser
+    /// escapes them - and they reorder or hide the visible text. A device name could therefore make a
+    /// report *read* like a success while the measured values say something else. Before this test the
+    /// text report let every one of them through and the JSON report was not cleaned at all.
+    /// </summary>
+    [Fact]
+    public async Task Format_characters_cannot_re_order_the_report()
+    {
+        using var paths = new TempPathProvider();
+        var generator = CreateGenerator(paths);
+        var baseRequest = ReportRequest();
+        var baseSnapshot = baseRequest.Snapshot;
+        Assert.NotNull(baseSnapshot);
+
+        // RLO + "OK" + hidden tag character: read by a person this looks like a clean result.
+        var spoof = "GPU\u202EKO\u200B\uFEFF\uDB40\uDC01";
+        var injected = baseRequest with
+        {
+            Snapshot = baseSnapshot with
+            {
+                Components = baseSnapshot.Components
+                    .Select(component => component with
+                    {
+                        Name = TextInfo.Known(spoof, component.Name.Origin),
+                    })
+                    .ToArray(),
+            },
+        };
+
+        var text = await generator.GenerateAsync(injected, ReportFormat.Text, Options(), CancellationToken.None);
+        var content = await File.ReadAllTextAsync(text.FilePath);
+        var html = await generator.GenerateAsync(injected, ReportFormat.Html, Options(), CancellationToken.None);
+        var markup = await File.ReadAllTextAsync(html.FilePath);
+        var json = await generator.GenerateAsync(injected, ReportFormat.Json, Options(), CancellationToken.None);
+        var payload = await File.ReadAllTextAsync(json.FilePath);
+
+        foreach (var document in new[] { content, markup, payload })
+        {
+            Assert.DoesNotContain("\u202E", document);
+            Assert.DoesNotContain("\u200B", document);
+            Assert.DoesNotContain("\uFEFF", document);
+            Assert.DoesNotContain("\uDB40", document);
+            Assert.Contains("\\u202E", document);
+        }
+
+        // What is unusual but harmless stays: the value must still be recognisable, not removed.
+        Assert.Contains("GPU", content);
+        Assert.Contains("KO", content);
     }
 
     private static ReportGenerator CreateGenerator(TempPathProvider paths) => new(

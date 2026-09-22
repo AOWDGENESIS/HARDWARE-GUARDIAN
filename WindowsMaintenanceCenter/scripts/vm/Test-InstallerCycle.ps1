@@ -50,6 +50,10 @@ param(
     [string]$PortableArtefact,
     [string]$PublishedProgram,
     [int]$StartWaitSeconds = 20,
+
+    # Upper limit for the setup and the uninstaller. A hanging installer must end as a finding in the
+    # report, not as a step that runs until the job is killed.
+    [int]$InstallBudgetSeconds = 300,
     [string]$StartedBy = $env:USERNAME
 )
 
@@ -73,8 +77,32 @@ $steps = New-Object System.Collections.Generic.List[object]
 function Add-Step {
     param([string]$Name, [string]$Result, [string]$Detail = '')
     $steps.Add([pscustomobject]@{ step = $Name; result = $Result; detail = $Detail })
-    $colour = switch ($Result) { 'PASS' { 'Green' } 'FAIL' { 'Red' } default { 'Yellow' } }
+    $colour = switch ($Result) {
+        'PASS' { 'Green' }
+        'FAIL' { 'Red' }
+        default { 'Yellow' }
+    }
+
     Write-Host ("  {0,-9} {1} {2}" -f $Result, $Name, $Detail) -ForegroundColor $colour
+}
+
+function Wait-ProcessBounded {
+    <#
+        Waits for a process at most $Seconds and says whether it ended. Why not "Start-Process -Wait":
+        that waits forever, and the first run of this script on the CI machine (run 35695298315) stood
+        still until somebody cancelled it - a test that cannot end is not a test. A process that runs
+        longer than its budget is killed and reported.
+    #>
+    param([Parameter(Mandatory)]$Process, [Parameter(Mandatory)][int]$Seconds)
+
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ((Get-Date) -lt $deadline) {
+        if ($Process.HasExited) { return $true }
+        Start-Sleep -Milliseconds 500
+        $Process.Refresh()
+    }
+
+    return $Process.HasExited
 }
 
 function Get-DataRoots {
@@ -161,13 +189,21 @@ if ($beforeEntry) {
 $installLog = Join-Path $logDirectory 'install.log'
 $installArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOCANCEL', "/LOG=$installLog")
 Write-Host '[INS-CI] installing silently' -ForegroundColor Cyan
-$install = Start-Process -FilePath $Installer -ArgumentList $installArgs -Wait -PassThru
-Add-WmcMeasurement -Run $run -Name 'installExitCode' -Value $install.ExitCode -Source 'setup /VERYSILENT'
-if ($install.ExitCode -eq 0) {
-    Add-Step 'install (silent)' 'PASS' 'setup returned 0'
+$install = Start-Process -FilePath $Installer -ArgumentList $installArgs -PassThru
+$installEnded = Wait-ProcessBounded -Process $install -Seconds $InstallBudgetSeconds
+if (-not $installEnded) {
+    Stop-Process -Id $install.Id -Force -ErrorAction SilentlyContinue
+    Add-Step 'install (silent)' 'FAIL' "the setup did not finish within $InstallBudgetSeconds s and was ended"
+    $findings.Add("the setup did not finish within $InstallBudgetSeconds s (budget per chapter 71: a test that cannot end is not a test)")
+    Add-WmcMeasurement -Run $run -Name 'installExitCode' -Value 'not finished within budget' -Source 'setup /VERYSILENT'
 } else {
-    Add-Step 'install (silent)' 'FAIL' "setup returned $($install.ExitCode)"
-    $findings.Add("the setup failed with exit code $($install.ExitCode)")
+    Add-WmcMeasurement -Run $run -Name 'installExitCode' -Value $install.ExitCode -Source 'setup /VERYSILENT'
+    if ($install.ExitCode -eq 0) {
+        Add-Step 'install (silent)' 'PASS' 'setup returned 0'
+    } else {
+        Add-Step 'install (silent)' 'FAIL' "setup returned $($install.ExitCode)"
+        $findings.Add("the setup failed with exit code $($install.ExitCode)")
+    }
 }
 
 # ------------------------------------------------------------------------ 3. LAYOUT
@@ -253,7 +289,10 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
             if (Test-Path -LiteralPath $candidate) {
                 $logDirectory = Join-Path $candidate 'logs'
                 $logs = @()
-                if (Test-Path $logDirectory) { $logs = @(Get-ChildItem -Path $logDirectory -Filter '*.log' -ErrorAction SilentlyContinue) }
+                if (Test-Path $logDirectory) {
+                    $logs = @(Get-ChildItem -Path $logDirectory -Filter '*.log' -ErrorAction SilentlyContinue |
+                        Sort-Object LastWriteTime -Descending | Select-Object -First 5)
+                }
                 $seen += [pscustomobject]@{ path = $candidate; logs = $logs }
                 Add-WmcMeasurement -Run $run -Name 'dataFolderAfterStart' -Value "$candidate ($($logs.Count) log file(s))" -Source 'file system'
             }
@@ -306,8 +345,17 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
 $uninstallLog = Join-Path $logDirectory 'uninstall.log'
 if ($entry -and $entry.UninstallString) {
     $uninstaller = ($entry.UninstallString -replace '"', '').Trim()
-    Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$uninstallLog") -Wait | Out-Null
-    Add-Step 'uninstall (silent)' 'PASS' (Split-Path $uninstaller -Leaf)
+    # Inno's uninstaller copies itself into the temporary folder and starts that copy. The process
+    # started here therefore ends early; the uninstall itself is checked afterwards by looking at the
+    # registry, the files and the shortcuts - that is the proof, not the exit code.
+    $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$uninstallLog") -PassThru
+    if (-not (Wait-ProcessBounded -Process $uninstall -Seconds $InstallBudgetSeconds)) {
+        Stop-Process -Id $uninstall.Id -Force -ErrorAction SilentlyContinue
+        Add-Step 'uninstall (silent)' 'FAIL' "the uninstaller did not finish within $InstallBudgetSeconds s"
+        $findings.Add("the uninstaller did not finish within $InstallBudgetSeconds s")
+    } else {
+        Add-Step 'uninstall (silent)' 'PASS' (Split-Path $uninstaller -Leaf)
+    }
 } else {
     Add-Step 'uninstall (silent)' 'FAIL' 'no uninstall string to run'
     $findings.Add('there was no uninstall command, so the installation could not be removed')

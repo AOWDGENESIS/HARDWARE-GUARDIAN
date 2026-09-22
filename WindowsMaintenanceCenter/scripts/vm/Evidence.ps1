@@ -32,6 +32,12 @@ $ErrorActionPreference = 'Stop'
 # verdict for a test that has no proof (chapter 5), and it is intentionally part of this list.
 $script:WmcEvidenceStatus = @('PASSED', 'FAILED', 'BLOCKED', 'NOT VERIFIED')
 
+# Every query against a WMI provider is bounded. Why: the first run of the installation cycle on the CI
+# machine (run 35695298315) never finished - the step stood still for more than ten minutes in this
+# environment record, and a provider that does not answer has to become a line in the record, not a
+# hang. 20 seconds is far above a normal answer and far below a hopeful wait.
+$script:WmcCimTimeoutSeconds = 20
+
 function Get-WmcRepositoryRoot {
     <#
         The kit scripts live in scripts/vm/, so the repository root is two levels above them.
@@ -108,22 +114,24 @@ function Get-WmcEnvironmentRecord {
 
     Read-Value 'computer' { "$env:COMPUTERNAME (user $env:USERNAME)" }
     Read-Value 'operatingSystem' {
-        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds
         "$($os.Caption) version=$($os.Version) build=$($os.BuildNumber) arch=$($os.OSArchitecture)"
     }
     Read-Value 'machine' {
-        $system = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        $system = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds
         "$($system.Manufacturer) $($system.Model) hypervisorPresent=$($system.HypervisorPresent)"
     }
     Read-Value 'bios' {
-        $bios = Get-CimInstance Win32_BIOS -ErrorAction Stop
+        $bios = Get-CimInstance Win32_BIOS -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds
         "$($bios.Manufacturer) $($bios.SMBIOSBIOSVersion) released=$($bios.ReleaseDate)"
     }
     Read-Value 'cpu' {
-        $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop | Select-Object -First 1
+        $cpu = Get-CimInstance Win32_Processor -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds | Select-Object -First 1
         "$($cpu.Name) cores=$($cpu.NumberOfCores) logical=$($cpu.NumberOfLogicalProcessors)"
     }
-    Read-Value 'memoryGb' { [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1) }
+    Read-Value 'memoryGb' {
+        [math]::Round((Get-CimInstance Win32_ComputerSystem -OperationTimeoutSec $script:WmcCimTimeoutSeconds).TotalPhysicalMemory / 1GB, 1)
+    }
     Read-Value 'powerShell' { $PSVersionTable.PSVersion.ToString() }
     Read-Value 'dotnet' {
         $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
@@ -141,7 +149,7 @@ function Get-WmcEnvironmentRecord {
         (Confirm-SecureBootUEFI)
     }
     Read-Value 'tpm' {
-        $tpm = Get-CimInstance -Namespace 'root/cimv2/security/microsofttpm' -ClassName Win32_Tpm -ErrorAction Stop
+        $tpm = Get-CimInstance -Namespace 'root/cimv2/security/microsofttpm' -ClassName Win32_Tpm -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds
         "present spec=$($tpm.SpecVersion) enabled=$($tpm.IsEnabled_InitialValue) activated=$($tpm.IsActivated_InitialValue)"
     }
     Read-Value 'dataCenterRegion' { 'not collected (no telemetry, and this kit never sends anything anywhere)' }
@@ -149,18 +157,18 @@ function Get-WmcEnvironmentRecord {
     # What a machine of this kind commonly cannot provide. The scripts check these properties
     # themselves; the record states them up front so a reader does not have to guess.
     Read-Value 'battery' {
-        $batteries = @(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue)
+        $batteries = @(Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue -OperationTimeoutSec $script:WmcCimTimeoutSeconds)
         if ($batteries.Count -eq 0) { 'none' } else { "$($batteries.Count) device(s)" }
     }
     Read-Value 'thermalZones' {
-        $zones = @(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop)
+        $zones = @(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop -OperationTimeoutSec $script:WmcCimTimeoutSeconds)
         "$($zones.Count) zone(s)"
     }
     Read-Value 'videoController' {
-        @(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', '
+        @(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue -OperationTimeoutSec $script:WmcCimTimeoutSeconds | ForEach-Object { $_.Name }) -join ', '
     }
     Read-Value 'diskDrives' {
-        @(Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Model) ($($_.Size) bytes)" }) -join ' | '
+        @(Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue -OperationTimeoutSec $script:WmcCimTimeoutSeconds | ForEach-Object { "$($_.Model) ($($_.Size) bytes)" }) -join ' | '
     }
 
     return [pscustomobject]$probe
