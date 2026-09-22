@@ -1,0 +1,37 @@
+dotnet build D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\WindowsMaintenanceCenter.Tests.csproj -c Release --nologo
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  WindowsMaintenanceCenter.Core -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Core\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Core.dll
+  WindowsMaintenanceCenter.Maintenance -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Maintenance\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Maintenance.dll
+  WindowsMaintenanceCenter.Infrastructure -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Infrastructure\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Infrastructure.dll
+  WindowsMaintenanceCenter.Hardware -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Hardware\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Hardware.dll
+  WindowsMaintenanceCenter.Simulation -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Simulation\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Simulation.dll
+  WindowsMaintenanceCenter.Reporting -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Reporting\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Reporting.dll
+  WindowsMaintenanceCenter.Diagnostics -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\src\WindowsMaintenanceCenter.Diagnostics\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Diagnostics.dll
+  WindowsMaintenanceCenter.Tests -> D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:11.18
+-- test platform files next to the test application --
+  Microsoft.Testing.Extensions.MSBuild.dll                         2.400.26.45208
+  Microsoft.Testing.Extensions.Telemetry.dll                       2.400.26.45208
+  Microsoft.Testing.Extensions.TrxReport.Abstractions.dll          2.400.26.45208
+  Microsoft.Testing.Extensions.TrxReport.dll                       2.400.26.45208
+  Microsoft.Testing.Platform.dll                                   2.400.26.45208
+  xunit.runner.visualstudio.testadapter.dll                        4.0.0
+-- D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Tests.exe --help
+report option offered by the executable: -result-trx (xUnit v3 in-process runner)
+D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\bin\Release\net10.0-windows\WindowsMaintenanceCenter.Tests.exe -result-trx D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\artifacts\test-results\windowsmaintenancecenter.trx -noColor -result-html D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\artifacts\test-results\windowsmaintenancecenter.html
+xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.12)
+  Discovering: WindowsMaintenanceCenter.Tests
+  Discovered:  WindowsMaintenanceCenter.Tests
+  Starting:    WindowsMaintenanceCenter.Tests
+  Finished:    WindowsMaintenanceCenter.Tests (ID = 'd9166560957a46470fae98146567ab134b84665440c53d74e87b1345ee206936')
+=== TEST EXECUTION SUMMARY ===
+   WindowsMaintenanceCenter.Tests  Total: 370, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 2.403s
+tests passed: 370 executed, 370 passed, 0 failed, 0 skipped
+proof: TRX
+evidence: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\unit\20260922T070550Z-370-of-370
