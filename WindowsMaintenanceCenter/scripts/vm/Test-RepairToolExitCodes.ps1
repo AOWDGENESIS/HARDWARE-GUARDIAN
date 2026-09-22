@@ -96,32 +96,61 @@ foreach ($tool in $tools) {
 
     $standardOutput = Join-Path $run.Folder "logs/$label.out.txt"
     $standardError = Join-Path $run.Folder "logs/$label.err.txt"
-    $started = Get-Date
 
-    # Start-Process instead of the call operator: the exit code has to be read, the output has to be
-    # filed, and a run that hangs must not hang the evidence collection with it.
-    $process = Start-Process -FilePath $executable.Source -ArgumentList $tool.Arguments -NoNewWindow -PassThru `
-        -RedirectStandardOutput $standardOutput -RedirectStandardError $standardError
-    $finished = $process.WaitForExit([int]($tool.TimeoutMinutes * 60000))
-    if (-not $finished) {
-        try { $process.Kill() } catch { }
-        $blocked.Add("$label did not finish within $($tool.TimeoutMinutes) minute(s) and was stopped")
-        $text.Add("$label : BLOCKED (timeout after $($tool.TimeoutMinutes) minute(s))")
+    # Every tool is measured inside its own guard, and that guard is not decoration: in run 35705003836
+    # the version of DISM was read from the process object *after* the process had ended
+    # ($process.MainModule) - which throws, aborted the whole script and threw away the measurement that
+    # had just been taken (DISM /ScanHealth answered 0 after 453 seconds). One unreadable value cost the
+    # evidence of every following tool. From here on a tool that cannot be measured becomes a line in
+    # the report and the next tool is measured anyway; the run status says BLOCKED, never PASSED.
+    try {
+        $started = Get-Date
+
+        # Start-Process instead of the call operator: the exit code has to be read, the output has to be
+        # filed, and a run that hangs must not hang the evidence collection with it.
+        $process = Start-Process -FilePath $executable.Source -ArgumentList $tool.Arguments -NoNewWindow -PassThru `
+            -RedirectStandardOutput $standardOutput -RedirectStandardError $standardError
+        $finished = $process.WaitForExit([int]($tool.TimeoutMinutes * 60000))
+        if (-not $finished) {
+            try { $process.Kill() } catch { }
+            $blocked.Add("$label did not finish within $($tool.TimeoutMinutes) minute(s) and was stopped")
+            $text.Add("$label : BLOCKED (timeout after $($tool.TimeoutMinutes) minute(s))")
+            continue
+        }
+
+        $seconds = [math]::Round(((Get-Date) - $started).TotalSeconds, 1)
+        $exit = $process.ExitCode
+        Add-WmcMeasurement -Run $run -Name "$label.ExitCode" -Value $exit -Source "$($tool.File) $($tool.Arguments -join ' ')"
+        Add-WmcMeasurement -Run $run -Name "$label.Seconds" -Value $seconds -Unit 's' -Source 'measured around the process'
+    } catch {
+        $blocked.Add("$label could not be started or its exit code could not be read: $($_.Exception.Message)")
+        $text.Add("$label : BLOCKED ($($_.Exception.Message))")
         continue
     }
 
-    $seconds = [math]::Round(((Get-Date) - $started).TotalSeconds, 1)
-    $exit = $process.ExitCode
-    Add-WmcMeasurement -Run $run -Name "$label.ExitCode" -Value $exit -Source "$($tool.File) $($tool.Arguments -join ' ')"
-    Add-WmcMeasurement -Run $run -Name "$label.Seconds" -Value $seconds -Unit 's' -Source 'measured around the process'
-    Add-WmcMeasurement -Run $run -Name "$label.ToolVersion" -Value $process.MainModule.FileVersionInfo.FileVersion -Source $executable.Source
-    $text.Add("$label : exit=$exit after $seconds s  ($($tool.File) $($tool.Arguments -join ' '))")
-
-    if ($Expect.ContainsKey($label) -and [int]$Expect[$label] -ne $exit) {
-        $findings.Add("$label answered $exit, expected was $($Expect[$label])")
+    # The tool version comes from the file on disk, not from the process object: a finished process has
+    # no readable module information, and an unreadable version has to say so instead of stopping
+    # everything. The value is what a reader needs anyway - which version of the tool answered here.
+    $version = 'not readable'
+    try {
+        $version = (Get-Item -LiteralPath $executable.Source).VersionInfo.FileVersion
+        if ([string]::IsNullOrWhiteSpace($version)) { $version = 'not reported by the file' }
+    } catch {
+        $version = "not readable ($($_.Exception.GetType().Name))"
     }
-    if ($exit -ne 0 -and -not $Expect.ContainsKey($label)) {
-        $openPoints.Add("$label answered $exit - record what that code means for this Windows build before the action may be released")
+    Add-WmcMeasurement -Run $run -Name "$label.ToolVersion" -Value $version -Source $executable.Source
+    $text.Add("$label : exit=$exit after $seconds s  version=$version  ($($tool.File) $($tool.Arguments -join ' '))")
+
+    if ($Expect.ContainsKey($label)) {
+        if ([int]$Expect[$label] -ne $exit) {
+            $findings.Add("$label answered $exit, expected was $($Expect[$label])")
+        }
+    } else {
+        # Measuring is not interpreting. DISM /ScanHealth answers 0 even when it *finds* corruption -
+        # a zero is therefore evidence, not a verdict, and until somebody records what the number
+        # means for this Windows build the catalog keeps the action at Allowed=false. That is true for
+        # every code here, not only for a non-zero one (run 35705003836: 0 after 453 s).
+        $openPoints.Add("$label answered $exit - record what that number means for this Windows build before the action may be released")
     }
 }
 
@@ -146,6 +175,14 @@ if ($findings.Count -gt 0) {
 Complete-WmcEvidenceRun -Run $run -Status $status -Summary $summary `
     -Findings $findings.ToArray() -OpenPoints $openPoints.ToArray() | Out-Null
 
+Write-Host "[M32-SEC-EXIT-001] $status - $summary" -ForegroundColor Yellow
 if ($status -ne 'PASSED') {
     Write-Host 'A registration is not a release: the catalogs stay Allowed=false until these codes are explained.' -ForegroundColor Yellow
 }
+
+# The exit code answers one question only: did the measuring itself work? FAILED means a handed in
+# expectation was not met, BLOCKED means a tool could not be measured - both are a broken measurement.
+# NOT VERIFIED is the normal state after a successful measuring with no interpretation yet, and it is
+# not an error of the tool. The verdict for the release is in the report, not in this code.
+if ($status -in @('FAILED', 'BLOCKED')) { exit 1 }
+exit 0

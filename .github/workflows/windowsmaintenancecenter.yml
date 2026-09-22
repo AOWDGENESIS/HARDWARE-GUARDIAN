@@ -289,7 +289,11 @@ jobs:
           $log = 'artifacts/ci/repair-exitcodes.log'
           New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
           pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1 -Skip @('SfcVerifyOnly', 'ChkdskScan') *>&1 | Tee-Object -FilePath $log
-          if ($LASTEXITCODE -ne 0) { throw "measuring the repair tools failed (see artifacts/ci/repair-exitcodes.log)" }
+          # Non-zero means the measuring itself broke (a tool could not be started, or a handed in
+          # expectation was not met) - not that a tool answered something unexpected. The verdict about
+          # the tools stands in the report: measured codes without an interpretation are NOT VERIFIED,
+          # and the catalogs keep the actions at Allowed=false for exactly that reason.
+          if ($LASTEXITCODE -ne 0) { throw "measuring the repair tools failed (see artifacts/ci/repair-exitcodes.log, test-results/security)" }
 
       # The runner is the only machine that can see the build output, and its own log download is not
       # reachable from where this project is developed. So the run writes its logs and its test results

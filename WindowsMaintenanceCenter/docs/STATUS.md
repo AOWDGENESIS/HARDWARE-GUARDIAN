@@ -182,7 +182,8 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 | `tools/check-bindings.py` | every `{Binding}` path resolves against its data scope (view model or item type) | 11 files, 167 bindings, 0 findings |
 | `tools/check-projects.py` | project references provide the used namespaces, every directory has a project, versions are centrally declared, every MSBuild `<Import>` resolves (`eng/Version.props`, `Directory.Packages.props`, `global.json` present, no project sets its own version) | 15 projects / 154 sources, 0 findings |
 | `tools/generate-solution.py --check` | `WindowsMaintenanceCenter.sln` matches the projects on disk | up to date |
-| `tools/check-mutation.py` | the checkers above actually work, in both directions: every deliberate defect (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a binding without a mode to a read-only property on a TwoWay-by-default target, a missing MSBuild import target, a third-party driver portal in the source list) has to be **reported**, and one valid construct (`new X(...).Y()`) has to stay **silent** - a checker that cries wolf is as broken as a silent one | 16/16, exit code 0 |
+| `tools/check-powershell.py` | the scripts of the acceptance kit parse: tree-sitter over `scripts/`, `installer/` and `eng/`; the known blind spots of the grammar (unit suffixes like `1GB`, bare comma argument lists, `2>$null` in a command expression, `switch` cases spread over lines) are **filtered and counted**, never hidden silently; `--self-test` proves an unclosed call is reported | 10 files, 0 findings outside the known blind spots, 15 suppressed and listed on request - a pre-filter, the real parser on Windows is the authority (exit 3 and an explicit "not a pass" when the grammar is missing) |
+| `tools/check-mutation.py` | the checkers above actually work, in both directions: every deliberate defect (property, enum member, field/parameter/lambda/`foreach` member, lost interface member in a test double, unknown localisation key, hard-coded UI text, wrong binding, a binding without a mode to a read-only property on a TwoWay-by-default target, an unclosed call in a kit script, a missing MSBuild import target, a third-party driver portal in the source list) has to be **reported**, and one valid construct (`new X(...).Y()`) has to stay **silent** - a checker that cries wolf is as broken as a silent one | 17/17, exit code 0 |
 | `tools/check-repo-size.py` | the repository stays reviewable: no file over 4 MB, no more than 64 MB tracked in total, no more than 4000 files, `test-results/` no more than 48 MB; `--self-test` proves an oversized file is reported | 579 files / 19.8 MB, evidence 17.9 MB of 48 MB, 0 findings |
 | `tools/check-source-urls.py` | every manufacturer landing page answers over HTTPS and matches its claim in the source file; policy rules (HTTPS only, no credentials, no IP, no localhost, no third-party portal) hold | **did not run** in this environment: no direct outbound network (exit 3, "this is NOT a pass"). The four sources marked `SourceReachable` were confirmed by fetching them through the sandbox's page fetcher on 2026-09-20; `verify-all.sh` reports the skipped network check without calling the offline run incomplete |
 
@@ -351,3 +352,24 @@ earn - three holes were closed:
   It now runs with `if: always()` and keeps the test results and the download diagnostics.
 * The job sets `DOTNET_CLI_TELEMETRY_OPTOUT=1` (the application ships no telemetry, the build sends
   none either) together with `DOTNET_NOLOGO` and `NUGET_PACKAGES`.
+
+---
+
+## 6. Stand der Ablage (was liegt wo, was ist nicht abgelesen)
+
+Diese Zeilen stehen hier, damit ein Leser den Zustand nicht aus einem Chat rekonstruieren muss.
+
+* **Gepusht und von der CI gefahren:** `4e36846` (Reparaturwerkzeug-Messung im Ablauf) und davor
+  `60b379b`, `97e98ea`, `fd11038`, `3397fc0`, `d759180`. Der Lauf zu `fd11038` (`35704157557`) ist
+  abgelesen und grün: 370 von 370 Testfällen, Installationszyklus 20 Kriterien PASS mit
+  vollständigem Bericht (`test-results/installer/20260922T082333Z-INS-CI/`).
+* **Nicht abgelesen:** der Lauf zu `4e36846` ist gestartet, sein Ergebnis liegt nicht vor - der
+  GitHub-Zugang dieser Umgebung ist am 2026-09-22 abgelaufen (`gh` antwortet HTTP 401 Bad
+  credentials, `git fetch` verlangt Zugangsdaten). **Kein Nachweis, solange der Nachweisordner nicht
+  im Zweig liegt.** Genau das ist die Regel, die dieses Projekt sich selbst gegeben hat.
+* **Lokal, noch nicht gepusht (Zugang fehlt):** `300d0a3` - `tools/check-powershell.py` prüft die
+  Skripte des Nachweiskits (siehe Prüfertabelle oben), dazu Mutation 17 und die zwei neuen Schritte in
+  `tools/verify-all.sh`. Alle Prüfungen, die ohne SDK laufen, sind auf diesem Stand grün.
+* **Was ein neuer Zugang als Erstes tun sollte:** den Lauf zu `4e36846` ablesen und den Nachweisordner
+  nach `test-results/` holen; danach `300d0a3` pushen und den nächsten Lauf ablesen. Erst dann darf
+  die Messung der Reparaturwerkzeuge als Nachweis gelten.

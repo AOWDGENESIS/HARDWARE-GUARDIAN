@@ -160,6 +160,16 @@ MUTATIONS: tuple[Mutation, ...] = (
         "var build = new BuildInfoProvider(paths, paths).Get();\n            var buildVersion = build.Version;",
         expect_clean=True,
     ),
+    # The scripts of the acceptance kit are the measuring instruments: a broken one fails minutes later
+    # inside a CI run and leaves no evidence at all. A forgotten closing bracket is the cheapest way to
+    # produce exactly that, and it has to be reported before the run, not during it.
+    Mutation(
+        "powershell: an unclosed call",
+        "check-powershell",
+        "scripts/build.ps1",
+        "Set-StrictMode -Version Latest",
+        "Set-StrictMode -Version (Latest",
+    ),
     # The defect that made the delivered program fail on its very first start (run 35697744225): a
     # binding without a mode to a read-only property, on a target that is TwoWay by default.
     Mutation(
