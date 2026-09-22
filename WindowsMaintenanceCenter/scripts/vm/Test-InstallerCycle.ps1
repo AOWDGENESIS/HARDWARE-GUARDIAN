@@ -263,7 +263,7 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
     $findings.Add('the installation produced no executable at the location its own uninstall entry names')
 }
 
-$shortcuts = Get-StartMenuShortcuts
+$shortcuts = @(Get-StartMenuShortcuts)
 if ($shortcuts.Count -gt 0) {
     Add-Step 'Start menu entry' 'PASS' (($shortcuts | ForEach-Object { $_.FullName }) -join '; ')
 } else {
@@ -279,6 +279,19 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
     if ($process.HasExited) {
         Add-Step 'program starts' 'FAIL' "the program ended after $StartWaitSeconds s with exit code $($process.ExitCode)"
         $findings.Add("the installed program did not stay running (exit code $($process.ExitCode))")
+
+        # The log of a program that ended on its own is the first thing a reader needs.
+        foreach ($candidate in (Get-DataRoots -ExecutableDirectory $installRoot)) {
+            if (-not (Test-Path -LiteralPath $candidate)) { continue }
+            $deadLog = @(Get-ChildItem -Path $candidate -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in @('.jsonl', '.log') } | Sort-Object LastWriteTime -Descending)
+            if ($deadLog.Count -gt 0) {
+                Add-WmcEvidenceFile -Run $run -Path $deadLog[0].FullName -Description 'log of the program that ended on its own' | Out-Null
+                Write-WmcEvidenceText -Run $run -Name 'startup-log-tail.txt' `
+                    -Lines @(Get-Content -Path $deadLog[0].FullName -Tail 40 -ErrorAction SilentlyContinue) `
+                    -Description 'last lines of the log of the program that ended on its own' | Out-Null
+            }
+        }
     } else {
         Add-Step 'program starts' 'PASS' "still running after $StartWaitSeconds s (pid $($process.Id))"
         Add-WmcMeasurement -Run $run -Name 'startedProcessId' -Value $process.Id -Source 'Process'
@@ -286,33 +299,47 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
 
         $seen = @()
         foreach ($candidate in (Get-DataRoots -ExecutableDirectory $installRoot)) {
-            if (Test-Path -LiteralPath $candidate) {
-                $logDirectory = Join-Path $candidate 'logs'
-                $logs = @()
-                if (Test-Path $logDirectory) {
-                    $logs = @(Get-ChildItem -Path $logDirectory -Filter '*.log' -ErrorAction SilentlyContinue |
-                        Sort-Object LastWriteTime -Descending | Select-Object -First 5)
-                }
-                $seen += [pscustomobject]@{ path = $candidate; logs = $logs }
-                Add-WmcMeasurement -Run $run -Name 'dataFolderAfterStart' -Value "$candidate ($($logs.Count) log file(s))" -Source 'file system'
+            if (-not (Test-Path -LiteralPath $candidate)) { continue }
+
+            # Everything the program left behind, newest first. This is the proof that it really ran:
+            # a folder that exists says nothing, a written file with a timestamp says everything.
+            $files = @(Get-ChildItem -Path $candidate -Recurse -File -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending)
+            $seen += [pscustomobject]@{ path = $candidate; files = $files }
+            Add-WmcMeasurement -Run $run -Name 'dataFolderAfterStart' -Value "$candidate ($($files.Count) file(s))" -Source 'file system'
+            foreach ($file in ($files | Select-Object -First 12)) {
+                Add-WmcMeasurement -Run $run -Name "dataFile:$($file.Name)" -Value "$($file.Length) bytes, $($file.LastWriteTime.ToString('s'))" -Source 'file system'
             }
         }
 
-        $machineData = $seen | Where-Object { $_.path -like "$env:ProgramData*" }
+        $machineData = $seen | Where-Object { $_.path -like "$env:ProgramData*" } | Select-Object -First 1
         $besideProgram = $seen | Where-Object { $_.path -like "$installRoot*" }
 
         if (-not $machineData) {
             Add-Step 'use probe: machine data folder' 'FAIL' 'the program created no folder below %ProgramData%'
             $findings.Add('the installed program did not create its data folder below %ProgramData%')
-        } elseif ($machineData.logs.Count -gt 0) {
-            Add-Step 'use probe: log written' 'PASS' $machineData.path
-            $newest = $machineData.logs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            $tail = Get-Content -Path $newest.FullName -Tail 30 -ErrorAction SilentlyContinue
-            Write-WmcEvidenceText -Run $run -Name "startup-$($newest.Name).txt" -Lines @($tail) `
-                -Description 'last lines of the log the started program wrote' | Out-Null
         } else {
-            Add-Step 'use probe: log written' 'FAIL' 'no log file appeared'
-            $findings.Add('the program created no log file, so its startup work is not documented')
+            # The technical log is a JSON-lines file (TechnicalFileLoggerProvider). The first version of
+            # this probe looked for "*.log" and reported "no log file appeared" although the program had
+            # written its log - a wrong file extension made a working program look broken. What counts is
+            # that a file was written, and the content is filed as evidence.
+            $technical = @($machineData.files | Where-Object { $_.Extension -in @('.jsonl', '.log') })
+            if ($technical.Count -gt 0) {
+                $newest = $technical | Select-Object -First 1
+                Add-Step 'use probe: log written' 'PASS' "$($newest.Name) ($($technical.Count) log file(s))"
+                Add-WmcEvidenceFile -Run $run -Path $newest.FullName -Description 'technical log of the started program' | Out-Null
+                Write-WmcEvidenceText -Run $run -Name 'startup-log-tail.txt' `
+                    -Lines @(Get-Content -Path $newest.FullName -Tail 40 -ErrorAction SilentlyContinue) `
+                    -Description 'last lines of the log the started program wrote' | Out-Null
+            } else {
+                Add-Step 'use probe: log written' 'FAIL' 'no log file appeared'
+                $findings.Add('the program created no log file, so its startup work is not documented')
+            }
+
+            if ($machineData.files.Count -eq 0) {
+                Add-Step 'use probe: files written' 'FAIL' "the folder $($machineData.path) is empty"
+                $findings.Add('the data folder exists but the program wrote nothing into it')
+            }
         }
 
         if ($besideProgram) {
@@ -329,8 +356,14 @@ if ($installedExe -and (Test-Path -LiteralPath $installedExe)) {
             $closed = $process.HasExited
         }
 
-        if ($closed) {
-            Add-Step 'program closes' 'PASS' "exit code $($process.ExitCode)"
+        if ($closed -and $process.ExitCode -eq 0) {
+            Add-Step 'program closes' 'PASS' 'exit code 0 after the window was closed'
+        } elseif ($closed) {
+            # A program that closes with a non-zero code reports a problem - and on a machine where
+            # nobody can see its window, the exit code is the only thing that says so. The startup log
+            # filed above names the reason.
+            Add-Step 'program closes' 'FAIL' "exit code $($process.ExitCode) after the window was closed"
+            $findings.Add("the installed program ended with exit code $($process.ExitCode) (the startup log above names the reason)")
         } else {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             Add-Step 'program closes' 'NOT VERIFIED' 'the program did not close on request - it was ended'
@@ -384,7 +417,7 @@ if ($installRoot -and (Test-Path -LiteralPath $installRoot)) {
     Add-Step 'program files removed' 'PASS' 'the program folder is gone'
 }
 
-$shortcutsAfter = Get-StartMenuShortcuts
+$shortcutsAfter = @(Get-StartMenuShortcuts)
 if ($shortcutsAfter.Count -eq 0) {
     Add-Step 'Start menu entry removed' 'PASS' 'no shortcut left'
 } else {
