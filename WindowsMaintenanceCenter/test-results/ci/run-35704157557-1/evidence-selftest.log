@@ -1,0 +1,15 @@
+Evidence library self-test (chapter 71)
+[M00-E-001] preparing integration evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T082329Z-M00-E-001
+[M00-E-001] evidence: logs/selftest.txt sha256=aee1bf358ad8d835c669250409e12b7176e7bc9fbc474498920854ff7f505515
+  selftest.marker = 1
+[M00-E-001] PASSED - the evidence library writes its report
+  report: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T082329Z-M00-E-001\report.json
+
+  PASS      the library completes a run
+  PASS      report.json exists - D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T082329Z-M00-E-001\report.json
+  PASS      report.txt exists - D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\integration\20260922T082329Z-M00-E-001\report.txt
+  PASS      the report carries timestamp, version, build, environment and result - all five present
+  PASS      the report says PASSED and holds the evidence - status=PASSED evidence=1 measurements=1
+  PASS      a PASSED report without evidence is refused - run M00-E-002 claims PASSED without a single piece of evidence or measurement
+
+evidence library self-test passed (its own run folder was removed again)

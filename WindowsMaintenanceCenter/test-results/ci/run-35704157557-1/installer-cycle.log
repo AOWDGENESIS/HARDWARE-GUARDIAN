@@ -1,0 +1,47 @@
+[INS-CI] preparing installer evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\installer\20260922T082333Z-INS-CI
+  sha256:WindowsMaintenanceCenter-Setup-x64.exe = 1416e8c939276c927189ae2a3e79a74a9a41be9ecda44474ae9dbc9745396da2
+  sha256:WindowsMaintenanceCenter-Portable-x64.exe = f778d059b761e323d198d77a4e98630ff0f8d81749f146f020fa360daf14b71b
+  sha256:WindowsMaintenanceCenter.exe = 5190c229b66aebf7c0f0598615d45459d43b1e295be6637c036f656cdc56fcca
+  isAdministrator = True
+  PASS      precondition: nothing installed yet no uninstall entry for this product
+[INS-CI] installing silently
+  installExitCode = 0
+  PASS      install (silent) setup returned 0
+  PASS      uninstall entry Windows Maintenance Center 1.0.0 1.0.0 in HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{9F1C2A34-6F5B-4A72-9E3D-2D7A6A1C5B10}_is1
+  installLocation = C:\Users\runneradmin\AppData\Local\Programs\Windows Maintenance Center\
+  displayVersion = 1.0.0
+  publisher = AOWDGENESIS
+  estimatedSizeKb = 65396
+  installedExeSha256 = 5190c229b66aebf7c0f0598615d45459d43b1e295be6637c036f656cdc56fcca
+  installedFileVersion = 1.0.0.0
+  PASS      installed program is the built one SHA-256 equals the published program
+  PASS      installed version matches the build 1.0.0.0
+  PASS      installed copy is not portable no marker and no data folder beside the program
+  PASS      Start menu entry C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Uninstall Windows Maintenance Center.lnk; C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Windows Maintenance Center.lnk
+  PASS      program starts still running after 20 s (pid 3732)
+  startedProcessId = 3732
+  workingSetBytes = 246108160
+  dataFolderAfterStart = C:\ProgramData\WindowsMaintenanceCenter (2 file(s))
+  dataFile:technical-20260922.jsonl = 768 bytes, 2026-09-22T08:23:53
+  dataFile:state-journal.jsonl = 468 bytes, 2026-09-22T08:23:53
+  PASS      use probe: log written technical-20260922.jsonl (2 log file(s))
+[INS-CI] evidence: logs/technical-20260922.jsonl sha256=5620f339186354c7b20f24511a6af9302fefdbe1d52f9a4fc097c4ca0cf87386
+[INS-CI] evidence: logs/startup-log-tail.txt sha256=5620f339186354c7b20f24511a6af9302fefdbe1d52f9a4fc097c4ca0cf87386
+  PASS      use probe: start line in the log {"ts":"2026-09-22T08:23:40.8823551+00:00","level":"Information","category":"WindowsMaintenanceCenter.App.App","eventId":0,"message":"started
+  PASS      use probe: installed copy stays out of its own folder nothing was written next to the executable
+  PASS      program closes exit code 0 after the window was closed
+  PASS      uninstall (silent) unins000.exe
+  PASS      uninstall entry removed no entry left in the uninstall registry
+  PASS      program files removed the program folder is gone
+  PASS      Start menu entry removed no shortcut left
+  dataKeptAfterUninstall = C:\ProgramData\WindowsMaintenanceCenter
+  PASS      application data after uninstall C:\ProgramData\WindowsMaintenanceCenter (2 file(s)) - kept on purpose, the uninstaller asks before deleting
+  PASS      portable artefact starts still running after 20 s (pid 6900)
+  PASS      portable artefact keeps its data next to itself 2 file(s) in data
+  portableDataFiles = 2
+  portableDataFolder = C:\Users\runneradmin\AppData\Local\Temp\wmc-portable-93fd1372\data
+[INS-CI] evidence: logs/steps.txt sha256=c14f209becd21f38b774921bda0a8e01c1140ac76dadaa3b5aed6234b4cd5a33
+[INS-CI] evidence: logs/install.log sha256=d6b1e3b8bd23193fee4f4c488518e9964892f875d236dbbad167d44b0ca618e4
+[INS-CI] evidence: logs/uninstall.log sha256=7c4fcbdfc3e1de88055320f36e25d2a0b055efe29657d9c65733cfefcd4f2f77
+[INS-CI] PASSED - Installation cycle PASSED: install, layout, start, use probe, uninstall (data kept on purpose) and the portable artefact stores its data next to itself
+  report: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\installer\20260922T082333Z-INS-CI\report.json
