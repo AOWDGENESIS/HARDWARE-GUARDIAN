@@ -235,12 +235,29 @@ Nicht alles war Formalismus. Diese Funde hätten in der Anwendung zu falschen Au
 | Nachweiskit | Selbsttest existiert noch nicht (er entsteht aus diesem Befund) | - |
 | Installationszyklus (Gate 7) | **alle Kriterien PASS**: stille Installation Exit-Code 0; installierte Datei SHA-256-identisch mit dem Bau; Startmenüeintrag; installierte Kopie nicht portabel; Programm startet, Datenordner und Logzeile entstehen; **Programm schließt mit Exit-Code 0**; Deinstallation entfernt Eintrag, Programmordner und Verknüpfung und behält die Daten; portables Artefakt startet und legt seine Daten neben sich ab | `run-35701860625-1/installer-cycle.log`, `test-results/installer/20260922T075623Z-INS-CI/` |
 | Bericht des Zyklus | **fehlt**: `Complete-WmcEvidenceRun` bricht mit `Argument types do not match` ab (`$report = [ordered]@{`, Zeile 325) - der Lauf ist deshalb rot, obwohl jeder Schritt PASS meldet | `run-35701860625-1/installer-cycle.log` (Ende) |
+| Selbsttest der Nachweisbibliothek | entsteht aus diesem Befund; er läuft ab dem nächsten Lauf vor dem Zyklus | `scripts/vm/Test-EvidenceLibrary.ps1` |
 | Zweiter Befund | Die Fehlermeldung nannte nur die Zeile. Der Fehlertext trägt jetzt den Aufrufstapel, und `scripts/vm/Test-EvidenceLibrary.ps1` prüft die Bibliothek vor dem Zyklus und grenzt bei einem Fehlschlag den brechenden Ausdruck selbst ein | Workflow-Schritt „Evidence library self-test (chapter 71)" |
 
 Was dieser Lauf belegt: der Startabsturz ist behoben (Exit-Code 0, vorher 1), das portable Artefakt speichert
 seine Daten neben sich, die Deinstallation lässt den Rechner sauber zurück, und die Testsuite steht bei 370
 Fällen. Was er **nicht** belegt: den Reparatur- und Upgrade-Weg, den Neustart, weitere Laufwerke und die
 Bedienung der Oberfläche - und bis der Report-Schreiber läuft, auch keinen vollständigen Nachweisordner.
+
+## 3d. Lauf 35704157557 (2026-09-22, Commit `fd11038`) - der erste vollständig grüne Lauf
+
+| Schritt | Ergebnis | Nachweis |
+| --- | --- | --- |
+| Selbsttest der Nachweisbibliothek | alle Kriterien PASS; der Bericht wird geschrieben, die fünf Felder aus Kapitel 71 sind da, ein `PASSED` ohne Messwert wird abgelehnt | `run-35704157557-1/evidence-selftest.log` |
+| Bauen und Testen | 15 Projekte, 0 Fehler; **370 von 370 Testfällen bestanden** | `run-35704157557-1/{build.log,test.log,windowsmaintenancecenter.trx}` |
+| Installationszyklus (Gate 7) | 20 Kriterien PASS, 0 FAIL, Ergebnis `PASSED` im Bericht | `run-35704157557-1/installer-cycle.log`, `test-results/installer/20260922T082333Z-INS-CI/` |
+| Bericht | `report.json` und `report.txt` liegen im Nachweisordner, jede Nachweisdatei mit SHA-256, offene Punkte ausdrücklich benannt | `test-results/installer/20260922T082333Z-INS-CI/report.txt` |
+
+Der Grund für den vorherigen Fehlschlag, in einem Satz: **nicht das Literal war kaputt, sondern der Wert.**
+Ein Array, das PowerShell aus einer `System.Collections.Generic.List[object]` baut (`@($Run.Evidence)`),
+lässt sich dort nicht an ein Hashtable- oder pscustomobject-Literal übergeben - jedes andere Konstrukt
+läuft durch. Der Bericht wird jetzt über `OrderedDictionary.Add()` gefüllt, und die Nachweislisten gehen
+als .NET-Liste hinein, die `ConvertTo-Json` als Array schreibt. Gefunden hat das der Selbsttest aus dem
+vorherigen Lauf, nicht ein Blick in den Code: genau dafür steht er im Workflow.
 
 ## 4. Grenzen des Zugangs
 

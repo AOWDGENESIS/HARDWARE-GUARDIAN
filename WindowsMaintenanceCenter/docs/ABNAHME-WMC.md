@@ -20,7 +20,7 @@ bleibt der Zielmaschine vorbehalten.
 | Build (Gate 1) | **bestanden auf der CI-VM** (Lauf `35694300454`: 15 Projekte inklusive WPF, 0 Fehler) |
 | Unit-Tests (Gate 2) | **bestanden auf der CI-VM**: 359 Fälle ausgeführt, 0 fehlgeschlagen (Lauf `35694300454`); TRX und `summary.txt` in `test-results/unit/20260922T062120Z-359-of-359/` |
 | Integration/Safety/Security/Recovery/Offline/Regression (Gates 3-6, 9) | auf der Zielmaschine nicht ausgeführt → `BLOCKED` (Arbeitsliste `docs/TESTMATRIX-VM.md`, Messwerkzeug `docs/VM-TESTKIT.md`) |
-| Installer/Uninstaller (Gate 7) | Installer und Portable-EXE **gebaut und mit SHA-256 gegengeprüft** (Lauf `35505778032`); keine Installation, kein Upgrade, keine Deinstallation ausgeführt → teilweise, im Kern `BLOCKED` |
+| Installer/Uninstaller (Gate 7) | Installer und Portable-EXE gebaut und mit SHA-256 gegengeprüft; **Installationszyklus auf der CI-Maschine gelaufen** (Lauf `35704157557`, Bericht `test-results/installer/20260922T082333Z-INS-CI/report.json`, Ergebnis `PASSED`): stille Installation, Layout, Versions- und SHA-256-Gleichheit, Start mit Exit-Code 0, Nutzungssonde, Deinstallation und portables Artefakt. Offen und im Bericht als offene Punkte genannt: Reparaturinstallation, Upgrade, Neustart, weitere Laufwerke, „USE" im Sinne von Kapitel 62 → **teilweise** (Kern belegt, Kapitel-74-Punkte offen) |
 | Lokalisierung (Gate 8) | 2 von 4 Sprachen vorhanden; keine Sprachprüfung gelaufen → `BLOCKED` |
 | VM-Abnahme (Gate 10, Modul M46) | Ziel-VM nicht verfügbar → `BLOCKED` |
 
