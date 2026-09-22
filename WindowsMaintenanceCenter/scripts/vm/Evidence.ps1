@@ -316,42 +316,43 @@ function Complete-WmcEvidenceRun {
 
     $finished = (Get-Date).ToUniversalTime()
 
-    # Why these are pscustomobject literals and not `[ordered]@{...}`:
-    # Run 35701860625 ended with "Argument types do not match" at exactly this place, and the self-test
-    # of this library (scripts/vm/Test-EvidenceLibrary.ps1) narrowed it down on the same machine - the
-    # construct that breaks is an `[ordered]` literal holding an array that came from a
-    # `System.Collections.Generic.List[object]`:
+    # How this report is built, and why it is not built with a hashtable literal.
     #
-    #   $null = [ordered]@{ l = @($Run.Evidence) }        -> Argument types do not match
-    #   $null = [ordered]@{ e = $Run.Environment }        -> fine
-    #   $null = [ordered]@{ v = $Run.Version.version }    -> fine
+    # Runs 35697744225, 35701860625 and 35703422964 could not write a report, and every one of them had
+    # every measurement in place: Complete-WmcEvidenceRun stopped with "Argument types do not match".
+    # The self-test of this library (scripts/vm/Test-EvidenceLibrary.ps1) narrows it down on the very
+    # machine that fails, and what it showed so far is:
     #
-    # A pscustomobject literal takes the same values without complaint (the run object of this very
-    # library is built that way and works). The property order of a pscustomobject is kept by
-    # ConvertTo-Json, so the report stays readable in the same order. Both literals are checked by the
-    # self-test on every run: a report that cannot be written is not a report.
-    $result = [pscustomobject]@{
-        status   = $Status
-        summary  = $Summary
-        findings = @($Findings)
-        open     = @($OpenPoints)
-    }
+    #   [ordered]@{ a = 1 }                                  -> fine
+    #   [ordered]@{ l = <array from a List[object]> }        -> Argument types do not match
+    #   [pscustomobject]@{ l = <array from a List[object]> }  -> Argument types do not match
+    #
+    # So the value is the problem, not the literal: an array that PowerShell built from a
+    # System.Collections.Generic.List[object] cannot be handed to a literal on this PowerShell. The
+    # report therefore passes the list itself - the .NET type that ConvertTo-Json serialises as an
+    # array - and fills a dictionary through Add(), with no literal in the path at all. The probe list
+    # in the self-test carries every one of these forms, so the next run either confirms this or names
+    # the construct that still breaks.
+    $result = New-Object System.Collections.Specialized.OrderedDictionary
+    $result.Add('status', $Status)
+    $result.Add('summary', $Summary)
+    $result.Add('findings', $Findings)
+    $result.Add('open', $OpenPoints)
 
-    $report = [pscustomobject]@{
-        timestamp   = $finished.ToString('yyyy-MM-ddTHH:mm:ssZ')
-        testId      = $Run.TestId
-        title       = $Run.Title
-        area        = $Run.Area
-        version     = $Run.Version.version
-        build       = $Run.Version.build
-        environment = $Run.Environment
-        startedAt   = $Run.StartedAt.ToString('yyyy-MM-ddTHH:mm:ssZ')
-        finishedAt  = $finished.ToString('yyyy-MM-ddTHH:mm:ssZ')
-        startedBy   = $Run.StartedBy
-        result      = $result
-        evidence    = @($Run.Evidence)
-        measurements = @($Run.Measurements)
-    }
+    $report = New-Object System.Collections.Specialized.OrderedDictionary
+    $report.Add('timestamp', $finished.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+    $report.Add('testId', $Run.TestId)
+    $report.Add('title', $Run.Title)
+    $report.Add('area', $Run.Area)
+    $report.Add('version', $Run.Version.version)
+    $report.Add('build', $Run.Version.build)
+    $report.Add('environment', $Run.Environment)
+    $report.Add('startedAt', $Run.StartedAt.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+    $report.Add('finishedAt', $finished.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+    $report.Add('startedBy', $Run.StartedBy)
+    $report.Add('result', $result)
+    $report.Add('evidence', $Run.Evidence)
+    $report.Add('measurements', $Run.Measurements)
 
     $jsonPath = Join-Path $Run.Folder 'report.json'
     $report | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $jsonPath

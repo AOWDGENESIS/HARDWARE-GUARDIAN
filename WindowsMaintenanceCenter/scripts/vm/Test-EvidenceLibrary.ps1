@@ -149,43 +149,54 @@ if ($completeError) {
     Write-Host 'Bisect: the same structures, built one at a time' -ForegroundColor Yellow
     $stamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
     $inner = [ordered]@{ x = 1 }
-    $variants = [ordered]@{
-        'plain [ordered] literal'                 = { $null = [ordered]@{ a = 1 } }
-        'a string value'                          = { $null = [ordered]@{ a = 'text' } }
-        'a formatted timestamp value'             = { $null = [ordered]@{ t = $stamp } }
-        'a nested [ordered] dictionary'            = { $null = [ordered]@{ inner = $inner } }
-        'a nested pscustomobject'                  = { $null = [ordered]@{ e = $run.Environment } }
-        # The construct that actually broke in run 35701860625: an [ordered] literal holding an array
-        # that came from a List[object]. Kept here as a probe, so a reader sees which form breaks
-        # instead of taking it on faith - and so the next PowerShell version can be checked against it.
-        'a nested List[object] in an [ordered] literal' = { $null = [ordered]@{ l = @($run.Evidence) } }
-        # The form the report uses now. This one has to stay green.
-        'a nested List[object] in a pscustomobject'    = { $null = [pscustomobject]@{ l = @($run.Evidence) } }
-        'a nested List[object] in a pscustomobject, written and read back' = {
-            $probe = [pscustomobject]@{ id = 'M00-E-003'; l = @($run.Evidence) }
+    $probes = [ordered]@{
+        'plain [ordered] literal'                        = { $null = [ordered]@{ a = 1 } }
+        'a string value'                                 = { $null = [ordered]@{ a = 'text' } }
+        'a formatted timestamp value'                    = { $null = [ordered]@{ t = $stamp } }
+        'a nested [ordered] dictionary'                   = { $null = [ordered]@{ inner = $inner } }
+        'a nested pscustomobject'                         = { $null = [ordered]@{ e = $run.Environment } }
+        'a version record field of the run'               = { $null = [ordered]@{ v = $run.Version.version } }
+        'the evidence list, just read'                     = { $null = $run.Evidence.Count }
+        'the evidence list through @()'                    = { $null = @($run.Evidence) }
+        'the evidence list through a cast'                 = { $null = [object[]]$run.Evidence }
+        'the evidence list through .ToArray()'             = { $null = $run.Evidence.ToArray() }
+        'the evidence list as a literal value'             = { $null = [pscustomobject]@{ l = $run.Evidence } }
+        'a literal with a plain array of strings'          = { $null = [pscustomobject]@{ l = @('a', 'b') } }
+        'a literal with a comma array'                     = { $null = [pscustomobject]@{ l = 'a', 'b' } }
+        'a literal with an empty array'                    = { $null = [pscustomobject]@{ l = @(); m = @() } }
+        'a literal with an array of pscustomobjects'       = { $null = [pscustomobject]@{ l = @([pscustomobject]@{ a = 1 }) } }
+        # The two forms that failed in runs 35701860625 and 35703422964. They stay in the list as
+        # probes: a reader sees which construct breaks instead of taking it on faith.
+        'an [ordered] literal with the list through @()'   = { $null = [ordered]@{ l = @($run.Evidence) } }
+        'a pscustomobject literal with the list through @()' = { $null = [pscustomobject]@{ l = @($run.Evidence) } }
+        'the evidence list through ConvertTo-Json'         = { $null = $run.Evidence | ConvertTo-Json -Depth 8 }
+        'a plain hashtable with the list through @()'      = { $null = @{ l = @($run.Evidence) } }
+        # The form the report uses now: a dictionary filled through Add(), the list passed as it is.
+        'an OrderedDictionary filled with Add(), serialised' = {
+            $probe = New-Object System.Collections.Specialized.OrderedDictionary
+            $probe.Add('id', 'M00-E-004')
+            $probe.Add('evidence', $run.Evidence)
+            $probe.Add('measurements', $run.Measurements)
+            $probe.Add('findings', [string[]]@('one'))
             $text = $probe | ConvertTo-Json -Depth 8
             $back = $text | ConvertFrom-Json
-            if (@($back.l).Count -ne @($run.Evidence).Count) { throw "the list did not survive the round trip" }
-        }
-        'the version record of the run'            = { $null = [ordered]@{ v = $run.Version.version } }
-        'a hashtable assigned to a variable'       = { $h = [ordered]@{ a = 1; b = 2 }; $null = $h }
-        'all of it together'                       = {
-            $null = [ordered]@{
-                timestamp    = $stamp
-                testId       = $run.TestId
-                version      = $run.Version.version
-                build        = $run.Version.build
-                environment  = $run.Environment
-                startedAt    = $run.StartedAt.ToString('yyyy-MM-ddTHH:mm:ssZ')
-                result       = [ordered]@{ status = 'PASSED' }
-                evidence     = @($run.Evidence)
-                measurements = @($run.Measurements)
+            if (@($back.evidence).Count -ne $run.Evidence.Count) {
+                throw "the evidence list did not survive the round trip (got $(@($back.evidence).Count))"
             }
         }
+        # The same form with the two arrays that give the report its structure.
+        'an OrderedDictionary with the version and the environment' = {
+            $probe = New-Object System.Collections.Specialized.OrderedDictionary
+            $probe.Add('version', $run.Version.version)
+            $probe.Add('build', $run.Version.build)
+            $probe.Add('environment', $run.Environment)
+            $probe.Add('startedAt', $run.StartedAt.ToString('yyyy-MM-ddTHH:mm:ssZ'))
+            $null = $probe | ConvertTo-Json -Depth 8
+        }
     }
-    foreach ($name in $variants.Keys) {
+    foreach ($name in $probes.Keys) {
         try {
-            & $variants[$name]
+            & $probes[$name]
             Write-Result $name $true
         } catch {
             Write-Result $name $false (Get-FailureText $_)
