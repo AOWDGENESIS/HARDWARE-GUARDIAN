@@ -1,0 +1,18 @@
+{
+  "computer": "runnervmvmocb (user runneradmin)",
+  "operatingSystem": "Microsoft Windows Server 2025 Datacenter version=10.0.26100 build=26100 arch=64-bit",
+  "machine": "Microsoft Corporation Virtual Machine hypervisorPresent=True",
+  "bios": "Microsoft Corporation Hyper-V UEFI Release v4.1 released=04/22/2026 00:00:00",
+  "cpu": "AMD EPYC 7763 64-Core Processor                 cores=1 logical=2",
+  "memoryGb": 8.0,
+  "powerShell": "7.6.5",
+  "dotnet": "10.0.401",
+  "isAdministrator": true,
+  "secureBoot": false,
+  "tpm": "not readable (PropertyNotFoundException: The property 'SpecVersion' cannot be found on this object. Verify that the property exists.)",
+  "dataCenterRegion": "not collected (no telemetry, and this kit never sends anything anywhere)",
+  "battery": "none",
+  "thermalZones": "not readable (CimException: Not supported )",
+  "videoController": "Microsoft Hyper-V Video",
+  "diskDrives": "Microsoft Virtual Disk (80525491200 bytes) | Microsoft Virtual Disk (161059207680 bytes)"
+}

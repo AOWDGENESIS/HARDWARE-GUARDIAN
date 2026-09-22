@@ -1,0 +1,43 @@
+test        : INS-CI - Install, start, use probe, uninstall, portable probe
+area        : installer
+version     : 1.0.0
+build       : 4e36846e2a407e5c2c128bdba9734d6615369eaa
+started     : 2026-09-22T08:33:05Z by ci-runner 35705003836
+finished    : 2026-09-22T08:33:57Z
+machine     : Microsoft Corporation Virtual Machine hypervisorPresent=True
+os          : Microsoft Windows Server 2025 Datacenter version=10.0.26100 build=26100 arch=64-bit
+administrator: True
+result      : PASSED
+summary     : Installation cycle PASSED: install, layout, start, use probe, uninstall (data kept on purpose) and the portable artefact stores its data next to itself
+open        :
+  - settings and audit trail stay on the machine after an uninstall; deleting them is the user's decision at uninstall time
+  - the reboot after the installation (chapter 62) was not performed by this script
+  - the upgrade over an older version and the repair installation need an older installer to upgrade from
+  - the installation on D:, E: and F: (chapter 74) needs a machine that has those drives
+  - "USE" in the sense of chapter 62 means a person working through analysis and maintenance in the interface
+measurements:
+  sha256:WindowsMaintenanceCenter-Setup-x64.exe = 185239911680562912c777674aedf23804e3971b238d7a771e27b8b47b148d67  [Get-FileHash SHA256]
+  sha256:WindowsMaintenanceCenter-Portable-x64.exe = d3b544e69965afb59e82d4fca0d7cb1022315ace3726b1cb45ea8488e07bb560  [Get-FileHash SHA256]
+  sha256:WindowsMaintenanceCenter.exe = 66178f9c44dda1d9c48fccdc2e0a213b5ce5dc6af73452ab3a52382d37c228bc  [Get-FileHash SHA256]
+  isAdministrator = True  [WindowsPrincipal]
+  installExitCode = 0  [setup /VERYSILENT]
+  installLocation = C:\Users\runneradmin\AppData\Local\Programs\Windows Maintenance Center\  [uninstall entry]
+  displayVersion = 1.0.0  [uninstall entry]
+  publisher = AOWDGENESIS  [uninstall entry]
+  estimatedSizeKb = 65396  [uninstall entry]
+  installedExeSha256 = 66178f9c44dda1d9c48fccdc2e0a213b5ce5dc6af73452ab3a52382d37c228bc  [Get-FileHash SHA256]
+  installedFileVersion = 1.0.0.0  [FileVersionInfo]
+  startedProcessId = 7892  [Process]
+  workingSetBytes = 243240960  [Process]
+  dataFolderAfterStart = C:\ProgramData\WindowsMaintenanceCenter (2 file(s))  [file system]
+  dataFile:technical-20260922.jsonl = 768 bytes, 2026-09-22T08:33:21  [file system]
+  dataFile:state-journal.jsonl = 468 bytes, 2026-09-22T08:33:21  [file system]
+  dataKeptAfterUninstall = C:\ProgramData\WindowsMaintenanceCenter  [file system after uninstall]
+  portableDataFiles = 2  [file system]
+  portableDataFolder = C:\Users\runneradmin\AppData\Local\Temp\wmc-portable-f6894ab5\data  [file system]
+evidence    :
+  logs/technical-20260922.jsonl  sha256=d08b9c7b004ed7323cc09cf6f07a6fef7ab26a4cc82947af4f17e48d228286fa
+  logs/startup-log-tail.txt  sha256=d08b9c7b004ed7323cc09cf6f07a6fef7ab26a4cc82947af4f17e48d228286fa
+  logs/steps.txt  sha256=464fe57374624ac36bcc52a6147280315b741f6a2b1d8e19c62eee001ed0ffeb
+  logs/install.log  sha256=66ad0a14408c9fd7d1db3860877e4d57eb65b15c305d59a052a464f9bc6ee06b
+  logs/uninstall.log  sha256=8d7829f1f047a9798e7ca53b488e909872d8fb91a1bd1a114c0f20622cea6274

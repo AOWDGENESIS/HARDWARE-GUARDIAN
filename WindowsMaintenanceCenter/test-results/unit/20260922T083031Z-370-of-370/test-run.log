@@ -1,0 +1,7 @@
+xUnit.net v3 In-Process Runner v4.0.1+8ed8aa354c (64-bit .NET 10.0.12)
+  Discovering: WindowsMaintenanceCenter.Tests
+  Discovered:  WindowsMaintenanceCenter.Tests
+  Starting:    WindowsMaintenanceCenter.Tests
+  Finished:    WindowsMaintenanceCenter.Tests (ID = 'd9166560957a46470fae98146567ab134b84665440c53d74e87b1345ee206936')
+=== TEST EXECUTION SUMMARY ===
+   WindowsMaintenanceCenter.Tests  Total: 370, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 3.019s

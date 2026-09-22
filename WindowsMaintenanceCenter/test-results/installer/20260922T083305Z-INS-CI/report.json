@@ -1,0 +1,189 @@
+{
+  "timestamp": "2026-09-22T08:33:57Z",
+  "testId": "INS-CI",
+  "title": "Install, start, use probe, uninstall, portable probe",
+  "area": "installer",
+  "version": "1.0.0",
+  "build": "4e36846e2a407e5c2c128bdba9734d6615369eaa",
+  "environment": {
+    "computer": "runnervmvmocb (user runneradmin)",
+    "operatingSystem": "Microsoft Windows Server 2025 Datacenter version=10.0.26100 build=26100 arch=64-bit",
+    "machine": "Microsoft Corporation Virtual Machine hypervisorPresent=True",
+    "bios": "Microsoft Corporation Hyper-V UEFI Release v4.1 released=04/22/2026 00:00:00",
+    "cpu": "AMD EPYC 7763 64-Core Processor                 cores=1 logical=2",
+    "memoryGb": 8.0,
+    "powerShell": "7.6.5",
+    "dotnet": "10.0.401",
+    "isAdministrator": true,
+    "secureBoot": false,
+    "tpm": "not readable (PropertyNotFoundException: The property 'SpecVersion' cannot be found on this object. Verify that the property exists.)",
+    "dataCenterRegion": "not collected (no telemetry, and this kit never sends anything anywhere)",
+    "battery": "none",
+    "thermalZones": "not readable (CimException: Not supported )",
+    "videoController": "Microsoft Hyper-V Video",
+    "diskDrives": "Microsoft Virtual Disk (80525491200 bytes) | Microsoft Virtual Disk (161059207680 bytes)"
+  },
+  "startedAt": "2026-09-22T08:33:05Z",
+  "finishedAt": "2026-09-22T08:33:57Z",
+  "startedBy": "ci-runner 35705003836",
+  "result": {
+    "status": "PASSED",
+    "summary": "Installation cycle PASSED: install, layout, start, use probe, uninstall (data kept on purpose) and the portable artefact stores its data next to itself",
+    "findings": [],
+    "open": [
+      "settings and audit trail stay on the machine after an uninstall; deleting them is the user's decision at uninstall time",
+      "the reboot after the installation (chapter 62) was not performed by this script",
+      "the upgrade over an older version and the repair installation need an older installer to upgrade from",
+      "the installation on D:, E: and F: (chapter 74) needs a machine that has those drives",
+      "\"USE\" in the sense of chapter 62 means a person working through analysis and maintenance in the interface"
+    ]
+  },
+  "evidence": [
+    {
+      "file": "logs/technical-20260922.jsonl",
+      "description": "technical log of the started program",
+      "sha256": "d08b9c7b004ed7323cc09cf6f07a6fef7ab26a4cc82947af4f17e48d228286fa",
+      "bytes": 768
+    },
+    {
+      "file": "logs/startup-log-tail.txt",
+      "description": "last lines of the log the started program wrote",
+      "sha256": "d08b9c7b004ed7323cc09cf6f07a6fef7ab26a4cc82947af4f17e48d228286fa",
+      "bytes": 768
+    },
+    {
+      "file": "logs/steps.txt",
+      "description": "every step of the cycle with its result",
+      "sha256": "464fe57374624ac36bcc52a6147280315b741f6a2b1d8e19c62eee001ed0ffeb",
+      "bytes": 1859
+    },
+    {
+      "file": "logs/install.log",
+      "description": "Inno Setup install log",
+      "sha256": "66ad0a14408c9fd7d1db3860877e4d57eb65b15c305d59a052a464f9bc6ee06b",
+      "bytes": 4568
+    },
+    {
+      "file": "logs/uninstall.log",
+      "description": "Inno Setup uninstall log",
+      "sha256": "8d7829f1f047a9798e7ca53b488e909872d8fb91a1bd1a114c0f20622cea6274",
+      "bytes": 3953
+    }
+  ],
+  "measurements": [
+    {
+      "name": "sha256:WindowsMaintenanceCenter-Setup-x64.exe",
+      "value": "185239911680562912c777674aedf23804e3971b238d7a771e27b8b47b148d67",
+      "unit": "",
+      "source": "Get-FileHash SHA256"
+    },
+    {
+      "name": "sha256:WindowsMaintenanceCenter-Portable-x64.exe",
+      "value": "d3b544e69965afb59e82d4fca0d7cb1022315ace3726b1cb45ea8488e07bb560",
+      "unit": "",
+      "source": "Get-FileHash SHA256"
+    },
+    {
+      "name": "sha256:WindowsMaintenanceCenter.exe",
+      "value": "66178f9c44dda1d9c48fccdc2e0a213b5ce5dc6af73452ab3a52382d37c228bc",
+      "unit": "",
+      "source": "Get-FileHash SHA256"
+    },
+    {
+      "name": "isAdministrator",
+      "value": true,
+      "unit": "",
+      "source": "WindowsPrincipal"
+    },
+    {
+      "name": "installExitCode",
+      "value": 0,
+      "unit": "",
+      "source": "setup /VERYSILENT"
+    },
+    {
+      "name": "installLocation",
+      "value": "C:\\Users\\runneradmin\\AppData\\Local\\Programs\\Windows Maintenance Center\\",
+      "unit": "",
+      "source": "uninstall entry"
+    },
+    {
+      "name": "displayVersion",
+      "value": "1.0.0",
+      "unit": "",
+      "source": "uninstall entry"
+    },
+    {
+      "name": "publisher",
+      "value": "AOWDGENESIS",
+      "unit": "",
+      "source": "uninstall entry"
+    },
+    {
+      "name": "estimatedSizeKb",
+      "value": 65396,
+      "unit": "",
+      "source": "uninstall entry"
+    },
+    {
+      "name": "installedExeSha256",
+      "value": "66178f9c44dda1d9c48fccdc2e0a213b5ce5dc6af73452ab3a52382d37c228bc",
+      "unit": "",
+      "source": "Get-FileHash SHA256"
+    },
+    {
+      "name": "installedFileVersion",
+      "value": "1.0.0.0",
+      "unit": "",
+      "source": "FileVersionInfo"
+    },
+    {
+      "name": "startedProcessId",
+      "value": 7892,
+      "unit": "",
+      "source": "Process"
+    },
+    {
+      "name": "workingSetBytes",
+      "value": 243240960,
+      "unit": "",
+      "source": "Process"
+    },
+    {
+      "name": "dataFolderAfterStart",
+      "value": "C:\\ProgramData\\WindowsMaintenanceCenter (2 file(s))",
+      "unit": "",
+      "source": "file system"
+    },
+    {
+      "name": "dataFile:technical-20260922.jsonl",
+      "value": "768 bytes, 2026-09-22T08:33:21",
+      "unit": "",
+      "source": "file system"
+    },
+    {
+      "name": "dataFile:state-journal.jsonl",
+      "value": "468 bytes, 2026-09-22T08:33:21",
+      "unit": "",
+      "source": "file system"
+    },
+    {
+      "name": "dataKeptAfterUninstall",
+      "value": "C:\\ProgramData\\WindowsMaintenanceCenter",
+      "unit": "",
+      "source": "file system after uninstall"
+    },
+    {
+      "name": "portableDataFiles",
+      "value": 2,
+      "unit": "",
+      "source": "file system"
+    },
+    {
+      "name": "portableDataFolder",
+      "value": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\wmc-portable-f6894ab5\\data",
+      "unit": "",
+      "source": "file system"
+    }
+  ]
+}
