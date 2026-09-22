@@ -1,0 +1,31 @@
+[INS-CI] preparing installer evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\installer\20260922T070142Z-INS-CI
+  sha256:WindowsMaintenanceCenter-Setup-x64.exe = 5e6fb5e8f295ba6d1c5a17ae3d993701b1662b50735640165e3d4dcb3c4c7311
+  sha256:WindowsMaintenanceCenter-Portable-x64.exe = d9526ac5c919ad859ffe681215e74b79fd6105808f3cb0a22333e157f31ee9eb
+  sha256:WindowsMaintenanceCenter.exe = 2166c11b38e0088bee72029f03ed4fd964b85e1cc270548748f92aef27887fd5
+  isAdministrator = True
+  PASS      precondition: nothing installed yet no uninstall entry for this product
+[INS-CI] installing silently
+  installExitCode = 0
+  PASS      install (silent) setup returned 0
+  PASS      uninstall entry Windows Maintenance Center 1.0.0 1.0.0 in HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{9F1C2A34-6F5B-4A72-9E3D-2D7A6A1C5B10}_is1
+  installLocation = C:\Users\runneradmin\AppData\Local\Programs\Windows Maintenance Center\
+  displayVersion = 1.0.0
+  publisher = AOWDGENESIS
+  estimatedSizeKb = 65396
+  installedExeSha256 = 2166c11b38e0088bee72029f03ed4fd964b85e1cc270548748f92aef27887fd5
+  installedFileVersion = 1.0.0.0
+  PASS      installed program is the built one SHA-256 equals the published program
+  PASS      installed version matches the build 1.0.0.0
+  PASS      installed copy is not portable no marker and no data folder beside the program
+  PASS      Start menu entry C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Uninstall Windows Maintenance Center.lnk; C:\Users\runneradmin\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows Maintenance Center\Windows Maintenance Center.lnk
+  PASS      program starts still running after 20 s (pid 4356)
+  startedProcessId = 4356
+  workingSetBytes = 216543232
+  dataFolderAfterStart = C:\ProgramData\WindowsMaintenanceCenter (0 log file(s))
+  FAIL      use probe: log written no log file appeared
+  PASS      use probe: installed copy stays out of its own folder nothing was written next to the executable
+  PASS      program closes exit code 1
+  PASS      uninstall (silent) unins000.exe
+  PASS      uninstall entry removed no entry left in the uninstall registry
+  PASS      program files removed the program folder is gone
+Test-InstallerCycle.ps1: The property 'Count' cannot be found on this object. Verify that the property exists.
