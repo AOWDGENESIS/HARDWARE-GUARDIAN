@@ -15,13 +15,13 @@ Last updated: 2026-09-22 (twenty-third session)
 | NuGet restore (`dotnet restore`) | **NOT AVAILABLE IN THIS CONTAINER**; the CI runner restores every package and the restore log is filed with each run | The pins are exercised for real now; a package that cannot be resolved fails the CI run instead of being discovered later |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
-| Syntax check (tree-sitter C# grammar) | AVAILABLE | All 131 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
+| Syntax check (tree-sitter C# grammar) | AVAILABLE after `pip install tree-sitter tree-sitter-c-sharp tree-sitter-powershell` (a fresh container has none, and the runner then reports the skipped check instead of passing quietly) | All 160 C# files parse without syntax errors (2026-09-23). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
 | Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 370 cases, 0 failed, run `35704157557` (the run before, `35694300454`, had 359); the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260922T062120Z-359-of-359/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
 
 Therefore, for the current revision:
 
-- Build status: **BUILT ON THE WINDOWS CI MACHINE** (run `35505778032`, 0 errors, 50 warnings); **never built in this container**
+- Build status: **BUILT ON THE WINDOWS CI MACHINE** (runs `35505778032` and `35704157557`, 0 errors); **never built in this container**
 - Test status: **370 cases executed, 370 passed on the Windows CI machine** (run `35704157557`); the suite has since grown by 22 cases (3 localisation, 19 one-click maintenance) that **have never been executed** - they are written, contract-checked and reviewed, nothing more
 - Type correctness: **NOT VERIFIED** (no compiler available)
 - Runtime behaviour on Windows: **NOT VERIFIED** (no Windows, no hardware)
@@ -175,7 +175,7 @@ installer and the CI runs. That needs a Windows machine with the .NET 10 SDK.
 
 | Tool | What it proves | Current result |
 | --- | --- | --- |
-| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 154 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
+| `tools/verify-syntax.py` | every C# file parses with the tree-sitter C# grammar | 160 files, no syntax error (exit code 3 and an explicit note when tree-sitter is missing) |
 | `tools/check-contracts.py` | object initialisers, enum/static members, members on fields, parameters, `foreach` variables and LINQ lambda parameters, interface implementations (src **and** tests) | 154 files / 455 types, 0 findings |
 | `tools/check-localization.py` | every key used in C# **or XAML** exists in both languages; no dead key; both files symmetric; WMI property names and keys built from a prefix are handled | 939 keys per language (de, en, ja, ru), 0 missing, 0 dead, placeholders equal across languages, single unescaped braces reported, `--self-test` for both, every catalogue must be embedded by its project | 4 languages, 0 findings |
 | `tools/check-xaml.py` | XAML is well formed, resource keys exist, `DataType` names a known type, every `{services:Loc Key}` is defined, **no visible attribute carries a hard-coded literal**, every root element with `x:Class` has code-behind | 11 files, 0 findings |
@@ -384,7 +384,17 @@ earn - three holes were closed:
 Diese Zeilen stehen hier, damit ein Leser den Zustand nicht aus einem Chat rekonstruieren muss. Stand:
 2026-09-23.
 
-**Zweig und Kopf:** `arena/01a0bb04-entwicklungen` = Remote-Stand `54849dd`; Kette seit `main`
+**Betriebshinweis (aus Schaden gelernt):** Diese Umgebung wird gelegentlich **neu geklont**. Dann
+steht der Zweig auf `main`, die Arbeit liegt als unverfolgte Datei auf der Platte und die alten
+Commit-Objekte fehlen. Vorgehen: `git fetch origin arena/01a0bb04-entwicklungen` → `git reset FETCH_HEAD`
+(die Dateien bleiben liegen) → weiterarbeiten → committen → pushen. **Nicht** `reset --hard` und
+**nicht** `clean`: beides würde genau die Arbeit löschen, die noch nicht gepusht ist. Deshalb gilt:
+jede Sitzung endet mit einem Push, und die Parser-Pakete
+(`pip install --break-system-packages tree-sitter tree-sitter-c-sharp tree-sitter-powershell`) müssen
+in einer frischen Umgebung einmal installiert werden, sonst meldet `verify-all.sh` zu Recht drei
+übersprungene Prüfungen.
+
+**Zweig und Kopf:** `arena/01a0bb04-entwicklungen` = Remote-Stand `2fa2985`; Kette seit `main`
 (`5a6a4cf`): `d759180` → `220c34d` → `3397fc0` → `2bd169e` → `fd11038` → `60b379b` → `4e36846` →
 `63cb536` → `c02d86c` → `e6d3a47` → `87540a8` (vier Sprachen) → `27ea6ad` (M27) → `54849dd`
 (Nachweislayout). Alle Prüfungen ohne SDK sind grün: `bash tools/verify-all.sh` (20 Mutationen,
