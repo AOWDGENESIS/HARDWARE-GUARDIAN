@@ -155,10 +155,10 @@ def generate_setup_exe(output_path: Path) -> bytes:
     # Strings (UTF-16LE)
     title = "Windows Maintenance Center - Setup".encode("utf-16le") + b"\x00\x00"
     msg = (
-        "Windows Maintenance Center v1.0.0\n"
+        "Windows Maintenance Center v1.0.0 Setup\n"
         "Windows Hardware Diagnostics, Maintenance & Update Center\n\n"
-        "Dieser Setup-Starter führt Sie durch die Einrichtung und den Bau des Release-Pakets.\n\n"
-        "Möchten Sie jetzt den Build- und Installationsassistenten (Setup.cmd / PowerShell) starten?"
+        "Willkommen beim Installations-Assistenten.\n\n"
+        "Möchten Sie die Installation von Windows Maintenance Center jetzt starten?"
     ).encode("utf-16le") + b"\x00\x00"
     op = "open".encode("utf-16le") + b"\x00\x00"
     file = "Setup.cmd".encode("utf-16le") + b"\x00\x00"

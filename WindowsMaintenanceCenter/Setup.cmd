@@ -1,25 +1,36 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
-title Windows Maintenance Center - Setup & Build
+title Windows Maintenance Center - Installation
 
 echo =====================================================================
 echo  Windows Maintenance Center v1.0.0
-echo  Windows Hardware Diagnostics, Maintenance ^& Update Center
+echo  Standard Windows Installer
 echo =====================================================================
 echo.
-echo Dieses Skript prueft die Voraussetzungen und startet den Build-
-echo und Release-Prozess zur Erstellung der ausfuehrbaren Dateien (.exe).
-echo.
+
+set "SILENT_ARG="
+if /i "%~1"=="/S" set "SILENT_ARG=-Silent"
+if /i "%~1"=="/SILENT" set "SILENT_ARG=-Silent"
+if /i "%~1"=="-Silent" set "SILENT_ARG=-Silent"
+
+if /i "%~1"=="/BUILD" (
+    echo Starte vollstaendige Release-Kompilierung (scripts\release.ps1)...
+    where pwsh.exe >nul 2>nul
+    if !errorlevel! equ 0 (
+        pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\release.ps1"
+    ) else (
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\release.ps1"
+    )
+    exit /b !errorlevel!
+)
 
 where pwsh.exe >nul 2>nul
 if %errorlevel% equ 0 (
-    echo [OK] PowerShell Core (pwsh.exe) gefunden.
     set "PS_CMD=pwsh.exe"
 ) else (
     where powershell.exe >nul 2>nul
     if %errorlevel% equ 0 (
-        echo [OK] Windows PowerShell (powershell.exe) gefunden.
         set "PS_CMD=powershell.exe"
     ) else (
         echo [FEHLER] Keine PowerShell auf diesem System gefunden.
@@ -28,24 +39,11 @@ if %errorlevel% equ 0 (
     )
 )
 
-echo.
-echo Starte Release-Erstellung (scripts\release.ps1)...
-echo.
-
-%PS_CMD% -NoProfile -ExecutionPolicy Bypass -File ".\scripts\release.ps1"
-
-if %errorlevel% equ 0 (
+echo Starte Installations-Assistent...
+%PS_CMD% -NoProfile -ExecutionPolicy Bypass -File ".\installer\Install-WMC.ps1" %SILENT_ARG%
+if %errorlevel% neq 0 (
     echo.
-    echo =====================================================================
-    echo  Build erfolgreich!
-    echo  Die Artefakte befinden sich in: artifacts\release\
-    echo    - WindowsMaintenanceCenter-Setup-x64.exe (Installer)
-    echo    - WindowsMaintenanceCenter-Portable-x64.exe (Portable)
-    echo =====================================================================
-) else (
-    echo.
-    echo [HINWEIS] Der Build erfordert das .NET 10 SDK und Inno Setup 6 (ISCC.exe).
-    echo Details siehe docs\BUILD.md und docs\RELEASE.md.
+    echo Ein Fehler ist beim Ausfuehren des Installations-Assistenten aufgetreten.
+    pause
+    exit /b %errorlevel%
 )
-
-pause
