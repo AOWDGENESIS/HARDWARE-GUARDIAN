@@ -62,6 +62,7 @@ packages/
 # Inno Setup output
 installer/Output/
 *.iss.bak
+*.zip
 
 # Portable/runtime data (never commit local machine state)
 *.dmp

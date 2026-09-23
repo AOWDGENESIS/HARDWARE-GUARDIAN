@@ -1,0 +1,39 @@
+=====================================================================
+  Windows Maintenance Center v1.0.0
+  Windows Hardware Diagnostics, Maintenance & Update Center
+=====================================================================
+
+Willkommen beim Windows Maintenance Center Distribution-Paket.
+
+Inhalt dieses Pakets:
+1. Setup.exe
+   Nativer Windows x64 Starter (PE32+ GUI).
+   Startet per Mausklick den Build- und Installationsassistenten.
+
+2. Setup.cmd
+   Direktes Windows-Kommandozeilen-Skript zum Starten des
+   Release-Builds über PowerShell.
+
+3. installer/WindowsMaintenanceCenter.iss
+   Die verbindliche Inno Setup 6 Definition zur Erstellung des
+   Standard-Installers (WindowsMaintenanceCenter-Setup-x64.exe).
+
+4. scripts/release.ps1
+   Das Release-Skript für:
+   - Portables Single-File-Binary (WindowsMaintenanceCenter-Portable-x64.exe)
+   - Setup-Installer (WindowsMaintenanceCenter-Setup-x64.exe)
+   - SHA-256 Prüfsummendatei (WindowsMaintenanceCenter-Checksums.txt)
+   - Release-Notes (WindowsMaintenanceCenter-ReleaseNotes.txt)
+
+5. src/ & WindowsMaintenanceCenter.sln
+   Der vollständige Quellcode (15 Projekte, 168 C#-Klassen, 4 Sprachen de/en/ja/ru).
+
+---------------------------------------------------------------------
+Voraussetzungen für den Build auf Windows:
+- Windows 10 x64 (Build 17763+) oder Windows 11 x64
+- .NET 10 SDK (https://dotnet.microsoft.com/)
+- Inno Setup 6 (https://jrsoftware.org/isinfo.php) für den Installer
+
+Installation / Build durchführen:
+  Doppelklick auf Setup.exe oder Setup.cmd.
+=====================================================================
