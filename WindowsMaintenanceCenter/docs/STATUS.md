@@ -345,7 +345,9 @@ behaviour. A compiler and the test suite are still mandatory.
 1. ~~Implement the remaining services~~ **done**: `IWindowsHealthService`, `IReportGenerator`,
    `IRollbackService`, `MockHardwareProvider`, `ILocalizer` + resources, diagnostic modules.
 2. ~~Implement the WPF shell and the composition root~~ **done**: `src/WindowsMaintenanceCenter.App` with
-   DI, MVVM, Dark/Light/System theme, runtime DE/EN, five working pages.
+   DI, MVVM, Dark/Light/System theme, runtime de/en/ja/ru, seven working pages - **written and checked,
+   never started**: the container has no WPF, so what the pages look like is unverified until the
+   interface runs on Windows.
 3. ~~Implement `tests/WindowsMaintenanceCenter.Tests`~~ **written, not executed.** The project covers the
    safety invariants (fail-closed paths, version comparison, decision engine, path guard, maintenance
    dry run vs. execute, localizer key parity, report generator blocked-format path, simulation
