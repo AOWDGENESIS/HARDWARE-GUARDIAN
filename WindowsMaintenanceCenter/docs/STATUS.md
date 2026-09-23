@@ -17,12 +17,12 @@ Last updated: 2026-09-22 (twenty-third session)
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
 | Syntax check (tree-sitter C# grammar) | AVAILABLE | All 131 C# files parse without syntax errors (2026-09-20). **Syntax only — not a compile, not a type check.** |
 | Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
-| Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 359 cases, 0 failed, run `35694300454`; the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260922T062120Z-359-of-359/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
+| Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 370 cases, 0 failed, run `35704157557` (the run before, `35694300454`, had 359); the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260922T062120Z-359-of-359/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
 
 Therefore, for the current revision:
 
 - Build status: **BUILT ON THE WINDOWS CI MACHINE** (run `35505778032`, 0 errors, 50 warnings); **never built in this container**
-- Test status: **359 cases executed, 359 passed on the Windows CI machine**; nothing verified on the target machine
+- Test status: **370 cases executed, 370 passed on the Windows CI machine** (run `35704157557`); the suite has since grown by 22 cases (3 localisation, 19 one-click maintenance) that **have never been executed** - they are written, contract-checked and reviewed, nothing more
 - Type correctness: **NOT VERIFIED** (no compiler available)
 - Runtime behaviour on Windows: **NOT VERIFIED** (no Windows, no hardware)
 
@@ -152,7 +152,7 @@ after the action is measured again by a new search instead of being assumed (UPD
 interface for selection and installation is **not built yet**.
 
 Tool numbers after this session: 133 C# files (19 of them test files) / 413 declared types,
-**939 localisation keys per language**, 10 XAML files with 151 bindings, 15 projects, and **13/13**
+**939 localisation keys per language**, 12 XAML files with 202 bindings, 15 projects, and **20/20**
 deliberate defects reported by the mutation self-test. What did **not** change: nothing here was compiled, no test was executed, and
 no machine was measured - the new readers have never seen a real TPM or a real firewall.
 
@@ -381,29 +381,47 @@ earn - three holes were closed:
 
 ## 6. Stand der Ablage (was liegt wo, was ist nicht abgelesen)
 
-Diese Zeilen stehen hier, damit ein Leser den Zustand nicht aus einem Chat rekonstruieren muss.
+Diese Zeilen stehen hier, damit ein Leser den Zustand nicht aus einem Chat rekonstruieren muss. Stand:
+2026-09-23.
 
-* **Gepusht und von der CI gefahren:** `4e36846` (Reparaturwerkzeug-Messung im Ablauf) und davor
-  `60b379b`, `97e98ea`, `fd11038`, `3397fc0`, `d759180`. Der Lauf zu `fd11038` (`35704157557`) ist
-  abgelesen und grün: 370 von 370 Testfällen, Installationszyklus 20 Kriterien PASS mit
-  vollständigem Bericht (`test-results/installer/20260922T082333Z-INS-CI/`).
-* **Nicht abgelesen:** der Lauf zu `4e36846` ist gestartet, sein Ergebnis liegt nicht vor - der
-  GitHub-Zugang dieser Umgebung ist am 2026-09-22 abgelaufen (`gh` antwortet HTTP 401 Bad
-  credentials, `git fetch` verlangt Zugangsdaten). **Kein Nachweis, solange der Nachweisordner nicht
-  im Zweig liegt.** Genau das ist die Regel, die dieses Projekt sich selbst gegeben hat.
-* **Lokal, noch nicht gepusht (Zugang fehlt):** `300d0a3` - `tools/check-powershell.py` prüft die
-  Skripte des Nachweiskits (siehe Prüfertabelle oben), dazu Mutation 17 und die zwei neuen Schritte in
-  `tools/verify-all.sh`. Alle Prüfungen, die ohne SDK laufen, sind auf diesem Stand grün.
-* **Was ein neuer Zugang als Erstes tun sollte:** den Lauf zu `4e36846` ablesen und den Nachweisordner
-  nach `test-results/` holen; danach `300d0a3` pushen und den nächsten Lauf ablesen. Erst dann darf
-  die Messung der Reparaturwerkzeuge als Nachweis gelten.
-* **Die CI kann seit dem 2026-09-22 nicht mehr starten - und zwar nicht wegen des Codes.** Die Läufe
-  zu `c02d86c` (`35761467349`, `35761468380`) haben **keinen einzigen Schritt** ausgeführt; die
-  Anmerkung des Runners lautet im Klartext:
-  `The job was not started because recent account payments have failed or your spending limit needs to
-  be increased. Please check the 'Billing & plans' section in your settings`.
-  Das betrifft **beide** Workflows (den Bau- und den Referenzpaket-Workflow), also jede Form von
-  Nachweiserhebung auf einer Windows-Maschine. **Das kann nur der Kontoinhaber beheben** (Zahlung oder
-  Ausgabenlimit in den GitHub-Einstellungen). Bis dahin gilt: jeder weitere Push erzeugt einen Lauf,
-  der nichts tut, und jeder Nachweis, der noch fehlt, bleibt `BLOCKED` - nicht weil er widerlegt wäre,
-  sondern weil ihn niemand messen konnte. Der Stand ist in `docs/VM-CI.md` Abschnitt 4 festgehalten.
+**Zweig und Kopf:** `arena/01a0bb04-entwicklungen` = Remote-Stand `54849dd`; Kette seit `main`
+(`5a6a4cf`): `d759180` → `220c34d` → `3397fc0` → `2bd169e` → `fd11038` → `60b379b` → `4e36846` →
+`63cb536` → `c02d86c` → `e6d3a47` → `87540a8` (vier Sprachen) → `27ea6ad` (M27) → `54849dd`
+(Nachweislayout). Alle Prüfungen ohne SDK sind grün: `bash tools/verify-all.sh` (20 Mutationen,
+Nachweislayout, Lokalisierung, Verträge, XAML, Bindings, Projekte, Größe).
+
+**Gemessen und belegt (auf der CI-Maschine, nicht auf der Zielmaschine):**
+
+* Bau und Tests: Lauf `35704157557`, Commit `fd11038` - 15 Projekte inklusive WPF, 0 Fehler,
+  **370 von 370 Testfällen bestanden** (`test-results/ci/run-35704157557-1/`,
+  `test-results/unit/20260922T083031Z-370-of-370/`).
+* Installationszyklus: `test-results/installer/20260922T082333Z-INS-CI/` - 20 Kriterien PASS,
+  Ergebnis `PASSED`, offene Punkte im Bericht genannt.
+
+**Geschrieben, geprüft, aber nie ausgeführt (NOT VERIFIED):**
+
+* 22 Testfälle (3 Lokalisierung, 19 Ein-Klick-Wartung). Sie sind im Baum, ihre Zahl ist nicht
+  gemessen - deshalb steht Gate 2 weiterhin auf dem Stand von 370.
+* Die vier Sprachkataloge sind symmetrisch und platzhaltergleich, aber nicht von Muttersprachlern
+  gelesen und nie auf einem Bildschirm gesehen.
+* M27 (Ein-Klick-Wartung) ist vollständig implementiert (Dienst, Seite, 19 Fälle), hat aber keinen
+  Lauf auf einer Maschine; die acht VM-Fälle `M27-01`…`M27-08` in `docs/TESTMATRIX-VM.md` erheben ihn.
+
+**Blockiert, ohne dass Code das ändern könnte:**
+
+* **Die CI startet seit dem 2026-09-22 nicht mehr** - beide Workflows melden `steps=0` mit der
+  Anmerkung „recent account payments have failed or your spending limit needs to be increased".
+  Das kann nur der Kontoinhaber beheben. Bis dahin entsteht **kein** neuer Windows-Nachweis.
+* Zielhardware für Sensoren, Akku, SMBIOS, UAC-Dialog und Neustart fehlt weiterhin; das VM-Testkit
+  (`scripts/vm/`) und `docs/TESTMATRIX-VM.md` liegen dafür bereit.
+
+**Nächste Schritte, in dieser Reihenfolge:**
+
+1. Kontoproblem beheben, damit die CI wieder startet; danach den Lauf ablesen und den Nachweisordner
+   nach `test-results/ci/` holen (Log-Download ist aus dieser Umgebung gesperrt).
+2. Die 22 neuen Fälle mit dem nächsten Lauf wirklich ausführen und die Zahl in
+   `scripts/test.ps1` (`MinimumTests`) erst dann anheben, wenn sie gemessen ist.
+3. P0-Lücken nach `docs/RELEASE_STATUS.md` schließen (M26, M05, M11, M14, M20, M42; M27 ist aus
+   dieser Liste heraus, siehe Tabelle in `docs/ABNAHME-WMC.md`).
+4. Zielmaschine: `docs/TESTMATRIX-VM.md` Abschnitt 7 (14 Sicherheitsangriffe), 8 (Lokalisierung,
+   Offline, UI) und 8a (M27) abarbeiten und die Ordnernamen aus Kapitel 71 befüllen.
