@@ -11,10 +11,8 @@
 set -euo pipefail
 
 TARGET_REPO="https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git"
-BRANCH="arena/01a0bb04-entwicklungen"
 
 echo "=== Synchronisation nach HARDWARE-GUARDIAN ==="
-echo "Quell-Branch: $BRANCH"
 echo "Ziel: $TARGET_REPO (main)"
 
 if git push --dry-run "$TARGET_REPO" "HEAD:refs/heads/main" 2>/dev/null; then
@@ -23,9 +21,9 @@ if git push --dry-run "$TARGET_REPO" "HEAD:refs/heads/main" 2>/dev/null; then
     echo "Übertragung erfolgreich abgeschlossen."
 else
     echo ""
-    echo "[HINWEIS] Das aktive Token in dieser Umgebung hat noch keine Schreibrechte auf AOWDGENESIS/HARDWARE-GUARDIAN (HTTP 403)."
+    echo "[HINWEIS] Das aktive Token in dieser Umgebung hat noch keine Schreibrechte auf AOWDGENESIS/HARDWARE-GUARDIAN (HTTP 403: push=false)."
     echo "Sobald die Arena-App in GitHub für AOWDGENESIS/HARDWARE-GUARDIAN freigegeben wurde, kann der Push direkt ausgeführt werden."
     echo ""
-    echo "Alternativ kann der Stand von jedem Rechner mit Schreibrechten mit folgendem Befehl übertragen werden:"
-    echo "  git push https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git $BRANCH:main"
+    echo "Alternativ kann der Stand von jedem autorisierten Rechner mit folgendem Befehl übertragen werden:"
+    echo "  git push https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git HEAD:refs/heads/main"
 fi
