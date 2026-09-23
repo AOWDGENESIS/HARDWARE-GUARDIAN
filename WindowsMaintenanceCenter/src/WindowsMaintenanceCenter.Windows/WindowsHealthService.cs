@@ -72,8 +72,9 @@ public sealed class WindowsHealthService : IWindowsHealthService
         var storageSpace = await AssessStorageSpaceAsync(snapshot, cancellationToken).ConfigureAwait(false);
         var tpm = await TpmReader.ReadAsync(_wmi, cancellationToken).ConfigureAwait(false);
         var firewall = await FirewallReader.ReadAsync(_wmi, cancellationToken).ConfigureAwait(false);
+        var bitLocker = await BitLockerReader.ReadAsync(_wmi, _clock.Now, cancellationToken).ConfigureAwait(false);
 
-        progress.Start("Progress_Windows_Health", ModuleKey, 8);
+        progress.Start("Progress_Windows_Health", ModuleKey, 9);
 
         checks.Add(RunStatusFromPlatform(snapshot));
         progress.ReportStep("WindowsCheck_DeviceErrors", null);
@@ -89,6 +90,8 @@ public sealed class WindowsHealthService : IWindowsHealthService
         progress.ReportStep("WindowsCheck_Tpm", null);
         checks.Add(FirewallCheck(firewall));
         progress.ReportStep("WindowsCheck_Firewall", null);
+        checks.Add(BitLockerCheck(bitLocker));
+        progress.ReportStep("WindowsCheck_BitLocker", null);
         checks.Add(storageSpace);
         progress.ReportStep("WindowsCheck_StorageSpace", null);
         checks.Add(StartupCheck(startup));
@@ -1267,6 +1270,56 @@ public sealed class WindowsHealthService : IWindowsHealthService
                 LocalizedText.Of("Windows_Check_Firewall_NotFullyReadable", string.Join(", ", unreported)), reading.Detail, requiresAdmin: false),
             _ => Check(WindowsCheckId.Firewall, displayKey, HealthStatus.Unknown, StageOutcome.NotRun,
                 LocalizedText.Of("Windows_Check_Firewall_Unreadable", reading.Detail), reading.Detail, requiresAdmin: false),
+        };
+
+        return result with { Evidence = result.Evidence.Concat(evidence).ToArray() };
+    }
+
+    /// <summary>
+    /// BitLocker protection state (chapter 8, module M02). Read only: Windows Maintenance Center
+    /// reports an unprotected volume, it never encrypts, unlocks or changes a key protector - the
+    /// methods that would do that require administrator rights (chapter 12).
+    ///
+    /// The verdict distinguishes the three honest cases of "no protection reported": no encryptable
+    /// volume exists (nothing to say), the provider answered PROTECTION UNKNOWN (locked volume), and
+    /// the provider could not be asked. None of them becomes "unprotected", and none becomes "safe".
+    /// </summary>
+    private WindowsCheckResult BitLockerCheck(BitLockerReading reading)
+    {
+        const string displayKey = "WindowsCheck_BitLocker";
+        var origin = ValueOrigin.Wmi(
+            reading.ReadAt ?? _clock.Now,
+            $"{BitLockerReader.Scope}:{BitLockerReader.WmiClass}",
+            SensorQuality.Medium);
+        var state = BitLockerReader.Judge(reading);
+        var unprotected = BitLockerReader.UnprotectedVolumes(reading);
+        var unreported = BitLockerReader.UnreportedVolumes(reading);
+
+        var evidence = new List<string>
+        {
+            $"volumes={reading.Volumes.Count}; unprotected={unprotected.Count}; unreportedProtection={unreported.Count}",
+            $"origin={origin.Token()}",
+            "values are stored when the WMI class is instantiated, so the timestamp above is the moment of the read",
+            "read-only: no volume is encrypted, unlocked or changed by Windows Maintenance Center; the methods of this class are not called",
+            "not stated: whether a recovery key is escrowed - that cannot be read from Win32_EncryptableVolume",
+        };
+        evidence.AddRange(reading.Volumes.Select(volume =>
+            $"volume={BitLockerReader.Describe(volume)}; {BitLockerReader.Token(volume)}"));
+
+        var result = state switch
+        {
+            BitLockerState.AllVolumesProtected => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Healthy, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_BitLocker_AllProtected", reading.Volumes.Count), reading.Detail, requiresAdmin: false),
+            BitLockerState.SomeVolumesUnprotected => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Warning, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_BitLocker_Unprotected", string.Join(", ", unprotected)), reading.Detail, requiresAdmin: false),
+            BitLockerState.ConversionInProgress => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Attention, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_BitLocker_Converting"), reading.Detail, requiresAdmin: false),
+            BitLockerState.NoEncryptableVolume => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Unknown, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_BitLocker_NoVolume"), reading.Detail, requiresAdmin: false),
+            BitLockerState.UnknownProtection => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Unknown, StageOutcome.Succeeded,
+                LocalizedText.Of("Windows_Check_BitLocker_UnknownProtection", string.Join(", ", unreported)), reading.Detail, requiresAdmin: false),
+            _ => Check(WindowsCheckId.BitLocker, displayKey, HealthStatus.Unknown, StageOutcome.NotRun,
+                LocalizedText.Of("Windows_Check_BitLocker_Unreadable", reading.Detail), reading.Detail, requiresAdmin: false),
         };
 
         return result with { Evidence = result.Evidence.Concat(evidence).ToArray() };

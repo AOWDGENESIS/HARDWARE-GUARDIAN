@@ -25,6 +25,9 @@ public enum WindowsCheckId
 
     /// <summary>Windows Firewall profile state (rule 87, DIAG-F-009).</summary>
     Firewall,
+
+    /// <summary>BitLocker protection state of the volumes (chapter 8, module M02).</summary>
+    BitLocker,
 }
 
 /// <summary>One executed Windows check with its real outcome.</summary>

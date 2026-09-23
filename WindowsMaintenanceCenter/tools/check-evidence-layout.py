@@ -35,6 +35,7 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
+from fnmatch import fnmatch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,12 +61,102 @@ EXTRAS = ("ci",)
 
 README = "README.md"
 
+# A probe file per area. The extension is chosen so that a rule aimed at build output (`*.trx`,
+# `*.json`) hits it: that is exactly how the unit test evidence was about to become uncommittable.
+PROBE = "probe.trx"
+
 # Files that only exist to keep a folder in the repository. A folder holding nothing else is allowed,
 # but only deliberately.
 PLACEHOLDERS = (".gitkeep", ".gitignore", "README.md", "NOTE.md", "note.md")
 
 
-def inspect(root: Path) -> list[str]:
+def ignore_rules(repository_root: Path) -> list[tuple[Path, str, bool]]:
+    """Collects the rules of every .gitignore as (folder, pattern, negated).
+
+    The two mistakes this project made on 2026-09-23 were both gitignore rules: `release/` swallowed
+    the evidence area of the same name, and `*.trx` would have kept every future test result file out
+    of the repository. Both were invisible because the folders holding already-committed files look
+    fine. This reader exists so the layout check can see them.
+
+    It understands what the rules in this repository use: plain names, directory patterns with a
+    trailing slash, and simple globs (`*.trx`). A rule it cannot interpret is returned as written and
+    matched literally - a checker that silently ignores a rule it does not understand would be the
+    same kind of blind spot that produced the two defects.
+    """
+    rules: list[tuple[Path, str, bool]] = []
+    for ignore_file in sorted(repository_root.rglob(".gitignore")):
+        if any(part in {".git", "bin", "obj", "node_modules", "__pycache__"} for part in ignore_file.parts):
+            continue
+        folder = ignore_file.parent
+        for line in ignore_file.read_text(encoding="utf-8", errors="replace").splitlines():
+            entry = line.strip()
+            if not entry or entry.startswith("#"):
+                continue
+            negated = entry.startswith("!")
+            pattern = entry[1:].strip() if negated else entry
+            if pattern:
+                rules.append((folder, pattern, negated))
+    return rules
+
+
+def _matches(relative: str, pattern: str, is_directory: bool) -> bool:
+    """Does one rule apply to this path? Only the shapes this repository uses."""
+    directory_only = pattern.endswith("/")
+    cleaned = pattern.rstrip("/")
+    if not cleaned:
+        return False
+
+    if directory_only and not is_directory:
+        return False
+
+    if "/" in cleaned:
+        return fnmatch(relative, cleaned) or fnmatch(relative, cleaned + "/**")
+
+    # No slash: the rule matches on every level, so any segment may carry the name.
+    return any(fnmatch(segment, cleaned) for segment in relative.split("/"))
+
+
+def is_ignored(path: Path, rules: list[tuple[Path, str, bool]]) -> bool:
+    """True when git would ignore this path.
+
+    Two steps, because git does two: a file below an excluded **directory** stays excluded no matter
+    how many `!` rules name the file - "it is not possible to re-include a file if a parent directory
+    of that file is excluded". That is not a detail: the repository lost the evidence area `release/`
+    exactly this way, and a checker that only looked at the file would have called it fine.
+    """
+    for folder, _, _ in rules:
+        try:
+            relative = path.relative_to(folder).as_posix()
+        except ValueError:
+            continue
+
+        parts = relative.split("/")
+
+        # 1. Would one of the parent directories be excluded?
+        for depth in range(1, len(parts)):
+            directory = "/".join(parts[:depth])
+            ignored = False
+            for rule_folder, pattern, negated in rules:
+                if rule_folder != folder:
+                    continue
+                if _matches(directory, pattern, is_directory=True):
+                    ignored = not negated
+            if ignored:
+                return True
+
+        # 2. Would the file itself be excluded?
+        ignored = False
+        for rule_folder, pattern, negated in rules:
+            if rule_folder != folder:
+                continue
+            if _matches(relative, pattern, is_directory=False):
+                ignored = not negated
+        return ignored
+
+    return False
+
+
+def inspect(root: Path, repository_root: Path | None = None) -> list[str]:
     """Returns every layout finding under `root`. An empty list means the layout is as specified."""
     findings: list[str] = []
 
@@ -107,6 +198,17 @@ def inspect(root: Path) -> list[str]:
         for run in subfolders:
             if not any(run.iterdir()):
                 findings.append(f"'{entry.name}/{run.name}/' is empty - a run folder without content proves nothing")
+
+    # Would a fresh evidence file in each area be committable? A rule that hides it means the area
+    # can only ever hold what was added before that rule existed.
+    if repository_root is not None:
+        rules = ignore_rules(repository_root)
+        for area in AREAS:
+            probe = root / area / PROBE
+            if is_ignored(probe, rules):
+                findings.append(
+                    f"'{area}/{PROBE}' would be ignored by .gitignore - evidence written into "
+                    f"'{area}/' could never be committed, so the area would look empty on every clone")
 
     readme = root / README
     if not readme.is_file():
@@ -151,6 +253,14 @@ def self_test() -> int:
         (clean / "ci" / "run-1" / "build.log").write_text("ok", encoding="utf-8")
         (clean / README).write_text(" ".join(f"`{area}/`" for area in AREAS) + " `ci/`", encoding="utf-8")
 
+        # 5. an area that a .gitignore rule would hide
+        (root / "ignored").mkdir()
+        (root / "ignored" / ".gitignore").write_text("release/\n", encoding="utf-8")
+        broken_ignored = inspect(root / "ignored", root / "ignored")
+        if not any("would be ignored by .gitignore" in finding for finding in broken_ignored):
+            print("self-test FAILED: an evidence area hidden by .gitignore was not reported")
+            return 1
+
         clean_findings = inspect(clean)
         if clean_findings:
             print("self-test FAILED: the valid tree was reported:")
@@ -168,7 +278,7 @@ def main() -> int:
     if "--self-test" in sys.argv[1:]:
         return self_test()
 
-    findings = inspect(EVIDENCE)
+    findings = inspect(EVIDENCE, ROOT)
     print(f"evidence directory: {EVIDENCE.relative_to(ROOT) if EVIDENCE.is_relative_to(ROOT) else EVIDENCE}")
     print(f"areas of chapter 71: {', '.join(AREAS)}")
 

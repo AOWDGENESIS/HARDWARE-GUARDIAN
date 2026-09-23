@@ -77,6 +77,8 @@
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                     <Button Content="{services:Loc Action_Reload}" Command="{Binding ReloadAuditCommand}" />
                 </StackPanel>
+                <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,6"
+                           Text="{services:Loc Log_Redaction_Notice}" />
                 <DataGrid ItemsSource="{Binding RecentAudit}" MaxHeight="260">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{services:Loc Column_Time}" Binding="{Binding Timestamp, StringFormat=\{0:yyyy-MM-dd HH:mm:ss\}}" Width="150" />

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Models;
+using WindowsMaintenanceCenter.Core.Security;
 using WindowsMaintenanceCenter.Infrastructure.Serialization;
 
 namespace WindowsMaintenanceCenter.Infrastructure.Persistence;
@@ -33,8 +34,11 @@ public sealed class FileAuditSink : IAuditSink
     public async Task WriteAsync(AuditEntry entry, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        var json = JsonSerializer.Serialize(entry, JsonOptions.Compact);
-        var text = RenderText(entry);
+        // The audit file is the record a customer may have to hand over, so a secret must not reach
+        // it (M38-S-001). The same shapes as in the technical log are removed; the entry that is
+        // written and the entry that was passed in differ only in those places.
+        var json = SensitiveDataGuard.Redact(JsonSerializer.Serialize(entry, JsonOptions.Compact));
+        var text = SensitiveDataGuard.Redact(RenderText(entry));
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try

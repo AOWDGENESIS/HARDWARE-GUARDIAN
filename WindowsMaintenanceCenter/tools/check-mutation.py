@@ -121,6 +121,13 @@ MUTATIONS: tuple[Mutation, ...] = (
         delete_file=True,
     ),
     Mutation(
+        "evidence: a .gitignore rule hides a whole area",
+        "check-evidence-layout",
+        ".gitignore",
+        "[Bb]in/",
+        "[Bb]in/\ntest-results/localization/",
+    ),
+    Mutation(
         "localisation: key that is not defined",
         "check-localization",
         "src/WindowsMaintenanceCenter.Diagnostics/WindowsHealthModule.cs",

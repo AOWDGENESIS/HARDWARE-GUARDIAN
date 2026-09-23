@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using WindowsMaintenanceCenter.Core.Security;
 
 namespace WindowsMaintenanceCenter.Infrastructure.Logging;
 
@@ -50,21 +51,35 @@ public sealed class TechnicalFileLoggerProvider : ILoggerProvider
 
     private void Write(string category, LogLevel level, EventId eventId, string message, Exception? exception)
     {
+        // Secrets are removed before the line is built, not after it is written (M38-S-001): a
+        // credential that reached the file once is in the file, and deleting it later does not.
+        // The guard recognises secret *shapes* (keyword values, command line passwords, recovery
+        // passwords, key blocks) - what it cannot recognise, it cannot remove, and the log rules
+        // therefore forbid writing file contents in the first place (M38-S-002).
+        var safeMessage = SensitiveDataGuard.Redact(message);
+
         var payload = new Dictionary<string, object?>
         {
             ["ts"] = DateTimeOffset.Now,
             ["level"] = level.ToString(),
             ["category"] = category,
             ["eventId"] = eventId.Id,
-            ["message"] = message,
+            ["message"] = safeMessage,
             ["thread"] = Environment.CurrentManagedThreadId,
         };
 
         if (exception is not null)
         {
             payload["exception"] = exception.GetType().FullName;
-            payload["exceptionMessage"] = exception.Message;
-            payload["stack"] = exception.ToString();
+            payload["exceptionMessage"] = SensitiveDataGuard.Redact(exception.Message);
+            payload["stack"] = SensitiveDataGuard.Redact(exception.ToString());
+        }
+
+        if (SensitiveDataGuard.ContainsSensitiveData(message))
+        {
+            // Saying that something was removed is itself evidence: a reader must be able to tell a
+            // quiet log from a log that had a secret in it.
+            payload["redacted"] = true;
         }
 
         lock (_gate)
