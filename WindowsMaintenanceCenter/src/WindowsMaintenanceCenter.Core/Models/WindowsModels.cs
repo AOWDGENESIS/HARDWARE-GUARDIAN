@@ -28,6 +28,9 @@ public enum WindowsCheckId
 
     /// <summary>BitLocker protection state of the volumes (chapter 8, module M02).</summary>
     BitLocker,
+
+    /// <summary>File system integrity on storage volumes via CHKDSK (spec chapter 18, module M12).</summary>
+    FileSystemIntegrity,
 }
 
 /// <summary>One executed Windows check with its real outcome.</summary>
@@ -101,6 +104,12 @@ public sealed record IntegrityCheckResult
 
     /// <summary>True when a verification run after the repair confirmed the new state.</summary>
     public bool VerifiedAfterRepair { get; init; }
+
+    /// <summary>True when the tool reported that a system restart is required (spec chapter 18, M12-E-002).</summary>
+    public bool RebootRequired { get; init; }
+
+    /// <summary>Documented recovery path for critical repairs (spec chapter 18, M12-R-001).</summary>
+    public string? RecoveryPath { get; init; }
 
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Integrity_NotRun");
 
@@ -313,3 +322,31 @@ public sealed record DefenderStatus
         };
     }
 }
+
+/// <summary>Scan type for Microsoft Defender (spec chapter 24, module M18).</summary>
+public enum DefenderScanType
+{
+    Quick,
+    Full,
+}
+
+/// <summary>Result of a Microsoft Defender scan (spec chapter 24, module M18).</summary>
+public sealed record DefenderScanResult
+{
+    public DefenderScanType ScanType { get; init; }
+
+    public StageOutcome Outcome { get; init; } = StageOutcome.NotRun;
+
+    public DateTimeOffset StartedAt { get; init; }
+
+    public DateTimeOffset CompletedAt { get; init; }
+
+    public TimeSpan Duration { get; init; }
+
+    public LocalizedText Summary { get; init; } = LocalizedText.Of("Defender_Scan_NotRun");
+
+    public DefenderStatus StatusAfterScan { get; init; } = new();
+
+    public IReadOnlyList<string> Evidence { get; init; } = Array.Empty<string>();
+}
+

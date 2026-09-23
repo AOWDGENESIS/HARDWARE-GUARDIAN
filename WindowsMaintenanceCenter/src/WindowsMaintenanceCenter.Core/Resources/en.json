@@ -948,6 +948,20 @@
     "Problem_DefenderStateUnknown_Action": "Open Windows Security and check the protection there, or run the check again with the required rights.",
     "Problem_WindowsUpdatesUnknown_Title": "The Windows update state is unknown",
     "Problem_WindowsUpdatesUnknown_Description": "The query for available Windows updates did not run (not Windows, no network, or missing rights). \"Everything is up to date\" is therefore not claimed.",
-    "Problem_WindowsUpdatesUnknown_Impact": "Whether updates are missing cannot be decided from the evidence at hand."
+    "Problem_WindowsUpdatesUnknown_Impact": "Whether updates are missing cannot be decided from the evidence at hand.",
+    "Defender_Scan_Quick": "Microsoft Defender Quick Scan",
+    "Defender_Scan_Full": "Microsoft Defender Full Scan",
+    "Defender_Scan_Completed": "Defender scan ({0}) completed.",
+    "Defender_Scan_Failed": "Defender scan ({0}) failed: {1}.",
+    "Defender_Scan_Unavailable_NoWindows": "Defender scans are only available on Windows.",
+    "Defender_Scan_NotRun": "Defender scan not run.",
+    "Progress_Defender_Scan": "Microsoft Defender scan in progress...",
+    "WindowsCheck_FileSystemIntegrity": "File System Integrity (CHKDSK)",
+    "Integrity_Summary_ChkdskClean": "File system scan completed: no errors found.",
+    "Integrity_Summary_ChkdskErrorsFound": "File system scan found errors. Repair required.",
+    "Integrity_Summary_ChkdskRepairCompleted": "File system repair completed successfully.",
+    "Integrity_Summary_ChkdskRebootPending": "File system check requires a system restart to execute.",
+    "Integrity_Blocked_InvalidDrive": "Invalid drive specified: {0}.",
+    "Progress_Chkdsk": "Checking file system (chkdsk)..."
   }
 }

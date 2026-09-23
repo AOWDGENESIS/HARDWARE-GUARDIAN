@@ -125,6 +125,147 @@ public sealed class WindowsHealthService : IWindowsHealthService
     public Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken) =>
         RunIntegrityCheckAsync(WindowsCheckId.SystemFileIntegrity, repair, approval, progress, cancellationToken);
 
+    public async Task<IntegrityCheckResult> RunFileSystemCheckAsync(
+        string? driveLetter,
+        bool repair,
+        ApprovalRecord? approval,
+        IProgressReporter progress,
+        CancellationToken cancellationToken)
+    {
+        var rawDrive = string.IsNullOrWhiteSpace(driveLetter) ? "C:" : driveLetter.Trim().ToUpperInvariant();
+        var drive = rawDrive.EndsWith(':') ? rawDrive : rawDrive + ":";
+
+        if (drive.Length != 2 || drive[0] < 'A' || drive[0] > 'Z' || drive[1] != ':')
+        {
+            return new IntegrityCheckResult
+            {
+                Check = WindowsCheckId.FileSystemIntegrity,
+                Outcome = StageOutcome.Blocked,
+                CommandLine = $"chkdsk.exe {drive}",
+                Summary = LocalizedText.Of("Integrity_Blocked_InvalidDrive", drive),
+                Evidence = new[] { $"invalidDrive={drive}" },
+            };
+        }
+
+        var tool = "chkdsk.exe";
+        var arguments = repair ? new[] { drive, "/f" } : new[] { drive, "/scan" };
+        var commandLine = $"{tool} {string.Join(' ', arguments)}";
+
+        if (!_environment.IsWindows)
+        {
+            return NotRun(WindowsCheckId.FileSystemIntegrity, "WindowsCheck_FileSystemIntegrity", "Integrity checks require Windows; this host is not Windows.", commandLine);
+        }
+
+        if (repair && approval is null)
+        {
+            return await BlockedAsync(
+                WindowsCheckId.FileSystemIntegrity,
+                BlockReasons.ApprovalMissing,
+                LocalizedText.Of("Integrity_Blocked_NoApproval"),
+                commandLine,
+                requiresAdministrator: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!_environment.IsElevated)
+        {
+            var blocked = new IntegrityCheckResult
+            {
+                Check = WindowsCheckId.FileSystemIntegrity,
+                Outcome = StageOutcome.Blocked,
+                CommandLine = commandLine,
+                RequiresAdministrator = true,
+                RepairRequested = repair,
+                Summary = LocalizedText.Of("Integrity_Blocked_NotElevated"),
+                Evidence = new[] { "elevation: false", $"command: {commandLine}" },
+            };
+            await AuditAsync(WindowsCheckId.FileSystemIntegrity, repair, approval, StageOutcome.Blocked, blocked.Summary.Key, result: null, evidence: new[] { "elevation: false" }, cancellationToken).ConfigureAwait(false);
+            return blocked;
+        }
+
+        var started = _clock.Now;
+        progress.Start("Progress_Chkdsk", ModuleKey, null);
+        _protocol.Info(ModuleKey, LocalizedText.Of(repair ? "Integrity_Running_Repair" : "Integrity_Running_Scan", "WindowsCheck_FileSystemIntegrity"));
+
+        var runOptions = new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(repair ? 120 : 60), MaxOutputCharacters = 2_000_000 };
+        var result = await _runner.RunAsync(tool, arguments, runOptions, cancellationToken).ConfigureAwait(false);
+
+        var duration = _clock.Now - started;
+        var output = result.CombinedOutput;
+        var interp = ChkdskOutputInterpreter.Interpret(output, result.ExitCode, repair);
+        var changesPerformed = interp.ChangesPerformed;
+        var repairSucceeded = interp.RepairSucceeded;
+        var rebootRequired = interp.RebootRequired;
+        var summary = interp.Summary;
+
+        var needsVerification = repair && repairSucceeded && changesPerformed && !rebootRequired;
+        var verified = false;
+        var recoveryPath = repair ? "Windows Recovery Environment (WinRE) Command Prompt: chkdsk " + drive + " /f /r" : null;
+
+        var evidence = new List<string>
+        {
+            $"tool={tool}",
+            $"drive={drive}",
+            $"exitCode={result.ExitCode}",
+            $"timedOut={result.TimedOut}",
+            $"duration={duration.TotalSeconds:0.0}s",
+            $"changesPerformed={changesPerformed}",
+            $"rebootRequired={rebootRequired}",
+        };
+
+        if (repair && approval is not null)
+        {
+            evidence.Add($"approval={approval.RequestId} operation={approval.OperationId} decided={approval.DecidedAt:O}");
+        }
+
+        if (needsVerification)
+        {
+            progress.ReportStep("Integrity_Verifying", null);
+            var verify = await _runner.RunAsync(
+                tool,
+                new[] { drive, "/scan" },
+                new ProcessRunOptions { Timeout = TimeSpan.FromMinutes(45), MaxOutputCharacters = 1_000_000 },
+                cancellationToken).ConfigureAwait(false);
+
+            var verifyInterp = ChkdskOutputInterpreter.Interpret(verify.CombinedOutput, verify.ExitCode, repair: false);
+            verified = verify.ExitCode == 0 && verifyInterp.RepairSucceeded;
+            evidence.Add($"verificationExitCode={verify.ExitCode}");
+            evidence.Add($"verificationResult={verifyInterp.Summary.Key}");
+        }
+
+        progress.Complete(result.ExitCode == 0);
+
+        var outcome = result.TimedOut ? StageOutcome.Failed
+            : result.ExitCode != 0 && !rebootRequired && result.ExitCode != 1 ? StageOutcome.Failed
+            : repair && !repairSucceeded && !rebootRequired ? StageOutcome.Failed
+            : StageOutcome.Succeeded;
+
+        var final = new IntegrityCheckResult
+        {
+            Check = WindowsCheckId.FileSystemIntegrity,
+            Outcome = outcome,
+            CommandLine = commandLine,
+            ExitCode = result.ExitCode,
+            TimedOut = result.TimedOut,
+            RepairRequested = repair,
+            RepairSucceeded = repairSucceeded,
+            ChangesPerformed = changesPerformed,
+            VerifiedAfterRepair = verified,
+            RebootRequired = rebootRequired,
+            RecoveryPath = recoveryPath,
+            Summary = result.TimedOut
+                ? LocalizedText.Of("Integrity_Summary_Timeout", "WindowsCheck_FileSystemIntegrity")
+                : summary,
+            RawOutput = Trim(output, 200_000),
+            RequiresAdministrator = true,
+            Evidence = evidence,
+            Duration = duration,
+        };
+
+        await AuditAsync(WindowsCheckId.FileSystemIntegrity, repair, approval, outcome, final.Summary.Key, final, evidence, cancellationToken).ConfigureAwait(false);
+        return final;
+    }
+
     private async Task<IntegrityCheckResult> RunIntegrityCheckAsync(
         WindowsCheckId check,
         bool repair,
@@ -989,6 +1130,93 @@ public sealed class WindowsHealthService : IWindowsHealthService
             defender.Summary,
             defender.Summary.Key,
             requiresAdmin: false);
+    }
+
+    /// <summary>
+    /// Runs a Microsoft Defender scan (Quick or Full) and verifies the status after completion (spec chapter 24, module M18).
+    /// Protection components are never disabled (M18-S-001/S-002).
+    /// </summary>
+    public async Task<DefenderScanResult> RunDefenderScanAsync(
+        DefenderScanType scanType,
+        IProgressReporter progress,
+        CancellationToken cancellationToken)
+    {
+        var scanName = scanType == DefenderScanType.Quick ? "Quick" : "Full";
+        var displayKey = scanType == DefenderScanType.Quick ? "Defender_Scan_Quick" : "Defender_Scan_Full";
+
+        if (!_environment.IsWindows)
+        {
+            return new DefenderScanResult
+            {
+                ScanType = scanType,
+                Outcome = StageOutcome.NotRun,
+                StartedAt = _clock.Now,
+                CompletedAt = _clock.Now,
+                Duration = TimeSpan.Zero,
+                Summary = LocalizedText.Of("Defender_Scan_Unavailable_NoWindows"),
+                Evidence = new[] { "platform: not Windows" },
+            };
+        }
+
+        var started = _clock.Now;
+        progress.Start("Progress_Defender_Scan", ModuleKey, null);
+        _protocol.Info(ModuleKey, LocalizedText.Of(displayKey));
+
+        var command = scanType == DefenderScanType.Quick
+            ? PowerShellCommandCatalog.DefenderScanQuick
+            : PowerShellCommandCatalog.DefenderScanFull;
+
+        var timeout = scanType == DefenderScanType.Quick
+            ? TimeSpan.FromMinutes(30)
+            : TimeSpan.FromHours(4);
+
+        var result = await _powershell.RunAsync(
+            command,
+            null,
+            new ProcessRunOptions { Timeout = timeout },
+            cancellationToken).ConfigureAwait(false);
+
+        var duration = _clock.Now - started;
+        var completed = _clock.Now;
+
+        // Query fresh status after the scan (M18-F-003: Status nach Scan wird geprüft)
+        var statusAfter = await GetDefenderStatusAsync(cancellationToken).ConfigureAwait(false);
+
+        var isCompleted = result.Succeeded && result.StandardOutput.Contains("SCAN_COMPLETED=true", StringComparison.OrdinalIgnoreCase);
+        var error = result.StandardOutput.Split('\n')
+            .Select(l => l.Trim())
+            .FirstOrDefault(l => l.StartsWith("SCAN_ERROR=", StringComparison.OrdinalIgnoreCase))
+            ?["SCAN_ERROR=".Length..] ?? result.ErrorDetail ?? result.StandardError.Trim();
+
+        var outcome = isCompleted ? StageOutcome.Succeeded : StageOutcome.Failed;
+        var summary = isCompleted
+            ? LocalizedText.Of("Defender_Scan_Completed", scanName)
+            : LocalizedText.Of("Defender_Scan_Failed", scanName, error.Length > 0 ? error : "scan failed");
+
+        var evidence = new List<string>
+        {
+            $"scanType={scanName}",
+            $"completed={isCompleted}",
+            $"duration={duration.TotalSeconds:0.0}s",
+            $"exitCode={result.ExitCode}",
+            $"antivirusEnabled={statusAfter.AntivirusEnabled.Value ?? "unknown"}",
+            $"realTimeProtection={statusAfter.RealTimeProtectionEnabled.Value ?? "unknown"}",
+            $"signatureVersion={statusAfter.SignatureVersion.Value ?? "unknown"}",
+        };
+
+        progress.Complete(isCompleted);
+
+        return new DefenderScanResult
+        {
+            ScanType = scanType,
+            Outcome = outcome,
+            StartedAt = started,
+            CompletedAt = completed,
+            Duration = duration,
+            Summary = summary,
+            StatusAfterScan = statusAfter,
+            Evidence = evidence,
+        };
     }
 
     // ---------------------------------------------------------------------------------------------

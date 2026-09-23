@@ -77,6 +77,8 @@ public static class PowerShellCommandCatalog
     public const string DeliveryOptimizationCacheSize = "deliveryoptimization.cache.size";
     public const string DeliveryOptimizationCacheClear = "deliveryoptimization.cache.clear";
     public const string DefenderStatus = "defender.status";
+    public const string DefenderScanQuick = "defender.scan.quick";
+    public const string DefenderScanFull = "defender.scan.full";
     public const string WindowsUpdateSession = "windowsupdate.session.search";
 
     public const string WindowsUpdateDownload = "windowsupdate.download";
@@ -107,6 +109,12 @@ public static class PowerShellCommandCatalog
             "'AV=' + $s.AntivirusEnabled; 'RTP=' + $s.RealTimeProtectionEnabled; 'ENGINE=' + $s.AMEngineVersion; " +
             "'SIGNATURE=' + $s.AntivirusSignatureVersion; 'SIGNATURE_AGE_DAYS=' + $s.AntivirusSignatureAge; " +
             "'TAMPER=' + $s.IsTamperProtected } catch { 'DEFENDER_ERROR=' + $_.Exception.Message }",
+
+        [DefenderScanQuick] =
+            "try { Start-MpScan -ScanType QuickScan -ErrorAction Stop; 'SCAN_COMPLETED=true' } catch { 'SCAN_ERROR=' + $_.Exception.Message }",
+
+        [DefenderScanFull] =
+            "try { Start-MpScan -ScanType FullScan -ErrorAction Stop; 'SCAN_COMPLETED=true' } catch { 'SCAN_ERROR=' + $_.Exception.Message }",
 
         // UPDATE-F-003: the search reports every field the agent actually has, each line tagged with
         // the index of its update so that a title containing '|' cannot corrupt the record.

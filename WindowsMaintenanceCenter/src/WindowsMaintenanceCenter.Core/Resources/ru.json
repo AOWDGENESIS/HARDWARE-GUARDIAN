@@ -948,6 +948,20 @@
     "Problem_DefenderStateUnknown_Action": "Откройте Безопасность Windows и проверьте защиту там либо повторите проверку с необходимыми правами.",
     "Problem_WindowsUpdatesUnknown_Title": "Состояние обновлений Windows неизвестно",
     "Problem_WindowsUpdatesUnknown_Description": "Запрос доступных обновлений Windows не выполнялся (не Windows, нет сети или недостаточно прав). Поэтому утверждение «всё обновлено» не делается.",
-    "Problem_WindowsUpdatesUnknown_Impact": "Отсутствуют ли обновления, по имеющимся доказательствам решить нельзя."
+    "Problem_WindowsUpdatesUnknown_Impact": "Отсутствуют ли обновления, по имеющимся доказательствам решить нельзя.",
+    "Defender_Scan_Quick": "Быстрое сканирование Microsoft Defender",
+    "Defender_Scan_Full": "Полное сканирование Microsoft Defender",
+    "Defender_Scan_Completed": "Сканирование Defender ({0}) завершено.",
+    "Defender_Scan_Failed": "Сбой сканирования Defender ({0}): {1}.",
+    "Defender_Scan_Unavailable_NoWindows": "Сканирование Defender доступно только в Windows.",
+    "Defender_Scan_NotRun": "Сканирование Defender не выполнялось.",
+    "Progress_Defender_Scan": "Выполняется сканирование Microsoft Defender...",
+    "WindowsCheck_FileSystemIntegrity": "Целостность файловой системы (CHKDSK)",
+    "Integrity_Summary_ChkdskClean": "Проверка файловой системы завершена: ошибок не обнаружено.",
+    "Integrity_Summary_ChkdskErrorsFound": "Проверка файловой системы обнаружила ошибки. Требуется восстановление.",
+    "Integrity_Summary_ChkdskRepairCompleted": "Восстановление файловой системы успешно завершено.",
+    "Integrity_Summary_ChkdskRebootPending": "Для проверки файловой системы требуется перезагрузка.",
+    "Integrity_Blocked_InvalidDrive": "Указан недействительный диск: {0}.",
+    "Progress_Chkdsk": "Проверка файловой системы (chkdsk)..."
   }
 }

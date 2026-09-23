@@ -948,6 +948,20 @@
     "Problem_DefenderStateUnknown_Action": "Öffnen Sie die Windows-Sicherheit und prüfen Sie den Schutz dort, oder führen Sie die Prüfung mit den erforderlichen Rechten erneut aus.",
     "Problem_WindowsUpdatesUnknown_Title": "Der Windows-Update-Stand ist unbekannt",
     "Problem_WindowsUpdatesUnknown_Description": "Die Abfrage nach verfügbaren Windows-Updates wurde nicht ausgeführt (kein Windows, kein Netz oder fehlende Rechte). \"Alles aktuell\" wird deshalb nicht behauptet.",
-    "Problem_WindowsUpdatesUnknown_Impact": "Ob Updates fehlen, ist mit den vorhandenen Belegen nicht entscheidbar."
+    "Problem_WindowsUpdatesUnknown_Impact": "Ob Updates fehlen, ist mit den vorhandenen Belegen nicht entscheidbar.",
+    "Defender_Scan_Quick": "Microsoft Defender Schnellüberprüfung",
+    "Defender_Scan_Full": "Microsoft Defender Vollständige Überprüfung",
+    "Defender_Scan_Completed": "Defender-Scan ({0}) abgeschlossen.",
+    "Defender_Scan_Failed": "Defender-Scan ({0}) fehlgeschlagen: {1}.",
+    "Defender_Scan_Unavailable_NoWindows": "Defender-Scans sind nur unter Windows verfügbar.",
+    "Defender_Scan_NotRun": "Defender-Scan nicht ausgeführt.",
+    "Progress_Defender_Scan": "Microsoft Defender Scan läuft...",
+    "WindowsCheck_FileSystemIntegrity": "Dateisystem-Integrität (CHKDSK)",
+    "Integrity_Summary_ChkdskClean": "Dateisystemprüfung abgeschlossen: keine Fehler gefunden.",
+    "Integrity_Summary_ChkdskErrorsFound": "Dateisystemprüfung hat Fehler gefunden. Reparatur erforderlich.",
+    "Integrity_Summary_ChkdskRepairCompleted": "Dateisystem-Reparatur erfolgreich abgeschlossen.",
+    "Integrity_Summary_ChkdskRebootPending": "Dateisystem-Prüfung erfordert einen Systemneustart zur Durchführung.",
+    "Integrity_Blocked_InvalidDrive": "Ungültiges Laufwerk angegeben: {0}.",
+    "Progress_Chkdsk": "Dateisystem wird geprüft (chkdsk)..."
   }
 }

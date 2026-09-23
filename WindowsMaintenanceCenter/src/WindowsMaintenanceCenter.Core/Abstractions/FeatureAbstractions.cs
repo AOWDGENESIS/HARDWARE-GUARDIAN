@@ -176,6 +176,18 @@ public interface IWindowsHealthService
     /// </summary>
     Task<IntegrityCheckResult> RunSystemFileCheckAsync(bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// File system integrity check via CHKDSK. Read-only verification runs as <c>chkdsk.exe {drive} /scan</c>.
+    /// A repair requires an explicit approval record and documents the recovery path (spec chapter 18, module M12).
+    /// </summary>
+    Task<IntegrityCheckResult> RunFileSystemCheckAsync(string? driveLetter, bool repair, ApprovalRecord? approval, IProgressReporter progress, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Runs a Microsoft Defender scan (Quick or Full) and verifies the status after completion (spec chapter 24, module M18).
+    /// Protection components are never disabled (M18-S-001/S-002).
+    /// </summary>
+    Task<DefenderScanResult> RunDefenderScanAsync(DefenderScanType scanType, IProgressReporter progress, CancellationToken cancellationToken);
+
     Task<UpdateAvailability> CheckUpdateAvailabilityAsync(bool queryOnline, CancellationToken cancellationToken);
 
     /// <summary>

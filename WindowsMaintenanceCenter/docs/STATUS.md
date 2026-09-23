@@ -15,8 +15,8 @@ Last updated: 2026-09-22 (twenty-third session)
 | NuGet restore (`dotnet restore`) | **NOT AVAILABLE IN THIS CONTAINER**; the CI runner restores every package and the restore log is filed with each run | The pins are exercised for real now; a package that cannot be resolved fails the CI run instead of being discovered later |
 | WPF / WPF designer | **NOT AVAILABLE** (Linux) | The App layer can be written, but not rendered or started here. |
 | Windows + real hardware test (rule 89) | **NOT AVAILABLE** | All Windows-specific behaviour is **UNVERIFIED BY EXECUTION**. |
-| Syntax check (tree-sitter C# grammar) | AVAILABLE after `pip install tree-sitter tree-sitter-c-sharp tree-sitter-powershell` (a fresh container has none, and the runner then reports the skipped check instead of passing quietly) | All 160 C# files parse without syntax errors (2026-09-23). **Syntax only — not a compile, not a type check.** |
-| Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings**. Not a compiler. |
+| Syntax check (tree-sitter C# grammar) | AVAILABLE after `pip install tree-sitter tree-sitter-c-sharp tree-sitter-powershell` (a fresh container has none, and the runner then reports the skipped check instead of passing quietly) | All 167 C# files parse without syntax errors (2026-09-23). **Syntax only — not a compile, not a type check.** |
+| Contract check (`tools/check-contracts.py`) | AVAILABLE | Heuristic check of the API surface: object initialisers, enum/static member access, `local.Member` against the declared type of the local, interface implementations. Covers `src/` **and** `tests/`. Currently **0 findings** (167 files, 488 declared types). Not a compiler. |
 | Unit tests | **EXECUTED AND PASSING ON THE CI MACHINE**: 370 cases, 0 failed, run `35704157557` (the run before, `35694300454`, had 359); the TRX file and a `summary.txt` (timestamp, version, build, environment, result per chapter 71) sit in `test-results/unit/20260922T062120Z-359-of-359/` | This is a real test run, and it is still not a substitute for the target machine (chapter 93). Nothing here claims that a Windows-only behaviour was verified. |
 
 Therefore, for the current revision:
@@ -32,23 +32,23 @@ Therefore, for the current revision:
 
 | Project | Files | Lines | Purpose | State |
 | --- | --- | --- | --- | --- |
-| `WindowsMaintenanceCenter.Core` | 57 | 11 322 | Domain + contracts + services, no Windows APIs, embedded `Resources/{de,en,ja,ru}.json` (939 keys each) | Written; contract-checked; localisation 939/939 keys in four languages |
-| `WindowsMaintenanceCenter.Infrastructure` | 27 | 4 981 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
-| `WindowsMaintenanceCenter.Hardware` | 5 | 1 542 | WMI provider for real hardware, Secure Boot variable, TPM state, firewall profiles | Written; contract-checked |
-| `WindowsMaintenanceCenter.Sensors` | 2 | 524 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
+| `WindowsMaintenanceCenter.Core` | 58 | 11 536 | Domain + contracts + services, no Windows APIs, embedded `Resources/{de,en,ja,ru}.json` (961 keys each) | Written; contract-checked; localisation 961/961 keys in four languages |
+| `WindowsMaintenanceCenter.Infrastructure` | 27 | 5 021 | Paths, registry, processes, PowerShell, persistence, logging, HTTP, security, backup, rollback, localisation | Written; contract-checked |
+| `WindowsMaintenanceCenter.Hardware` | 6 | 1 787 | WMI provider for real hardware, Secure Boot variable, TPM state, firewall profiles, BitLocker | Written; contract-checked |
+| `WindowsMaintenanceCenter.Sensors` | 2 | 525 | ACPI / performance / storage / vendor sensor providers | Written; contract-checked |
 | `WindowsMaintenanceCenter.Drivers` | 1 | 277 | Driver inventory + PnP problem-code analysis | Written; contract-checked |
 | `WindowsMaintenanceCenter.Bios` | 1 | 307 | Firmware assessment (never flashes), firmware file inspection | Written; contract-checked |
 | `WindowsMaintenanceCenter.Security` | 1 | 95 | Security report aggregation | Written; contract-checked |
-| `WindowsMaintenanceCenter.Manufacturer` | 3 | 1 048 | Official-source adapters, resolver, update centre (`IUpdateCenter`) | Written; contract-checked |
-| `WindowsMaintenanceCenter.Maintenance` | 5 | 1 726 | Scan / plan / dry run / execute, software + process inventory, workload detection | Written; contract-checked |
-| `WindowsMaintenanceCenter.Windows` | 1 | 1 271 | `IWindowsHealthService`: DISM, event log, Defender (read only), Windows Update with KB/category/severity/restart, TPM, firewall, startup/services | Written; contract-checked |
+| `WindowsMaintenanceCenter.Manufacturer` | 3 | 1 090 | Official-source adapters, resolver, update centre (`IUpdateCenter`) | Written; contract-checked |
+| `WindowsMaintenanceCenter.Maintenance` | 5 | 1 782 | Scan / plan / dry run / execute, software + process inventory, workload detection, free space remeasurement | Written; contract-checked |
+| `WindowsMaintenanceCenter.Windows` | 1 | 1 798 | `IWindowsHealthService`: DISM, SFC, CHKDSK, event log, Defender (read + Quick/Full Scan), Windows Update, TPM, firewall, BitLocker | Written; contract-checked |
 | `WindowsMaintenanceCenter.Simulation` | 1 | 419 | `MockHardwareProvider` fixture, clearly labelled as simulation | Written; contract-checked |
-| `WindowsMaintenanceCenter.Reporting` | 1 | 939 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
-| `WindowsMaintenanceCenter.Diagnostics` | 6 | 811 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
+| `WindowsMaintenanceCenter.Reporting` | 1 | 969 | `IReportGenerator`: JSON / TXT / HTML; PDF deliberately blocked | Written; contract-checked |
+| `WindowsMaintenanceCenter.Diagnostics` | 6 | 862 | Diagnostic modules: driver health, storage health, sensors, Windows health, workloads, firmware assessment | Written; contract-checked |
 | `WindowsMaintenanceCenter.App` | 21 | 3 709 | WPF shell: DI root, MVVM, Dark/Light theme, four languages at runtime, 7 pages | Written; XAML-checked; **NOT EXECUTED** |
-| `tests/WindowsMaintenanceCenter.Tests` | 28 | 6 317 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting, Windows update result codes and command-line safety, **one-click maintenance (19 cases: phase order, approval gate, deselect rule, backup order, measurement honesty, cancellation)** | Written; contract-checked; **NOT EXECUTED** |
+| `tests/WindowsMaintenanceCenter.Tests` | 33 | 6 855 | xUnit v3 test project: version comparison, path guard, problem registry, state machine, overall status, update decision engine, maintenance safety, localisation parity, report generator, simulation fixture, inventory failure handling, SMBIOS code tables, Secure Boot interpretation, TPM/firewall verdicts, size formatting, Windows update result codes and command-line safety, one-click maintenance, BitLocker, sensitive data redaction, CHKDSK, Defender scans, free space remeasurement | Written; contract-checked; **NOT EXECUTED** |
 
-Total: **160 C# files, 35 646 lines (28 of them test files) + 12 XAML files** in 15 projects, all
+Total: **167 C# files, 37 032 lines (33 of them test files) + 12 XAML files** in 15 projects, all
 listed in `WindowsMaintenanceCenter.sln`.
 
 Delivery layer:
@@ -304,6 +304,15 @@ usage, `ApprovalRequestDraft`, `ApprovalRecord`, `ProblemDraft`.
 | --- | --- | --- |
 | **M38-S-001 ("no passwords in the log") had no mechanism behind it.** The technical log and the audit file wrote whatever the caller passed: a recovery command line, an approval note or an exception message could carry a credential into a file that is handed over to support or to a customer. | new `Core/Security/SensitiveDataGuard.cs`, `Infrastructure/Logging/TechnicalFileLogger.cs`, `Infrastructure/Persistence/FileAuditSink.cs`, `tests/.../SensitiveDataGuardTests.cs` | Redaction happens **before** the line is built, in both the technical log and the audit file, and the log records `redacted: true` so a quiet log can be told apart from one that had a secret in it. Recognised shapes: keyword values (`password=`, `token:`, `apiKey`), command line passwords (`--password`, `-Passphrase`, `/password:`), BitLocker recovery passwords (48 digits, grouped or not) and private key blocks. 12 tests cover both directions - a secret **must** go, ordinary evidence text **must** stay readable, because a filter that mangles the log gets switched off. **What it cannot do and does not claim:** recognise a document's contents or a secret written as a normal sentence. M38-S-002 rests on the code paths never writing file contents into a message, which no filter can compensate for. |
 
+### M12 File System Integrity (CHKDSK), M18 Defender Scans, M04 Remeasurement and M22 Restore Point Validation (2026-09-23)
+
+| Defect | Location | Fix |
+| --- | --- | --- |
+| **M12 CHKDSK was missing from the Repair Engine.** DISM and SFC were wired up, but file system integrity verification was not. Chapter 18 demands file system integrity assessment and repair without blind modifications. | `Windows/WindowsHealthService.cs`, `Core/Models/WindowsModels.cs`, `tests/.../IntegrityCheckTests.cs` | Added `WindowsCheckId.FileSystemIntegrity`, `RunFileSystemCheckAsync`, and `InterpretChkdskOutput`. Read-only online scan runs as `chkdsk.exe {drive} /scan` (Windows 8+ online self-healing scan, no volume unmount); repair `/f` requires an explicit approval record. Exit codes and tool output are parsed, reboot requirements (`M12-E-002`) are detected, and critical repair actions document the WinRE recovery path (`M12-R-001`). 5 unit tests. |
+| **M18 Quick Scan and Full Scan had no trigger.** Defender status was read via `Get-MpComputerStatus`, but M18-F-001 and M18-F-002 require initiating Quick and Full scans, and M18-F-003 requires verifying the status after the scan. | `Windows/WindowsHealthService.cs`, `Infrastructure/Platform/PowerShellRunner.cs`, `tests/.../DefenderScanTests.cs` | Added `DefenderScanType`, `DefenderScanResult`, `RunDefenderScanAsync`, and PowerShell templates for `Start-MpScan -ScanType QuickScan/FullScan`. Re-queries `GetDefenderStatusAsync` immediately after execution to record updated state. Tests pin that no template disables Defender (`M18-S-001`) or Firewall (`M18-S-002`). |
+| **M04-F-004 required remeasuring free space after cleanup on disk.** The engine calculated freed bytes by summing deleted files, but did not measure actual filesystem free space before and after execution. | `Maintenance/MaintenanceService.cs`, `Core/Models/MaintenanceModels.cs`, `tests/.../MaintenanceFreeSpaceTests.cs` | Added `SystemFreeSpaceBefore` and `SystemFreeSpaceAfter` to `MaintenanceResult`. The execution phase queries actual available free space on the system drive before and after deletions and records the delta in audit evidence. |
+| **M22 Restore Points had static naming and lacked validation.** `Checkpoint-Computer` was called with a hardcoded string `'WindowsMaintenanceCenter'` and creation was not verified against the requested operation. | `Infrastructure/Security/BackupService.cs` | Operation-specific naming `WMC-{Kind}-{OpId}` is generated, and the created restore point is queried and validated (`RP_VALIDATED=true`) to satisfy `M22-F-002`. |
+
 ### An M27 that only existed in the acceptance table (2026-09-23)
 
 | Defect | Location | Fix |
@@ -415,11 +424,13 @@ jede Sitzung endet mit einem Push, und die Parser-Pakete
 in einer frischen Umgebung einmal installiert werden, sonst meldet `verify-all.sh` zu Recht drei
 übersprungene Prüfungen.
 
-**Zweig und Kopf:** `arena/01a0bb04-entwicklungen` = Remote-Stand `2fa2985`; Kette seit `main`
+**Zweig und Kopf:** `arena/01a0bb04-entwicklungen` = Remote-Stand `8073341`; Kette seit `main`
 (`5a6a4cf`): `d759180` → `220c34d` → `3397fc0` → `2bd169e` → `fd11038` → `60b379b` → `4e36846` →
 `63cb536` → `c02d86c` → `e6d3a47` → `87540a8` (vier Sprachen) → `27ea6ad` (M27) → `54849dd`
-(Nachweislayout). Alle Prüfungen ohne SDK sind grün: `bash tools/verify-all.sh` (20 Mutationen,
-Nachweislayout, Lokalisierung, Verträge, XAML, Bindings, Projekte, Größe).
+(Nachweislayout) → `2fa2985` → `fc2515c` → `55bd18a` → `8073341` (BitLocker, Wächter, .gitignore-Fixes).
+Alle Prüfungen ohne SDK sind grün: `bash tools/verify-all.sh` (21 Mutationen, Nachweislayout, Lokalisierung 961x4,
+Verträge 167 Dateien / 488 Typen, XAML, Bindings, Projekte, Größe). Für den Übertrag nach `AOWDGENESIS/HARDWARE-GUARDIAN`
+liegt das Synchronisationsskript `tools/sync-to-hardware-guardian.sh` bereit.
 
 **Gemessen und belegt (auf der CI-Maschine, nicht auf der Zielmaschine):**
 
@@ -431,9 +442,9 @@ Nachweislayout, Lokalisierung, Verträge, XAML, Bindings, Projekte, Größe).
 
 **Geschrieben, geprüft, aber nie ausgeführt (NOT VERIFIED):**
 
-* 22 Testfälle (3 Lokalisierung, 19 Ein-Klick-Wartung). Sie sind im Baum, ihre Zahl ist nicht
-  gemessen - deshalb steht Gate 2 weiterhin auf dem Stand von 370.
-* Die vier Sprachkataloge sind symmetrisch und platzhaltergleich, aber nicht von Muttersprachlern
+* 55 Testfälle (3 Lokalisierung, 19 Ein-Klick-Wartung, 11 BitLocker, 12 Sensibler-Daten-Wächter, 5 CHKDSK, 3 Defender-Scan, 2 Cleanup-Freispeicher). Sie sind im Baum, ihre Zahl ist nicht
+  auf einer echten Maschine gemessen - deshalb steht Gate 2 weiterhin auf dem gemessenen Stand von 370.
+* Die vier Sprachkataloge sind mit je 961 Schlüsseln symmetrisch und platzhaltergleich, aber nicht von Muttersprachlern
   gelesen und nie auf einem Bildschirm gesehen.
 * M27 (Ein-Klick-Wartung) ist vollständig implementiert (Dienst, Seite, 19 Fälle), hat aber keinen
   Lauf auf einer Maschine; die acht VM-Fälle `M27-01`…`M27-08` in `docs/TESTMATRIX-VM.md` erheben ihn.

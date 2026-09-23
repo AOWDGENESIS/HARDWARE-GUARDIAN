@@ -412,6 +412,7 @@ public sealed class MaintenanceService : IMaintenanceService
         }
 
         var started = _clock.Now;
+        var freeSpaceBefore = MeasureSystemFreeSpace();
         var results = new List<MaintenanceItemResult>();
         var evidence = new List<string>();
         long freedTotal = 0;
@@ -704,6 +705,16 @@ public sealed class MaintenanceService : IMaintenanceService
             : results.Count > 0 ? StageOutcome.Succeeded
             : StageOutcome.Skipped;
 
+        var freeSpaceAfter = MeasureSystemFreeSpace();
+        if (freeSpaceBefore is not null)
+        {
+            evidence.Add($"freeSpaceBefore={freeSpaceBefore.Value.Display()}");
+        }
+        if (freeSpaceAfter is not null)
+        {
+            evidence.Add($"freeSpaceAfter={freeSpaceAfter.Value.Display()}");
+        }
+
         await _audit.RecordAsync(
             OperationKind.Maintenance,
             plan.PlanId,
@@ -725,8 +736,34 @@ public sealed class MaintenanceService : IMaintenanceService
             FreedBytes = deletedTotal > 0
                 ? Measured<long>.Known(freedTotal, ValueOrigin.LocalFile(_clock.Now, _environment.MachineName))
                 : Measured<long>.NotAvailable("nothing was deleted"),
+            SystemFreeSpaceBefore = freeSpaceBefore,
+            SystemFreeSpaceAfter = freeSpaceAfter,
             Summary = LocalizedText.Of("Maintenance_Result_Executed", deletedTotal, freedTotal / (1024d * 1024d), results.Count(r => r.Outcome == StageOutcome.Blocked)),
         };
+    }
+
+    private Measured<long>? MeasureSystemFreeSpace()
+    {
+        try
+        {
+            var systemDrive = Path.GetPathRoot(Environment.SystemDirectory);
+            if (!string.IsNullOrEmpty(systemDrive))
+            {
+                var driveInfo = new DriveInfo(systemDrive);
+                if (driveInfo.IsReady)
+                {
+                    return Measured<long>.Known(
+                        driveInfo.AvailableFreeSpace,
+                        ValueOrigin.LocalFile(_clock.Now, systemDrive));
+                }
+            }
+        }
+        catch
+        {
+            // Fail safe: measurement failure does not prevent cleanup
+        }
+
+        return Measured<long>.NotAvailable("system drive free space not measurable on this host");
     }
 
     private static MaintenanceItemResult Blocked(MaintenancePlanItem item, LocalizedText reason, string? reasonCode = null) => new()

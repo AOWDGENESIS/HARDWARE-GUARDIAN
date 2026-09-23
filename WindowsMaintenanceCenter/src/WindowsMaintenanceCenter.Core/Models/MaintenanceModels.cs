@@ -129,6 +129,12 @@ public sealed record MaintenanceResult
 
     public Measured<long> FreedBytes { get; init; } = Measured<long>.NotAvailable("nothing deleted");
 
+    /// <summary>Drive free space before the execution, remeasured on disk (spec chapter 10, M04-F-004).</summary>
+    public Measured<long>? SystemFreeSpaceBefore { get; init; }
+
+    /// <summary>Drive free space after the execution, remeasured on disk (spec chapter 10, M04-F-004).</summary>
+    public Measured<long>? SystemFreeSpaceAfter { get; init; }
+
     public bool WasNothingDeleted => Mode == ExecutionMode.DryRun;
 
     public LocalizedText Summary { get; init; } = LocalizedText.Of("Maintenance_Result_Empty");

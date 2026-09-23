@@ -126,16 +126,29 @@ public sealed class BackupService : IBackupService
         if (request.Risk >= RiskLevel.High && OperatingSystem.IsWindows())
         {
             progress?.Report(new ProgressSnapshot { OperationKey = "Progress_Backup", Module = "BACKUP", IsRunning = true, StepKey = "Backup_Step_RestorePoint", StartedAt = _clock.Now, UpdatedAt = _clock.Now });
-            var result = await RunPowerShellAsync(
-                "try { Checkpoint-Computer -Description 'WindowsMaintenanceCenter' -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop; $p = Get-ComputerRestorePoint | Sort-Object SequenceNumber -Descending | Select-Object -First 1; 'RP=' + $p.SequenceNumber + '|' + $p.CreationTime } catch { 'RP_ERROR=' + $_.Exception.Message }",
-                TimeSpan.FromMinutes(5),
-                cancellationToken).ConfigureAwait(false);
+            var cleanOpId = System.Text.RegularExpressions.Regex.Replace(request.OperationId ?? "Op", @"[^a-zA-Z0-9_\-]", "");
+            if (cleanOpId.Length > 20)
+            {
+                cleanOpId = cleanOpId[..20];
+            }
+            var rpDescription = $"WMC-{request.Kind}-{cleanOpId}";
+            var script = $"try {{ Checkpoint-Computer -Description '{rpDescription}' -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop; " +
+                $"$p = Get-ComputerRestorePoint -ErrorAction Stop | Sort-Object SequenceNumber -Descending | Select-Object -First 1; " +
+                $"'RP=' + $p.SequenceNumber + '|' + $p.CreationTime; " +
+                $"if ($p.Description -like '*{rpDescription}*') {{ 'RP_VALIDATED=true' }} else {{ 'RP_VALIDATED=false' }} }} " +
+                $"catch {{ 'RP_ERROR=' + $_.Exception.Message }}";
+
+            var result = await RunPowerShellAsync(script, TimeSpan.FromMinutes(5), cancellationToken).ConfigureAwait(false);
 
             var line = result.StandardOutput.Split('\n').FirstOrDefault(l => l.TrimStart().StartsWith("RP=", StringComparison.OrdinalIgnoreCase));
+            var isValidated = result.StandardOutput.Contains("RP_VALIDATED=true", StringComparison.OrdinalIgnoreCase);
+
             if (line is not null)
             {
                 restorePointSequence = line.Trim()["RP=".Length..];
                 evidence.Add($"restore-point: {restorePointSequence}");
+                evidence.Add($"restore-point-description: {rpDescription}");
+                evidence.Add($"restore-point-validated: {isValidated}");
                 restoreSteps.Add("restore-point: restore through Windows system restore (Systemwiederherstellung)");
             }
             else

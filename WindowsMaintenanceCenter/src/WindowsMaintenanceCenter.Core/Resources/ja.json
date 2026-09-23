@@ -948,6 +948,20 @@
     "Problem_DefenderStateUnknown_Action": "Windows セキュリティを開いて保護状態を確認するか、必要な権限で検査をやり直してください。",
     "Problem_WindowsUpdatesUnknown_Title": "Windows 更新の状態が不明です",
     "Problem_WindowsUpdatesUnknown_Description": "利用可能な Windows 更新の照会は実行していません（Windows でない、ネットワークがない、権限が足りない）。そのため「すべて最新です」とは述べません。",
-    "Problem_WindowsUpdatesUnknown_Impact": "更新が不足しているかどうかは、手元の根拠では判断できません。"
+    "Problem_WindowsUpdatesUnknown_Impact": "更新が不足しているかどうかは、手元の根拠では判断できません。",
+    "Defender_Scan_Quick": "Microsoft Defender クイックスキャン",
+    "Defender_Scan_Full": "Microsoft Defender フル スキャン",
+    "Defender_Scan_Completed": "Defender スキャン ({0}) が完了しました。",
+    "Defender_Scan_Failed": "Defender スキャン ({0}) に失敗しました: {1}。",
+    "Defender_Scan_Unavailable_NoWindows": "Defender スキャンは Windows でのみ利用可能です。",
+    "Defender_Scan_NotRun": "Defender スキャンは実行されていません。",
+    "Progress_Defender_Scan": "Microsoft Defender スキャンを実行中...",
+    "WindowsCheck_FileSystemIntegrity": "ファイルシステムの整合性 (CHKDSK)",
+    "Integrity_Summary_ChkdskClean": "ファイルシステムスキャンが完了しました: エラーは見つかりませんでした。",
+    "Integrity_Summary_ChkdskErrorsFound": "ファイルシステムスキャンでエラーが検出されました。修復が必要です。",
+    "Integrity_Summary_ChkdskRepairCompleted": "ファイルシステムの修復が正常に完了しました。",
+    "Integrity_Summary_ChkdskRebootPending": "ファイルシステムチェックを実行するにはシステムの再起動が必要です。",
+    "Integrity_Blocked_InvalidDrive": "無効なドライブが指定されました: {0}。",
+    "Progress_Chkdsk": "ファイルシステムをチェックしています (chkdsk)..."
   }
 }
