@@ -115,6 +115,12 @@ MUTATIONS: tuple[Mutation, ...] = (
         delete_file=True,
     ),
     Mutation(
+        "evidence: an area of chapter 71 disappears",
+        "check-evidence-layout",
+        "test-results/recovery/.gitkeep",
+        delete_file=True,
+    ),
+    Mutation(
         "localisation: key that is not defined",
         "check-localization",
         "src/WindowsMaintenanceCenter.Diagnostics/WindowsHealthModule.cs",

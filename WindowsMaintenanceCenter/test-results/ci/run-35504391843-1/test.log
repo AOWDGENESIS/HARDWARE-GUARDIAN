@@ -1,9 +1,0 @@
-dotnet test D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\WindowsMaintenanceCenter.Tests.csproj -c Release -- --report-trx --report-trx-filename windowsmaintenancecenter.trx --results-directory D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\artifacts\test-results
-  Determining projects to restore...
-  All projects are up-to-date for restore.
-D:\a\Entwicklungen\Entwicklungen\.nuget\packages\microsoft.testing.platform.msbuild\2.4.0\buildMultiTargeting\Microsoft.Testing.Platform.MSBuild.targets(355,5): error : Testing with VSTest target is no longer supported by Microsoft.Testing.Platform on .NET 10 SDK and later. If you use dotnet test, you should opt-in to the new dotnet test experience. For more information, see https://aka.ms/dotnet-test-mtp-error [D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\tests\WindowsMaintenanceCenter.Tests\WindowsMaintenanceCenter.Tests.csproj]
-Exception: D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\scripts\test.ps1:58
-Line |
-  58 |      throw "the test run failed with exit code $LASTEXITCODE."
-     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | the test run failed with exit code 1.

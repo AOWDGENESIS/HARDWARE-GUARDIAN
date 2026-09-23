@@ -55,6 +55,8 @@ run "Solution file is up to date" python3 tools/generate-solution.py --check
 run "Localisation check itself (wrong placeholders must be reported)" python3 tools/check-localization.py --self-test
 run "PowerShell scripts (the measuring instruments of the acceptance kit)" python3 tools/check-powershell.py
 run "PowerShell check itself (a broken script must be reported)" python3 tools/check-powershell.py --self-test
+run "Evidence layout (the ten areas of chapter 71, nothing invented)" python3 tools/check-evidence-layout.py
+run "Evidence layout check itself (a missing area must be reported)" python3 tools/check-evidence-layout.py --self-test
 run "Repository size (the diff has to stay reviewable)" python3 tools/check-repo-size.py
 run "The size check itself (an oversized file must be reported)" python3 tools/check-repo-size.py --self-test
 run "The checks themselves (deliberate defects must be reported)" python3 tools/check-mutation.py

@@ -1,4 +1,0 @@
-[M32-SEC-EXIT-001] preparing security evidence in D:\a\Entwicklungen\Entwicklungen\WindowsMaintenanceCenter\test-results\security\20260922T083358Z-M32-SEC-EXIT-001
-  DismScanHealth.ExitCode = 0
-  DismScanHealth.Seconds = 453.4
-Test-RepairToolExitCodes.ps1: The property 'FileVersionInfo' cannot be found on this object. Verify that the property exists.

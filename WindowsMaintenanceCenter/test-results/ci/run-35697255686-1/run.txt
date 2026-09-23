@@ -1,3 +1,0 @@
-run=35697255686 attempt=1
-ref=refs/heads/arena/01a0bb04-entwicklungen commit=14aa39c6016aa0d4764501010030a7b08ed402e9
-job_status=failure

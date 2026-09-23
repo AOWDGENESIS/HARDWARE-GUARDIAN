@@ -1,5 +1,0 @@
-Windows Maintenance Center - portable mode
-
-This file marks the folder as portable: all configuration, reports, backups and audit logs
-stay in the sub folder "data" next to the executable. Delete this file to switch the
-application back to installed mode (data below %ProgramData%\WindowsMaintenanceCenter).
