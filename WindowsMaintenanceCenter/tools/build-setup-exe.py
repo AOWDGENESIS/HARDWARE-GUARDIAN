@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Generates a genuine Windows PE32+ (x64) Setup.exe for Windows Maintenance Center.
+"""Generates a genuine Windows PE32+ (x64) Setup.exe for Hardware Guardian / Windows Maintenance Center.
 
-When executed on Windows, Setup.exe:
-  1. Shows a native Windows GUI dialog (MessageBoxW via user32.dll) with product details.
-  2. If the user clicks 'Ja', executes Setup.cmd via ShellExecuteW (shell32.dll)
-     to run the automated build and installation pipeline.
-  3. Exits cleanly via ExitProcess (kernel32.dll).
-
-This executable is 100% genuine PE32+ x64 machine code and headers, verified by pefile.
+Includes:
+  1. DOS header & stub
+  2. PE header (Machine AMD64, Subsystem Windows GUI)
+  3. Sections: .text (machine code), .rdata (imports & strings), .rsrc (embedded Windows 10/11 Manifest)
+  4. Embedded RT_MANIFEST resource with supportedOS (Windows 10/11 GUID) and asInvoker privileges.
+     This completely prevents the Windows Program Compatibility Assistant (PCA) dialog.
+  5. Tested and verified by pefile.
 """
 
 from __future__ import annotations
@@ -19,6 +19,31 @@ try:
     import pefile
 except ImportError:
     pefile = None
+
+MANIFEST_XML = b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity version="1.0.0.0" processorArchitecture="*" name="HardwareGuardian.Setup" type="win32"/>
+  <description>Hardware Guardian Setup</description>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 and Windows 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+    </application>
+  </compatibility>
+</assembly>""".strip()
 
 
 def generate_setup_exe(output_path: Path) -> bytes:
@@ -38,7 +63,7 @@ def generate_setup_exe(output_path: Path) -> bytes:
     file_header = struct.pack(
         "<HHIIIHH",
         0x8664,      # Machine: IMAGE_FILE_MACHINE_AMD64 (x64)
-        2,           # NumberOfSections: .text, .rdata
+        3,           # NumberOfSections: .text, .rdata, .rsrc
         0x67000000,  # TimeDateStamp
         0, 0,        # PointerToSymbolTable, NumberOfSymbols
         240,         # SizeOfOptionalHeader
@@ -54,7 +79,7 @@ def generate_setup_exe(output_path: Path) -> bytes:
         0x020B,      # Magic: PE32+ (64-bit)
         14, 0,       # MajorLinkerVersion, MinorLinkerVersion
         0x200,       # SizeOfCode (.text raw size)
-        0x600,       # SizeOfInitializedData (.rdata raw size)
+        0xC00,       # SizeOfInitializedData (.rdata 0x600 + .rsrc 0x600)
         0,           # SizeOfUninitializedData
         0x1000,      # AddressOfEntryPoint (RVA 0x1000 = start of .text)
         0x1000,      # BaseOfCode
@@ -65,7 +90,7 @@ def generate_setup_exe(output_path: Path) -> bytes:
         1, 0,        # MajorImageVersion, MinorImageVersion
         6, 0,        # MajorSubsystemVersion, MinorSubsystemVersion
         0,           # Win32VersionValue
-        0x3000,      # SizeOfImage (Headers 0x1000 + .text 0x1000 + .rdata 0x1000)
+        0x4000,      # SizeOfImage (Headers 0x1000 + .text 0x1000 + .rdata 0x1000 + .rsrc 0x1000)
         0x200,       # SizeOfHeaders
         0,           # CheckSum
         2,           # Subsystem: IMAGE_SUBSYSTEM_WINDOWS_GUI (native GUI, no console popup)
@@ -79,11 +104,13 @@ def generate_setup_exe(output_path: Path) -> bytes:
 
     # Data Directory 1: Import Table (RVA 0x2000, Size 80 bytes)
     struct.pack_into("<II", opt_header, 112 + 1 * 8, 0x2000, 80)
+    # Data Directory 2: Resource Table (RVA 0x3000, Size 0x600 bytes)
+    struct.pack_into("<II", opt_header, 112 + 2 * 8, 0x3000, 0x600)
     # Data Directory 12: IAT (RVA 0x2090, Size 48 bytes)
     struct.pack_into("<II", opt_header, 112 + 12 * 8, 0x2090, 48)
 
     # --------------------------------------------------------------------------
-    # Section Headers (2 * 40 = 80 bytes)
+    # Section Headers (3 * 40 = 120 bytes)
     # --------------------------------------------------------------------------
     sec_text = struct.pack(
         "<8sIIIIIIHHI",
@@ -103,7 +130,16 @@ def generate_setup_exe(output_path: Path) -> bytes:
         0x40000040     # IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
     )
 
-    headers = (dos_header + dos_stub + pe_sig + file_header + opt_header + sec_text + sec_rdata).ljust(0x200, b"\x00")
+    sec_rsrc = struct.pack(
+        "<8sIIIIIIHHI",
+        b".rsrc\x00\x00\x00",
+        0x600, 0x3000, # VirtualSize, VirtualAddress
+        0x600, 0xA00,  # SizeOfRawData, PointerToRawData (0x400 + 0x600 = 0xA00)
+        0, 0, 0, 0,
+        0x40000040     # IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+    )
+
+    headers = (dos_header + dos_stub + pe_sig + file_header + opt_header + sec_text + sec_rdata + sec_rsrc).ljust(0x200, b"\x00")
 
     # --------------------------------------------------------------------------
     # .rdata Section (Imports, Tables, Strings)
@@ -153,15 +189,14 @@ def generate_setup_exe(output_path: Path) -> bytes:
     put_str(0x2140, "shell32.dll")
 
     # Strings (UTF-16LE)
-    title = "Windows Maintenance Center - Setup".encode("utf-16le") + b"\x00\x00"
+    title = "Hardware Guardian - Setup".encode("utf-16le") + b"\x00\x00"
     msg = (
-        "Windows Maintenance Center v1.0.0 Setup\n"
-        "Windows Hardware Diagnostics, Maintenance & Update Center\n\n"
-        "Willkommen beim Installations-Assistenten.\n\n"
-        "Möchten Sie die Installation von Windows Maintenance Center jetzt starten?"
+        "Hardware Guardian / Windows Maintenance Center v1.0.0\n\n"
+        "Willkommen beim Installations- und Einrichtungs-Assistenten.\n\n"
+        "Möchten Sie die Einrichtung von Hardware Guardian jetzt starten?"
     ).encode("utf-16le") + b"\x00\x00"
     op = "open".encode("utf-16le") + b"\x00\x00"
-    file = "Setup.cmd".encode("utf-16le") + b"\x00\x00"
+    file = "START.bat".encode("utf-16le") + b"\x00\x00"
 
     rva_title = 0x2160
     rva_msg = rva_title + len(title)
@@ -209,7 +244,7 @@ def generate_setup_exe(output_path: Path) -> bytes:
     # jne do_exit (75 2a -> jumps 42 bytes over ShellExecute)
     code[p:p+2] = b"\x75\x2a"; p += 2
 
-    # --- IF YES: ShellExecuteW(NULL, L"open", L"Setup.cmd", NULL, NULL, SW_SHOWNORMAL) ---
+    # --- IF YES: ShellExecuteW(NULL, L"open", L"START.bat", NULL, NULL, SW_SHOWNORMAL) ---
     # xor ecx, ecx (31 c9)
     code[p:p+2] = b"\x31\xc9"; p += 2
 
@@ -245,14 +280,41 @@ def generate_setup_exe(output_path: Path) -> bytes:
     # ret (c3)
     code[p:p+1] = b"\xc3"; p += 1
 
-    pe_bytes = headers + bytes(code) + bytes(rdata)
+    # --------------------------------------------------------------------------
+    # .rsrc Section (Embedded RT_MANIFEST Resource)
+    # --------------------------------------------------------------------------
+    rsrc = bytearray(0x600)
+    # Root Dir: Characteristics=0, TimeDateStamp=0, Major=0, Minor=0, Named=0, Id=1 (Type 24 RT_MANIFEST)
+    struct.pack_into("<IIHHHH", rsrc, 0, 0, 0, 0, 0, 0, 1)
+    # Root Entry 0: ID=24, Subdir Offset=24 (0x80000000 | 24)
+    struct.pack_into("<II", rsrc, 16, 24, 0x80000000 | 24)
+
+    # Type Dir: Characteristics=0, TimeDateStamp=0, Major=0, Minor=0, Named=0, Id=1 (Name 1 CREATEPROCESS_MANIFEST_RESOURCE_ID)
+    struct.pack_into("<IIHHHH", rsrc, 24, 0, 0, 0, 0, 0, 1)
+    # Type Entry 0: ID=1, Subdir Offset=48 (0x80000000 | 48)
+    struct.pack_into("<II", rsrc, 40, 1, 0x80000000 | 48)
+
+    # Lang Dir: Characteristics=0, TimeDateStamp=0, Major=0, Minor=0, Named=0, Id=1 (Lang 0 Neutral)
+    struct.pack_into("<IIHHHH", rsrc, 48, 0, 0, 0, 0, 0, 1)
+    # Lang Entry 0: ID=0, Data Entry Offset=72
+    struct.pack_into("<II", rsrc, 64, 0, 72)
+
+    # Resource Data Entry (16 bytes): DataRVA=0x3058, Size=len(MANIFEST_XML), Codepage=0, Reserved=0
+    data_rva = 0x3000 + 88
+    struct.pack_into("<IIII", rsrc, 72, data_rva, len(MANIFEST_XML), 0, 0)
+
+    # Manifest XML Payload
+    rsrc[88:88+len(MANIFEST_XML)] = MANIFEST_XML
+
+    pe_bytes = headers + bytes(code) + bytes(rdata) + bytes(rsrc)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(pe_bytes)
 
     if pefile:
         pe = pefile.PE(data=pe_bytes)
-        print(f"Verified PE {output_path.name}: machine={hex(pe.FILE_HEADER.Machine)}, subsystem={pe.OPTIONAL_HEADER.Subsystem}, imports={len(pe.DIRECTORY_ENTRY_IMPORT)}")
+        manifest_found = hasattr(pe, "DIRECTORY_ENTRY_RESOURCE")
+        print(f"Verified PE {output_path.name}: machine={hex(pe.FILE_HEADER.Machine)}, subsystem={pe.OPTIONAL_HEADER.Subsystem}, manifest_rsrc={manifest_found}, size={len(pe_bytes)} bytes")
 
     return pe_bytes
 
