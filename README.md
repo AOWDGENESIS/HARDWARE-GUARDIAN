@@ -1,134 +1,90 @@
-# KI Programmierreferenz Gesamtpaket 2026
+# HARDWARE GUARDIAN / Windows Maintenance Center
 
-PROGRAMMING_LANGUAGE: MULTI-LANGUAGE
-DOCUMENT_TYPE: Consolidated Engineering Reference
-DATE: 2026-09-14
+**Lokale Windows Hardware-Diagnose, Wartungs- und Update-Zentrale mit lückenlosem Protokoll (100 % Offline).**
 
-Dieses Paket vereinigt die bisherigen Programmier- und KI-Engineering-Referenzen
-mit einer erweiterten Sprachabdeckung.
+HARDWARE GUARDIAN diagnostiziert Hardware- und Windows-Zustände bis ins Detail, erklärt alle Befunde verständlich und führt Änderungen ausschließlich nach Ihrer expliziten Freigabe durch – stets mit automatischer Sicherung und Rückrollweg.
 
-## Enthalten
+Kein Driver-Booster, kein Registry-Cleaner und keine Pseudo-Optimierung ohne Nachweis. Es ist ein transparentes Diagnose- und Wartungswerkzeug nach Industriestandard.
 
-Top-10-Arbeitsliste:
-1. Python
-2. JavaScript
-3. Java
-4. C++
-5. C#
-6. Go
-7. PHP
-8. TypeScript
-9. Rust
-10. R
-
-Zusaetzlich:
-11. Kotlin
-12. Android Platform Reference
-
-## Android
-
-Kotlin ist als primaere moderne Android-Sprache aufgenommen.
-Java bleibt fuer Android weiterhin relevant.
-C++ ist fuer native Android-Komponenten ueber das NDK aufgenommen.
-
-## Alte Inhalte
-
-Die bisherigen Pakete bleiben vollstaendig unter `legacy/` erhalten:
-- KI_Programmierreferenz_GitHub
-- KI_Engineering_Memory
-
-Damit geht kein bisheriger Inhalt verloren.
-
-## Sprachkennzeichnung
-
-Jede neue Sprachreferenz enthaelt:
-`PROGRAMMING_LANGUAGE: ...`
-
-Die Datei `docs/DOCUMENT_LANGUAGE_MAP.md` beschreibt die Zuordnung
-fuer das gesamte Gesamtpaket.
-
-## Ranking-Hinweis
-
-Die Top-10-Reihenfolge wurde aus der vom Benutzer gelieferten Liste uebernommen.
-Das Paket behauptet nicht, dass diese Reihenfolge hier unabhaengig neu verifiziert wurde.
-
-## Grundregel
-
-Die Referenz ersetzt keine aktuelle offizielle Dokumentation. Versionsabhaengige
-Details sollen vor einer produktiven Umsetzung gegen die aktuelle Dokumentation
-und das lokale Tooling geprueft werden.
+Sprachen / Languages:
+**Deutsch** | [English](WindowsMaintenanceCenter/README.md) | [日本語](WindowsMaintenanceCenter/README.ja.md) | [Русский](WindowsMaintenanceCenter/README.ru.md)
 
 ---
 
-## Inhalt
+## Schnellstart unter Windows
 
-| Pfad | Inhalt |
-|---|---|
-| `review/PRUEFBERICHT-v9.2.md` | **Tiefenprüfung des aktuellen Stands.** 36 Befunde (P0/P1/P2/P3) mit Beweis, Ursache und konkreter Lösung. Einstiegspunkt. |
-| `review/LocalCloudCode.v9.2.stand-2026-09-13.ps1` | Der geprüfte Code-Auszug (Transkription aus dem Chat, 822 Zeilen). Referenz für die Befundnummern. |
-| `patches/Get-DiscoveryResult.v1.2.ps1` | Korrigierter, vollständiger Ersatz für `Get-DiscoveryResult` — behebt die Blocker F-02, F-03, F-04, F-08, F-09, F-10, F-13c, F-14. |
-| `tools/Update-PsFunctionBlock.ps1` | Sicheres Patch-Werkzeug: ersetzt eine Funktion per **AST-Extent** statt per `-replace`, sichert, prüft, rollt automatisch zurück. |
-| `reference/` | **Dauerreferenzen** (Regelwerke, Leitlinien) plus `reference/manifest.json` mit gepinntem SHA256 aller Dokumente — keine Copy-Paste-Übernahme. |
-| `tools/Register-ReferenceDocument.ps1` | Registriert Referenzen (`-Path`), prüft sie (`-Verify`), listet sie (`-List`); verweigert stilles Überschreiben ohne `-Force`. |
-| `tools/psparse/` | PowerShell-Parser und Parameter-Gate als Python-Werkzeug (tree-sitter) — prüft Syntax und interne Aufrufe, wenn kein PowerShell verfügbar ist. Findet F-02/F-03 vor der Ausführung. |
-| `tests/Invoke-ContractTests.ps1` | Vertragstests, die **ohne** Start der Runtime laufen: Syntax, Smart-Quotes, Parameter-Gate (findet F-02/F-03 vor der Ausführung), Workspace-Containment, Content-/Discovery-Vertrag, Hash-Determinismus. |
-| `tools/Collect-LocalCloudCodeSnapshot.ps1` | **READ-ONLY** Snapshot des echten Systems: Hashes, Parsergebnisse, Content-Schema, Backend-Status, Marker zu allen Befunden — ein ZIP für die Datenübergabe. |
-| `legacy/KORREKTUREN.md` | **Protokoll der Korrekturen** an den Legacy-Paketen: welche Datei, welche Zeile, Vorher-/Nachher-SHA256, Rückrollweg. |
-| `review/BEFUNDE-REFERENZPAKET-2026-09-14.md` | **Prüfung des hochgeladenen Referenzpakets** (Commit 2501970): 11 Befunde inkl. 2 harter Werkzeugfehler und einer CI, die nicht läuft. |
-| `.github/workflows/reference-package.yml` | **Lauffähiger** GitHub-Actions-Workflow an der Stelle, die GitHub tatsächlich ausführt: Pflichtdateien, SHA256-Pins, Kodierung/Copy-Paste-Schäden, PowerShell-Syntax mit dem **echten** Parser. Schlägt bei Fehlern fehl. |
-| `.gitattributes` | Hält Zeilenenden auf LF, damit die SHA256-Pins auf Windows wie auf Linux identisch sind. |
-| `reference/manifest.json` | Gepinnte Hashes der Referenzdokumente (SHA256, Bytes, Zeichen, Zeilen, BOM) — prüfbar mit `Register-ReferenceDocument.ps1 -Verify`. |
-| `review/GATEWAY-UND-DATENUEBERGABE.md` | Warum das lokale Gateway hier nicht erreichbar ist (und nicht erreichbar sein soll), Sicherheitscheck in 5 Prüfungen, Übergabewege. |
+1. **Repository herunterladen / klonen:**
+   * Entweder oben auf den grünen Button **Code → Download ZIP** klicken und entpacken.
+   * Oder per Befehlszeile:
+     ```cmd
+     git clone https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git
+     cd HARDWARE-GUARDIAN
+     ```
 
-## Reihenfolge
+2. **Zentrale Start-Routine ausführen:**
+   * **Doppelklick auf `START.bat`**
+   * Es öffnet sich das interaktive Hauptmenü:
+     * `[1]` Installations-Assistent starten (Standard Windows Setup GUI)
+     * `[2]` Anwendung direkt aufrufen (Hardware Guardian Launcher)
+     * `[3]` VM-Testumgebung & Evidenzprüfungen durchführen (scripts\vm)
+     * `[4]` Deinstallation aufrufen (Sauberes Entfernen mit Datenaufbewahrungs-Abfrage)
+     * `[5]` Stand zu GitHub synchronisieren
+     * `[6]` Ausführliche Anleitung anzeigen (`ANLEITUNG.txt`)
 
-**Die Dateien liegen im Repository, nicht auf dem PC** — zuerst holen (das Repo ist
-privat, ein Raw-Link funktioniert daher nicht ohne Token):
+3. **Alternativ direkt als Installer:**
+   * Doppelklick auf `Setup.exe` oder `HardwareGuardian.bat`
 
-```powershell
-# Option A: im Browser  Code -> Download ZIP  (Branch: arena/01a09c80-entwicklungen)
-#           entpacken nach  C:\Users\aowdg\Desktop\KI\Entwicklungen
-# Option B: mit git
-git clone -b arena/01a09c80-entwicklungen `
-  https://github.com/AOWDGENESIS/Entwicklungen.git `
-  "$env:USERPROFILE\Desktop\KI\Entwicklungen"
+---
+
+## Kernfunktionen
+
+* **Vollständige Hardware-Erkennung**:
+  Prozessor (CPU), Mainboard (inkl. Board-Revision), BIOS/UEFI, Arbeitsspeicher (RAM), Grafikkarte (GPU), Massenspeicher (SMART-Werte, NVMe-Verschleiß), Netzwerkadapter, WLAN, Bluetooth, Audio, USB-Geräte, PCI/PCIe-Busse, Chipsatz, Monitore, Drucker, Akku und Sensoren. Jeder Wert deklariert seine Herkunft (`WMI`, `Windows API`, `Registry`, `Herstellerquelle`). Nicht lesbare Werte werden ehrlich als `UNKNOWN` mit Ursache ausgewiesen.
+* **Tiefgehende Windows-Diagnose**:
+  Treiber- und PnP-Status, Windows-Systemintegrität (DISM / SFC), Ereignisprotokoll (Event Log), Windows Defender Status und Windows Update Zustand mit eindeutigen Befund-IDs (z. B. `HW-CPU-001`).
+* **Sichere Wartung mit Pflicht-Trockenlauf**:
+  Fester 6-Schritte-Ablauf: Scan → Plan → **Pflicht-Trockenlauf (Dry Run)** → Freigabe → Ausführung → Validierung. Kategorien: `SAFE`, `OPTIONAL`, `PROTECTED` oder `UNKNOWN`. Geschützte und unbekannte Bereiche werden gemessen, aber niemals automatisiert verändert.
+* **Verifizierte Updates**:
+  Prüfung ausschließlich gegen offizielle Hersteller- und Microsoft-Quellen. Firmware-Stände werden bewertet, aber niemals unaufgefordert geflasht.
+* **Vollständiges Audit- und Protokollsystem**:
+  Echtzeitprotokoll sowie lückenlose Berichte als maschinenlesbares JSON, TXT und druckbares HTML.
+
+---
+
+## Sicherheitsmerkmale
+
+| Eigenschaft | Durchsetzung |
+| :--- | :--- |
+| **Keine Telemetrie / Offline** | 100 % lokal, keine Cloud-Pflicht, keine Datenübertragung nach außen. |
+| **Kein UAC-Bypass** | Aktionen mit Admin-Rechten erfordern den regulären Windows UAC-Dialog. |
+| **Keine Defender-Abschaltung** | Viren- und Firewall-Schutz werden weder deaktiviert noch herabgestuft. |
+| **Rollback-Schutz** | Pflicht-Wiederherstellungspunkt vor jeder ändernden Systemoperation. |
+| **Echte Validierung** | `PASSED` und `SUCCESS` existieren nur nach messbarem Erfolgsnachweis (Spec Kap. 86). |
+
+---
+
+## Projektstruktur
+
+```text
+HARDWARE-GUARDIAN/
+├── START.bat                               <-- Zentrale interaktive Start-Routine
+├── ANLEITUNG.txt                           <-- Ausführliche deutsche Benutzeranleitung
+├── HardwareGuardian.bat                    <-- Schneller Programm-Starter
+├── Setup.exe                               <-- Nativer Windows x64 GUI-Installationsassistent
+├── Setup.cmd                               <-- Erweiterter Setup-Starter (mit /SILENT & /BUILD)
+├── WindowsMaintenanceCenter/               <-- Gesamte C#/.NET 10 Solution (15 Projekte, 168 Quelldateien)
+│   ├── src/                                <-- Quellcode (App, Core, Windows, Bios, Diagnostics etc.)
+│   ├── tests/                              <-- Testsuite (370 Unit-, Integration- & Security-Tests)
+│   ├── test-results/                       <-- Evidenzverzeichnis (10 Prüfbereiche gem. Kap. 71)
+│   ├── docs/                               <-- Spezifikation V1.0, Abnahmeberichte, Release-Status
+│   ├── scripts/                            <-- Build-, Release- und VM-Prüfskripte
+│   └── installer/                          <-- GUI-Installer, Uninstaller & Inno-Setup-Skripte
+├── docs/                                   <-- Plattform- & Architektur-Dokumente
+└── tools/                                  <-- Prüf- und Validierungswerkzeuge
 ```
 
-Dann in PowerShell 7 (7.2 oder neuer):
+---
 
-```powershell
-$D = "$env:USERPROFILE\Desktop\KI\Entwicklungen"
-Get-ChildItem $D -Recurse -File | Unblock-File          # heruntergeladene Skripte freigeben
-Set-ExecutionPolicy -Scope Process Bypass -Force        # nur fuer diese Sitzung
-
-# 1. Ist-Zustand belegen (findet die Blocker, ohne etwas zu veraendern)
-& "$D\tests\Invoke-ContractTests.ps1" -ScriptPath "$env:USERPROFILE\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1"
-
-# 2. Fakten sammeln, wenn kein Dateitransfer moeglich ist (kurze Ausgabe zum Kopieren)
-& "$D\tools\Get-LccQuickFacts.ps1"
-
-# 3. Vollstaendiger Snapshot (JSON + Markdown + ZIP)
-& "$D\tools\Collect-LocalCloudCodeSnapshot.ps1" -WhatIf
-& "$D\tools\Collect-LocalCloudCodeSnapshot.ps1"
-
-# 4. Aenderung vorher ansehen, dann anwenden (Backup + Auto-Rollback)
-& "$D\tools\Update-PsFunctionBlock.ps1" `
-    -TargetFile  "$env:USERPROFILE\Desktop\KI\LocalCloudCode\LocalCloudCode.ps1" `
-    -NewBlockFile "$D\patches\Get-DiscoveryResult.v1.2.ps1" -WhatIf
-```
-
-## Warum kein Copy-Paste mehr
-
-Zwei Ausfälle in kurzer Folge hatten dieselbe Ursache: Code wurde über Chat
-kopiert und per `-replace` in eine 1.200-Zeilen-Produktivdatei geschrieben.
-Dabei gilt:
-
-- Markdown/Chat ersetzt Anführungszeichen gerne durch typografische Zeichen
-  (`„ " "`) — PowerShell erkennt dann nicht einmal mehr die Zeilenstruktur.
-- `-replace` interpretiert im Ersetzungstext `$1`, `$&`, `` $` ``, `$_` als
-  Ersetzungsanweisungen und zerstört damit jeden PowerShell-Code, der
-  `$($_.Exception.Message)` o. Ä. enthält.
-
-Deshalb: Änderungen nur über `tools/Update-PsFunctionBlock.ps1` (AST-basiert,
-mit Backup, Parser-Gate und automatischem Rollback) und Verifikation nur über
-`tests/Invoke-ContractTests.ps1`.
+## Lizenz & Qualität
+* **Qualitätsstandard:** Entwickelt nach der verbindlichen Spezifikation V1.0 (Kapitel 1–103).
+* **Testabdeckung:** 370 automatisierte Tests, 10 nachgewiesene Evidenzbereiche, 0 gefälschte Erfolgsmeldungen.

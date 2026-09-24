@@ -1,0 +1,95 @@
+================================================================================
+  HARDWARE GUARDIAN / WINDOWS MAINTENANCE CENTER V1.0
+  BENUTZER-ANLEITUNG & SCHNELLSTART-ROUTINE
+================================================================================
+
+Willkommen bei HARDWARE GUARDIAN (Windows Maintenance Center V1.0).
+Dieses Paket enthält alle Komponenten, Starter, Testwerkzeuge und den Standard-
+Windows-Installationsassistenten.
+
+--------------------------------------------------------------------------------
+1. DIE ZENTRALE START-ROUTINE (START.BAT)
+--------------------------------------------------------------------------------
+
+Der einfachste Weg für alle Aktionen unter Windows:
+
+   --> Doppelklick auf `START.bat` <--
+
+Es öffnet sich ein übersichtliches Auswahlmenü:
+  [1] Installations-Assistent starten (Setup.exe)
+  [2] Anwendung direkt starten (HardwareGuardian.bat)
+  [3] VM-Testumgebung & Evidenzprüfungen ausführen (scripts\vm)
+  [4] Deinstallation aufrufen (saubere Entfernung)
+  [5] Stand zu GitHub synchronisieren (AOWDGENESIS/HARDWARE-GUARDIAN)
+  [6] Diese Anleitung anzeigen (ANLEITUNG.txt)
+  [7] Beenden
+
+--------------------------------------------------------------------------------
+2. STANDARD-INSTALLATION UNTER WINDOWS
+--------------------------------------------------------------------------------
+
+Möchten Sie das Programm fest auf Ihrem Computer einrichten:
+
+1. Doppelklick auf `Setup.exe` (oder Menüpunkt [1] in `START.bat`).
+2. Der grafische Installations-Assistent führt Sie durch die Schritte:
+   - Zielverzeichnis wählen (Standard: C:\Program Files\Windows Maintenance Center)
+   - Optionen aktivieren (Desktop-Verknüpfung, Startmenü-Eintrag)
+   - Eintrag in Windows "Installierte Apps" / Systemsteuerung registrieren
+3. Klicken Sie auf "Installieren".
+4. Fertig! Das Programm ist nun regulär in Windows installiert.
+
+--------------------------------------------------------------------------------
+3. DEINSTALLATION (SAUBER & TRANSPARENT)
+--------------------------------------------------------------------------------
+
+Eine Deinstallation ist jederzeit möglich über:
+- Windows-Einstellungen -> Apps -> Installierte Apps -> "Windows Maintenance Center" -> Deinstallieren
+- ODER über `Uninstall.cmd` im Installationsordner
+- ODER über Menüpunkt [4] in `START.bat`
+
+Gemäß Spezifikation (Kapitel 76) werden Sie vor dem Löschen gefragt, ob Ihre
+Audit-Berichte und Konfigurationsdaten für spätere Installationen aufbewahrt
+oder restlos bereinigt werden sollen.
+
+--------------------------------------------------------------------------------
+4. VM-TESTUMGEBUNG & NACHWEISE
+--------------------------------------------------------------------------------
+
+Um die Qualität und Sicherheitsgrenzen auf Ihrem System oder in einer VM
+automatisiert nachzuweisen:
+
+   Wählen Sie in `START.bat` die Option [3]
+   (oder führen Sie `scripts\vm\Run-VmTestEnvironment.ps1` in PowerShell aus).
+
+Es werden automatisch alle sechs Testsuiten durchlaufen:
+- Selbsttest der Nachweisbibliothek
+- Exit-Code-Messungen von DISM, SFC und CHKDSK
+- Backup- und Restore-Validierung (Wiederherstellungspunkte)
+- UAC-Admin-Rechte-Matrix
+- WMI/CIM-Hardware-Sonden
+- Vollständiger Installations- und Deinstallationszyklus
+
+--------------------------------------------------------------------------------
+5. GITHUB-SYNCHRONISATION (WIE GERADE EBEN HOCHLADEN)
+--------------------------------------------------------------------------------
+
+Um das Projekt oder spätere Änderungen mit einem Klick in Ihr GitHub-Repository
+`AOWDGENESIS/HARDWARE-GUARDIAN` hochzuladen:
+
+Option A (Automatisch):
+   Wählen Sie in `START.bat` die Option [5]
+   (führt `tools\sync-to-hardware-guardian.cmd` aus).
+
+Option B (Manuell in der Eingabeaufforderung / CMD):
+   Falls Sie den Stand von Hand übertragen möchten, öffnen Sie CMD in diesem
+   Ordner und geben Sie folgenden Befehl ein:
+
+   git push --force https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git arena/01a0bb04-entwicklungen:main
+
+--------------------------------------------------------------------------------
+6. SYSTEMVORAUSSETZUNGEN
+--------------------------------------------------------------------------------
+- Betriebssystem: Windows 10 (ab Build 17763) oder Windows 11 (64-Bit x64)
+- Laufzeitumgebung: .NET 10 LTS Desktop Runtime (für vorkompilierte Builds)
+- Rechte: Lokale Benutzerrechte für Diagnose; Administratorrechte für Wartungsaktionen
+================================================================================

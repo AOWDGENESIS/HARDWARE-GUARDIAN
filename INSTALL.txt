@@ -1,0 +1,48 @@
+================================================================================
+  WINDOWS MAINTENANCE CENTER V1.0 - INSTALLATION & SETUP
+================================================================================
+
+Willkommen bei Windows Maintenance Center V1.0.
+Dieses Paket enthaelt alle Projektdaten, Quellcodes, Diagnosetools, Pruefberichte
+sowie den Standard-Windows-Installations-Assistenten.
+
+--------------------------------------------------------------------------------
+SCHNELLE INSTALLATION UNTER WINDOWS:
+--------------------------------------------------------------------------------
+
+1. Ausfuehren des Installers:
+   - Doppelklick auf `Setup.exe` oder `WindowsMaintenanceCenter-Setup-x64.exe`
+   - ODER Doppelklick auf `INSTALLIEREN.bat` / `Setup.cmd`
+
+2. Der Installations-Assistent (GUI) startet:
+   - Zielverzeichnis waehlen (Standard: C:\Program Files\Windows Maintenance Center)
+   - Optionen aktivieren:
+     [*] Desktop-Verknuepfung erstellen
+     [*] Startmenue-Eintrag erstellen
+     [*] In Windows 'Programme und Features' registrieren
+   - Auf "Installieren" klicken.
+
+3. Nach Abschluss:
+   - Windows Maintenance Center ist im Startmenue und auf dem Desktop verfuegbar.
+   - Eine saubere Deinstallation ist jederzeit ueber die Windows-Einstellungen
+     ("Apps & Features" / "Programme deinstallieren") oder ueber `Uninstall.cmd`
+     im Installationsverzeichnis moeglich.
+
+--------------------------------------------------------------------------------
+SILENT- / UNBEAUFSICHTIGTE INSTALLATION:
+--------------------------------------------------------------------------------
+
+Fuer automatisierte Deployments:
+   Setup.cmd /SILENT
+oder:
+   powershell.exe -ExecutionPolicy Bypass -File "installer\Install-WMC.ps1" -Silent
+
+--------------------------------------------------------------------------------
+ENTWURF & VOLLSTAENDIGE KOMPILIERUNG (SDK-MODUS):
+--------------------------------------------------------------------------------
+
+Fuer Entwickler mit installiertem .NET 10 SDK und Inno Setup:
+   Setup.cmd /BUILD
+erzeugt die optimierten Single-File-Binaries und den Inno-Setup-Installer in:
+   artifacts\release\
+================================================================================
