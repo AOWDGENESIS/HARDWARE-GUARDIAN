@@ -1,0 +1,9 @@
+errors=4 warnings=0
+
+errors by code:
+  4  CS0246
+
+distinct error messages:
+  4x .Core\Models\OneClickModels.cs(108): The type or namespace name 'MaintenanceScanOptions' could not be found (are you missing a using directive or an assembly reference?)
+
+warnings by code:

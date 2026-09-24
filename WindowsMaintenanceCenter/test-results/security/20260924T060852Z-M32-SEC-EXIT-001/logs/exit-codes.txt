@@ -1,0 +1,6 @@
+DismScanHealth : exit=0 after 404.5 s  version=10.0.26100.32860 (WinBuild.160101.0800)  (dism.exe /Online /Cleanup-Image /ScanHealth)
+SfcVerifyOnly : SKIPPED (-Skip)
+ChkdskScan : exit=3 after 0.1 s  version=10.0.26100.33296 (WinBuild.160101.0800)  (chkdsk.exe ChkdskScan /scan)
+FsutilDeleteNotifyQuery : exit=0 after 0 s  version=10.0.26100.32684 (WinBuild.160101.0800)  (fsutil.exe behavior query DisableDeleteNotify)
+IpConfigAll : exit=0 after 0 s  version=10.0.26100.1 (WinBuild.160101.0800)  (ipconfig.exe /all)
+SystemInfoSnapshot : exit=0 after 2 s  version=10.0.26100.32860 (WinBuild.160101.0800)  (systeminfo.exe /fo list)

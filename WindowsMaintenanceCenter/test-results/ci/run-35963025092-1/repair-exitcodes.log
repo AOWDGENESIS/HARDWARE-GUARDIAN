@@ -1,0 +1,22 @@
+[M32-SEC-EXIT-001] preparing security evidence in D:\a\HARDWARE-GUARDIAN\HARDWARE-GUARDIAN\WindowsMaintenanceCenter\test-results\security\20260924T060852Z-M32-SEC-EXIT-001
+  DismScanHealth.ExitCode = 0
+  DismScanHealth.Seconds = 404.5
+  DismScanHealth.ToolVersion = 10.0.26100.32860 (WinBuild.160101.0800)
+  ChkdskScan.ExitCode = 3
+  ChkdskScan.Seconds = 0.1
+  ChkdskScan.ToolVersion = 10.0.26100.33296 (WinBuild.160101.0800)
+  FsutilDeleteNotifyQuery.ExitCode = 0
+  FsutilDeleteNotifyQuery.Seconds = 0
+  FsutilDeleteNotifyQuery.ToolVersion = 10.0.26100.32684 (WinBuild.160101.0800)
+  IpConfigAll.ExitCode = 0
+  IpConfigAll.Seconds = 0
+  IpConfigAll.ToolVersion = 10.0.26100.1 (WinBuild.160101.0800)
+  SystemInfoSnapshot.ExitCode = 0
+  SystemInfoSnapshot.Seconds = 2
+  SystemInfoSnapshot.ToolVersion = 10.0.26100.32860 (WinBuild.160101.0800)
+Copy-Item: D:\a\HARDWARE-GUARDIAN\HARDWARE-GUARDIAN\WindowsMaintenanceCenter\scripts\vm\Evidence.ps1:235
+Line |
+ 235 |      Copy-Item -Path $item.FullName -Destination $target -Force
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Cannot overwrite the item
+     | D:\a\HARDWARE-GUARDIAN\HARDWARE-GUARDIAN\WindowsMaintenanceCenter\test-results\security\20260924T060852Z-M32-SEC-EXIT-001\logs\exit-codes.txt with itself.
