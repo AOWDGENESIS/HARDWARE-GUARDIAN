@@ -9,7 +9,7 @@ echo Dieses Skript uebertraegt alle Komponenten, Commits und Nachweise
 echo in das Ziel-Repository: https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git
 echo.
 
-git push https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git HEAD:refs/heads/main
+git push --force https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git HEAD:refs/heads/main
 if %errorlevel% equ 0 (
     echo.
     echo =====================================================================
