@@ -4,12 +4,106 @@ setlocal enabledelayedexpansion
 cd /d "%~dp0"
 title HARDWARE GUARDIAN / Windows Maintenance Center - Start-Routine
 
-if exist "WindowsMaintenanceCenter\START.bat" (
-    cd WindowsMaintenanceCenter
-    call "START.bat" %*
-    exit /b !errorlevel!
-)
+:MENU
+cls
+echo ================================================================================
+echo   HARDWARE GUARDIAN / WINDOWS MAINTENANCE CENTER v1.0.0
+echo   Diagnose, Wartung und Updates mit lückenlosem Protokoll (100%% Offline)
+echo ================================================================================
+echo.
+echo   Wählen Sie eine gewünschte Option:
+echo.
+echo   [1] Installations-Assistent starten (Setup & Installation)
+echo   [2] Anwendung direkt ausführen (Hardware Guardian Launcher)
+echo   [3] VM-Testumgebung & Evidenzprüfungen durchführen (scripts\vm)
+echo   [4] Deinstallation aufrufen (Sauberes Entfernen mit Datenabfrage)
+echo   [5] Stand zu GitHub synchronisieren (AOWDGENESIS/HARDWARE-GUARDIAN)
+echo   [6] Anleitung & Dokumentation anzeigen (ANLEITUNG.txt)
+echo   [7] Beenden
+echo.
+echo ================================================================================
+set "CHOICE="
+set /p "CHOICE=Ihre Auswahl [1-7]: "
 
-echo [FEHLER] WindowsMaintenanceCenter\START.bat nicht gefunden.
+if "%CHOICE%"=="1" goto DO_SETUP
+if "%CHOICE%"=="2" goto DO_START
+if "%CHOICE%"=="3" goto DO_TESTS
+if "%CHOICE%"=="4" goto DO_UNINSTALL
+if "%CHOICE%"=="5" goto DO_SYNC
+if "%CHOICE%"=="6" goto DO_DOCS
+if "%CHOICE%"=="7" goto DO_EXIT
+
+echo.
+echo Ungültige Eingabe. Bitte wählen Sie eine Zahl von 1 bis 7.
+timeout /t 2 >nul
+goto MENU
+
+:DO_SETUP
+echo.
+echo Starte Installation...
+call "%~dp0Setup.cmd"
+goto MENU
+
+:DO_START
+echo.
+echo Starte Hardware Guardian...
+where pwsh.exe >nul 2>nul
+if %errorlevel% equ 0 (
+    set "PS=pwsh.exe"
+) else (
+    set "PS=powershell.exe"
+)
+%PS% -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\build.ps1" -Run
+if %errorlevel% neq 0 (
+    echo.
+    echo [HINWEIS] Zum direkten Ausführen aus dem Quellcode wird das .NET 10 SDK benötigt.
+    echo Alternativ installieren Sie das Programm bitte über Option [1].
+    pause
+)
+goto MENU
+
+:DO_TESTS
+echo.
+echo Starte VM-Testumgebung und Evidenzprüfungen...
+where pwsh.exe >nul 2>nul
+if %errorlevel% equ 0 (
+    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\vm\Run-VmTestEnvironment.ps1"
+) else (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\vm\Run-VmTestEnvironment.ps1"
+)
+echo.
 pause
-exit /b 1
+goto MENU
+
+:DO_UNINSTALL
+echo.
+echo Starte Deinstallationsroutine...
+where pwsh.exe >nul 2>nul
+if %errorlevel% equ 0 (
+    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ".\installer\Uninstall-WMC.ps1"
+) else (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\installer\Uninstall-WMC.ps1"
+)
+pause
+goto MENU
+
+:DO_SYNC
+echo.
+call ".\tools\sync-to-hardware-guardian.cmd"
+goto MENU
+
+:DO_DOCS
+if exist "ANLEITUNG.txt" (
+    start "" notepad.exe "ANLEITUNG.txt"
+) else if exist "INSTALL.txt" (
+    start "" notepad.exe "INSTALL.txt"
+) else (
+    echo Dokumentation liegt unter docs\SPEC-WMC-V1.md
+    pause
+)
+goto MENU
+
+:DO_EXIT
+echo Auf Wiedersehen!
+timeout /t 1 >nul
+exit /b 0

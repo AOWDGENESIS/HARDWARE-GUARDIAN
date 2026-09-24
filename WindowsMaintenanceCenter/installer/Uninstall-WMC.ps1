@@ -5,7 +5,14 @@ param(
 
 $AppName = "Windows Maintenance Center"
 $InstallDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$IsAdmin = $false
+try {
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+    $IsAdmin = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+} catch {
+    $IsAdmin = $false
+}
 
 if (-not $Silent) {
     Add-Type -AssemblyName System.Windows.Forms

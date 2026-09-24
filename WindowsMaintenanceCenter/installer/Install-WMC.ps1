@@ -14,7 +14,14 @@ $AppPublisher = "AOWDGENESIS"
 $SourceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
 # Determine default installation directory
-$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$IsAdmin = $false
+try {
+    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+    $IsAdmin = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+} catch {
+    $IsAdmin = $false
+}
 if ([string]::IsNullOrWhiteSpace($InstallDir)) {
     if ($IsAdmin) {
         $InstallDir = Join-Path $env:ProgramFiles "Windows Maintenance Center"

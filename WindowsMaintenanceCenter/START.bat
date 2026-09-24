@@ -13,8 +13,8 @@ echo ===========================================================================
 echo.
 echo   Wählen Sie eine gewünschte Option:
 echo.
-echo   [1] Installations-Assistent starten (Standard Windows Setup GUI)
-echo   [2] Anwendung direkt starten (Hardware Guardian Launcher)
+echo   [1] Installations-Assistent starten (Setup & Installation)
+echo   [2] Anwendung direkt ausführen (Hardware Guardian Launcher)
 echo   [3] VM-Testumgebung & Evidenzprüfungen durchführen (scripts\vm)
 echo   [4] Deinstallation aufrufen (Sauberes Entfernen mit Datenabfrage)
 echo   [5] Stand zu GitHub synchronisieren (AOWDGENESIS/HARDWARE-GUARDIAN)
@@ -22,6 +22,7 @@ echo   [6] Anleitung & Dokumentation anzeigen (ANLEITUNG.txt)
 echo   [7] Beenden
 echo.
 echo ================================================================================
+set "CHOICE="
 set /p "CHOICE=Ihre Auswahl [1-7]: "
 
 if "%CHOICE%"=="1" goto DO_SETUP
@@ -39,20 +40,26 @@ goto MENU
 
 :DO_SETUP
 echo.
-echo Starte Installations-Assistenten...
-if exist "Setup.exe" (
-    start "" "Setup.exe"
-) else (
-    call "Setup.cmd"
-)
-pause
+echo Starte Installation...
+call "%~dp0Setup.cmd"
 goto MENU
 
 :DO_START
 echo.
 echo Starte Hardware Guardian...
-call "HardwareGuardian.bat"
-pause
+where pwsh.exe >nul 2>nul
+if %errorlevel% equ 0 (
+    set "PS=pwsh.exe"
+) else (
+    set "PS=powershell.exe"
+)
+%PS% -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\build.ps1" -Run
+if %errorlevel% neq 0 (
+    echo.
+    echo [HINWEIS] Zum direkten Ausführen aus dem Quellcode wird das .NET 10 SDK benötigt.
+    echo Alternativ installieren Sie das Programm bitte über Option [1].
+    pause
+)
 goto MENU
 
 :DO_TESTS
@@ -92,6 +99,7 @@ if exist "ANLEITUNG.txt" (
     start "" notepad.exe "INSTALL.txt"
 ) else (
     echo Dokumentation liegt unter docs\SPEC-WMC-V1.md
+    pause
 )
 goto MENU
 
