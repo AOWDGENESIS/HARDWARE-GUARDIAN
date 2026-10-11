@@ -110,8 +110,13 @@ public sealed class BackupService : IBackupService
     public async Task<BackupRecord> CreateAsync(BackupRequest request, IProgress<ProgressSnapshot>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.OperationId))
+        {
+            throw new ArgumentException("A backup operation must have a non-empty operation ID.", nameof(request));
+        }
+        var operationId = request.OperationId;
 
-        var id = $"BKP-{_clock.Now:yyyyMMdd-HHmmss}-{Sanitise(request.OperationId)}";
+        var id = $"BKP-{_clock.Now:yyyyMMdd-HHmmss}-{Sanitise(operationId)}";
         var directory = _paths.EnsureDirectory(Path.Combine(_paths.BackupDirectory, id));
         var evidence = new List<string>();
         var restoreSteps = new List<string>();
@@ -237,7 +242,7 @@ public sealed class BackupService : IBackupService
         var manifest = new BackupManifest
         {
             Id = id,
-            OperationId = request.OperationId,
+            OperationId = operationId,
             Kind = request.Kind,
             Risk = request.Risk,
             Category = request.Category,
@@ -273,7 +278,7 @@ public sealed class BackupService : IBackupService
         return new BackupRecord
         {
             Id = id,
-            OperationId = request.OperationId,
+            OperationId = operationId,
             Kind = request.Kind,
             Risk = request.Risk,
             CreatedAt = _clock.Now,
