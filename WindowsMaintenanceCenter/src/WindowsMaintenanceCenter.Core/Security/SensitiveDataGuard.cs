@@ -58,10 +58,10 @@ public static class SensitiveDataGuard
         "password", "passwort", "passphrase", "pwd", "secret", "token", "apikey", "api_key", "accesskey",
     };
 
-    // "password = value", "password: value", "password value" and the JSON/URL shape "password":"value".
+    // "password = value", "password: value" and the JSON shape "password":"value". Bare words after a keyword are not assignments.
     // The value must be at least four characters, otherwise a placeholder such as "n/a" is a hit too.
     private static readonly Regex KeywordAssignment = new(
-        @"\b(?<key>" + string.Join("|", Keywords) + @")(?<sep>[""']?\s*[:=]\s*|[""']\s*:\s*|\s+)" +
+        @"\b(?<key>" + string.Join("|", Keywords) + @")(?<sep>[""']?\s*[:=]\s*|[""']\s*:\s*)" +
         @"(?<quote>[""']?)(?<value>[^\s""',;]{4,})(?<trailing>[""']?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 

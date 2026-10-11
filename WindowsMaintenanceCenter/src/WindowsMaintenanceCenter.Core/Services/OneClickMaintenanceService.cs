@@ -316,7 +316,8 @@ public sealed class OneClickMaintenanceService : IOneClickMaintenanceService
                         Audit = Array.Empty<AuditEntry>(),
                     },
                     request.ReportFormat,
-                    request.Report ?? new ReportOptions())
+                    request.Report ?? new ReportOptions(),
+                    cancellationToken)
                 .ConfigureAwait(false);
             Complete(steps, reportStep, StageOutcome.Succeeded, $"{report.Format} report at {report.FilePath}");
 
@@ -822,7 +823,7 @@ public sealed class OneClickMaintenanceService : IOneClickMaintenanceService
         {
             LabelKey = item.DisplayNameKey,
             OldValue = item.SizeBytes.Display(CultureInfo.InvariantCulture),
-            NewValue = LocalizedText.Of("OneClick_Approval_NewValue"),
+            NewValue = LocalizedText.Of("OneClick_Approval_NewValue").Key,
             Reason = item.Reason,
             Risk = item.Risk,
         }).ToList(),

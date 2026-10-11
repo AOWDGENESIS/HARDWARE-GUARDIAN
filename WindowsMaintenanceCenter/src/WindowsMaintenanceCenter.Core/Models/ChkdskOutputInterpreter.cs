@@ -40,7 +40,7 @@ public static class ChkdskOutputInterpreter
                               lower.Contains("volume is clean") ||
                               lower.Contains("no further action");
 
-        if (noProblemsFound && exitCode == 0)
+        if (noProblemsFound && exitCode == 0 && !repair)
         {
             return new ChkdskInterpretation(false, true, false, LocalizedText.Of("Integrity_Summary_ChkdskClean"));
         }

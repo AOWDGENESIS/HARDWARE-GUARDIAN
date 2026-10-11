@@ -1,3 +1,4 @@
+using WindowsMaintenanceCenter.Core.Abstractions;
 using WindowsMaintenanceCenter.Core.Values;
 
 namespace WindowsMaintenanceCenter.Core.Models;

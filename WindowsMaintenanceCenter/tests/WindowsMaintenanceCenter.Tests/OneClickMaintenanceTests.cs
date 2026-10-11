@@ -350,12 +350,12 @@ public sealed class OneClickMaintenanceTests
         {
             new StorageDeviceInfo
             {
-                Model = TextInfo.Known("Test disk", DataSource.LocalData),
+                Model = TextInfo.Known("Test disk", ValueOrigin.Create(DataSource.LocalData, SensorQuality.High, DateTimeOffset.UtcNow)),
                 Volumes = new[]
                 {
                     new VolumeInfo
                     {
-                        DriveLetter = TextInfo.Known("C:", DataSource.LocalData),
+                        DriveLetter = TextInfo.Known("C:", ValueOrigin.Create(DataSource.LocalData, SensorQuality.High, DateTimeOffset.UtcNow)),
                         SizeBytes = Measured<ulong>.Known(10_000u, ValueOrigin.Unknown),
                         FreeBytes = freeBytes is null
                             ? Measured<ulong>.NotAvailable("the volume did not report its free space")
