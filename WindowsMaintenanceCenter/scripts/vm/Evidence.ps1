@@ -230,10 +230,14 @@ function Add-WmcEvidenceFile {
         throw "the evidence file $Path does not exist - nothing was recorded"
     }
 
-    $item = Get-Item $Path
+    $item = Get-Item -LiteralPath $Path
     $target = Join-Path (Join-Path $Run.Folder 'logs') $item.Name
-    Copy-Item -Path $item.FullName -Destination $target -Force
-    $hash = (Get-FileHash -Algorithm SHA256 -Path $target).Hash.ToLowerInvariant()
+    $sourceFullPath = [System.IO.Path]::GetFullPath($item.FullName)
+    $targetFullPath = [System.IO.Path]::GetFullPath($target)
+    if (-not [string]::Equals($sourceFullPath, $targetFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Copy-Item -LiteralPath $item.FullName -Destination $target -Force
+    }
+    $hash = (Get-FileHash -Algorithm SHA256 -Path $targetFullPath).Hash.ToLowerInvariant()
 
     $Run.Evidence.Add([pscustomobject]@{
         file        = "logs/$($item.Name)"
