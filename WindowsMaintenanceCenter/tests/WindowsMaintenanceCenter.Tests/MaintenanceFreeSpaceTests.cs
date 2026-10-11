@@ -1,3 +1,4 @@
+using WindowsMaintenanceCenter.Core;
 using WindowsMaintenanceCenter.Core.Models;
 using WindowsMaintenanceCenter.Core.Values;
 using Xunit;
@@ -33,8 +34,8 @@ public sealed class MaintenanceFreeSpaceTests
 
         Assert.NotNull(result.SystemFreeSpaceBefore);
         Assert.NotNull(result.SystemFreeSpaceAfter);
-        Assert.True(result.SystemFreeSpaceBefore.Value.IsKnown);
-        Assert.True(result.SystemFreeSpaceAfter.Value.IsKnown);
+        Assert.True(result.SystemFreeSpaceBefore.HasValue);
+        Assert.True(result.SystemFreeSpaceAfter.HasValue);
         Assert.Equal(50_000_000_000L, result.SystemFreeSpaceBefore.Value.Value);
         Assert.Equal(52_000_000_000L, result.SystemFreeSpaceAfter.Value.Value);
     }
@@ -52,7 +53,7 @@ public sealed class MaintenanceFreeSpaceTests
         };
 
         Assert.True(result.WasNothingDeleted);
-        Assert.False(result.FreedBytes.IsKnown);
+        Assert.False(result.FreedBytes.HasValue);
         Assert.Null(result.SystemFreeSpaceBefore);
         Assert.Null(result.SystemFreeSpaceAfter);
     }
