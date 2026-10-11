@@ -317,7 +317,7 @@ jobs:
           $summary | Set-Content -Encoding utf8 (Join-Path $target 'run.txt')
           Write-Host "Evidence collected at $target"
         env:
-          JOB_STATUS: \${{ job.status }}
+          JOB_STATUS: ${{ job.status }}
 
       - name: Upload the artefacts, the test results, the lock files and the environment record
         if: always()
