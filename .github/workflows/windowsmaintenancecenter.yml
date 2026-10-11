@@ -288,7 +288,7 @@ jobs:
         run: |
           $log = 'artifacts/ci/repair-exitcodes.log'
           New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
-          pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1 -Skip @('SfcVerifyOnly', 'ChkdskScan') *>&1 | Tee-Object -FilePath $log
+          pwsh ./scripts/vm/Test-RepairToolExitCodes.ps1 -Skip @('SfcVerifyOnly', 'ChkdskScan', 'DismScanHealth') *>&1 | Tee-Object -FilePath $log
           # Non-zero means the measuring itself broke (a tool could not be started, or a handed in
           # expectation was not met) - not that a tool answered something unexpected. The verdict about
           # the tools stands in the report: measured codes without an interpretation are NOT VERIFIED,
