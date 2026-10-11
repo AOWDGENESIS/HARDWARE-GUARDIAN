@@ -350,7 +350,7 @@ public sealed class OneClickMaintenanceTests
         {
             new StorageDeviceInfo
             {
-                Model = TextInfo.Known("Test disk", DataSource.LocalData),
+                Model = TextInfo.Known("Test disk", ValueOrigin.Create(DataSource.LocalData, SensorQuality.High, DateTimeOffset.UtcNow)),
                 Volumes = new[]
                 {
                     new VolumeInfo
