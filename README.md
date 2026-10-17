@@ -1,90 +1,54 @@
 # HARDWARE GUARDIAN / Windows Maintenance Center
 
-**Lokale Windows Hardware-Diagnose, Wartungs- und Update-Zentrale mit lückenlosem Protokoll (100 % Offline).**
+**Windows-Hardwarediagnose und Wartungsplanung mit nachvollziehbaren Befunden, ausdruecklicher Freigabe und Sicherheitspruefungen.**
 
-HARDWARE GUARDIAN diagnostiziert Hardware- und Windows-Zustände bis ins Detail, erklärt alle Befunde verständlich und führt Änderungen ausschließlich nach Ihrer expliziten Freigabe durch – stets mit automatischer Sicherung und Rückrollweg.
+HARDWARE GUARDIAN ist ein Windows-Projekt zur Erfassung von Systeminformationen, Diagnose von Geraeten und Windows-Zustaenden sowie zur kontrollierten Planung von Wartungsaktionen. Ergebnisse und Grenzen muessen anhand der jeweiligen Datenquelle bewertet werden. Nicht verfuegbare Werte duerfen nicht als bestaetigte Fehler dargestellt werden.
 
-Kein Driver-Booster, kein Registry-Cleaner und keine Pseudo-Optimierung ohne Nachweis. Es ist ein transparentes Diagnose- und Wartungswerkzeug nach Industriestandard.
+Sprachen: **Deutsch** | [English](WindowsMaintenanceCenter/README.md) | [日本語](WindowsMaintenanceCenter/README.ja.md) | [Русский](WindowsMaintenanceCenter/README.ru.md)
 
-Sprachen / Languages:
-**Deutsch** | [English](WindowsMaintenanceCenter/README.md) | [日本語](WindowsMaintenanceCenter/README.ja.md) | [Русский](WindowsMaintenanceCenter/README.ru.md)
+## Funktionen
 
----
+- Hardware- und Geraeteinventar, soweit Windows und die jeweiligen Treiber Daten bereitstellen.
+- Diagnose von PnP-/Treiberstatus, Windows-Ereignissen und Systemintegritaet.
+- Wartungsplanung mit Trockenlauf und expliziter Bestaetigung vor vorgesehenen Aenderungen.
+- Protokolle und maschinenlesbare Berichte fuer nachvollziehbare Ergebnisse.
+- Bewertung von Treiber-/Firmwareinformationen; Firmware wird nicht ohne ausdrueckliche separate Aktion geflasht.
 
-## Schnellstart unter Windows
+## Sicherheitsgrundsaetze
 
-1. **Repository herunterladen / klonen:**
-   * Entweder oben auf den grünen Button **Code → Download ZIP** klicken und entpacken.
-   * Oder per Befehlszeile:
-     ```cmd
-     git clone https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git
-     cd HARDWARE-GUARDIAN
-     ```
+- Keine stillen Systemaenderungen oder UAC-Umgehung.
+- Unbekannte oder nicht lesbare Werte werden als unbekannt behandelt.
+- Trockenlauf und Bestaetigung sind kein Ersatz fuer ein Backup oder eine Wiederherstellungsstrategie.
+- Ein Wiederherstellungspunkt kann je nach Windows-Konfiguration fehlschlagen oder nicht verfuegbar sein. Vor jeder Wartung wichtige Daten sichern.
+- Netzwerkzugriff kann fuer Update-/Herstellerinformationen, Downloads oder andere optionale Funktionen erforderlich sein. Das Projekt wird daher nicht pauschal als vollstaendig offline beschrieben.
+- Pruefe jede Empfehlung, bevor du sie auf einem produktiven System ausfuehrst.
 
-2. **Zentrale Start-Routine ausführen:**
-   * **Doppelklick auf `START.bat`**
-   * Es öffnet sich das interaktive Hauptmenü:
-     * `[1]` Installations-Assistent starten (Standard Windows Setup GUI)
-     * `[2]` Anwendung direkt aufrufen (Hardware Guardian Launcher)
-     * `[3]` VM-Testumgebung & Evidenzprüfungen durchführen (scripts\vm)
-     * `[4]` Deinstallation aufrufen (Sauberes Entfernen mit Datenaufbewahrungs-Abfrage)
-     * `[5]` Stand zu GitHub synchronisieren
-     * `[6]` Ausführliche Anleitung anzeigen (`ANLEITUNG.txt`)
+## Schnellstart
 
-3. **Alternativ direkt als Installer:**
-   * Doppelklick auf `Setup.exe` oder `HardwareGuardian.bat`
-
----
-
-## Kernfunktionen
-
-* **Vollständige Hardware-Erkennung**:
-  Prozessor (CPU), Mainboard (inkl. Board-Revision), BIOS/UEFI, Arbeitsspeicher (RAM), Grafikkarte (GPU), Massenspeicher (SMART-Werte, NVMe-Verschleiß), Netzwerkadapter, WLAN, Bluetooth, Audio, USB-Geräte, PCI/PCIe-Busse, Chipsatz, Monitore, Drucker, Akku und Sensoren. Jeder Wert deklariert seine Herkunft (`WMI`, `Windows API`, `Registry`, `Herstellerquelle`). Nicht lesbare Werte werden ehrlich als `UNKNOWN` mit Ursache ausgewiesen.
-* **Tiefgehende Windows-Diagnose**:
-  Treiber- und PnP-Status, Windows-Systemintegrität (DISM / SFC), Ereignisprotokoll (Event Log), Windows Defender Status und Windows Update Zustand mit eindeutigen Befund-IDs (z. B. `HW-CPU-001`).
-* **Sichere Wartung mit Pflicht-Trockenlauf**:
-  Fester 6-Schritte-Ablauf: Scan → Plan → **Pflicht-Trockenlauf (Dry Run)** → Freigabe → Ausführung → Validierung. Kategorien: `SAFE`, `OPTIONAL`, `PROTECTED` oder `UNKNOWN`. Geschützte und unbekannte Bereiche werden gemessen, aber niemals automatisiert verändert.
-* **Verifizierte Updates**:
-  Prüfung ausschließlich gegen offizielle Hersteller- und Microsoft-Quellen. Firmware-Stände werden bewertet, aber niemals unaufgefordert geflasht.
-* **Vollständiges Audit- und Protokollsystem**:
-  Echtzeitprotokoll sowie lückenlose Berichte als maschinenlesbares JSON, TXT und druckbares HTML.
-
----
-
-## Sicherheitsmerkmale
-
-| Eigenschaft | Durchsetzung |
-| :--- | :--- |
-| **Keine Telemetrie / Offline** | 100 % lokal, keine Cloud-Pflicht, keine Datenübertragung nach außen. |
-| **Kein UAC-Bypass** | Aktionen mit Admin-Rechten erfordern den regulären Windows UAC-Dialog. |
-| **Keine Defender-Abschaltung** | Viren- und Firewall-Schutz werden weder deaktiviert noch herabgestuft. |
-| **Rollback-Schutz** | Pflicht-Wiederherstellungspunkt vor jeder ändernden Systemoperation. |
-| **Echte Validierung** | `PASSED` und `SUCCESS` existieren nur nach messbarem Erfolgsnachweis (Spec Kap. 86). |
-
----
+1. Repository herunterladen oder klonen:
+   ```powershell
+   git clone https://github.com/AOWDGENESIS/HARDWARE-GUARDIAN.git
+   Set-Location HARDWARE-GUARDIAN
+   ```
+2. Lies `ANLEITUNG.txt` und die Hinweise in `WindowsMaintenanceCenter/`.
+3. Verwende den vorgesehenen Starter oder Installer nur nach Pruefung der Herkunft und Integritaet der heruntergeladenen Dateien.
+4. Fuer Entwicklung und Tests nutze die Solution und die Testanweisungen in `WindowsMaintenanceCenter/`.
 
 ## Projektstruktur
 
-```text
-HARDWARE-GUARDIAN/
-├── START.bat                               <-- Zentrale interaktive Start-Routine
-├── ANLEITUNG.txt                           <-- Ausführliche deutsche Benutzeranleitung
-├── HardwareGuardian.bat                    <-- Schneller Programm-Starter
-├── Setup.exe                               <-- Nativer Windows x64 GUI-Installationsassistent
-├── Setup.cmd                               <-- Erweiterter Setup-Starter (mit /SILENT & /BUILD)
-├── WindowsMaintenanceCenter/               <-- Gesamte C#/.NET 10 Solution (15 Projekte, 168 Quelldateien)
-│   ├── src/                                <-- Quellcode (App, Core, Windows, Bios, Diagnostics etc.)
-│   ├── tests/                              <-- Testsuite (370 Unit-, Integration- & Security-Tests)
-│   ├── test-results/                       <-- Evidenzverzeichnis (10 Prüfbereiche gem. Kap. 71)
-│   ├── docs/                               <-- Spezifikation V1.0, Abnahmeberichte, Release-Status
-│   ├── scripts/                            <-- Build-, Release- und VM-Prüfskripte
-│   └── installer/                          <-- GUI-Installer, Uninstaller & Inno-Setup-Skripte
-├── docs/                                   <-- Plattform- & Architektur-Dokumente
-└── tools/                                  <-- Prüf- und Validierungswerkzeuge
-```
+- `WindowsMaintenanceCenter/`: .NET-Anwendung, Tests, Dokumentation und Build-/Installerskripte.
+- `docs/`: uebergeordnete Architektur- und Projektdokumentation.
+- `scripts/` und `tools/`: Diagnose- und Validierungswerkzeuge.
+- `ANLEITUNG.txt`: deutsche Benutzeranleitung.
 
----
+## Status und Qualitaet
 
-## Lizenz & Qualität
-* **Qualitätsstandard:** Entwickelt nach der verbindlichen Spezifikation V1.0 (Kapitel 1–103).
-* **Testabdeckung:** 370 automatisierte Tests, 10 nachgewiesene Evidenzbereiche, 0 gefälschte Erfolgsmeldungen.
+Dieses Repository enthaelt Windows-spezifische Funktionen. Ein erfolgreicher Build oder ein Unit-Test allein beweist nicht, dass jede Wartungsaktion auf allen Windows-Systemen sicher oder verfuegbar ist. Siehe Testberichte und CI-Ergebnisse fuer den tatsaechlich geprueften Umfang. Veraltete oder nicht reproduzierbare Zahlen zur Testanzahl werden hier bewusst nicht als aktuelle Garantie wiederholt.
+
+## Mitwirken
+
+Fehlerberichte sollten Windows-Version, relevante Protokollauszuege und reproduzierbare Schritte enthalten. Entferne vorher Benutzernamen, Seriennummern, Tokens und andere private Daten. Aenderungen an Systemwartung benoetigen Tests fuer Erfolgs-, Fehler-, Abbruch- und Rollback-Pfade.
+
+## Lizenz
+
+Der Projektquellcode ist unter der MIT-Lizenz lizenziert. Siehe [LICENSE](LICENSE). Drittanbieterkomponenten und mitgelieferte Binaerdateien koennen eigenen Lizenz- und Herkunftsbedingungen unterliegen; pruefe deren jeweilige Hinweise separat.
